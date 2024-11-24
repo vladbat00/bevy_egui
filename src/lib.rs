@@ -694,6 +694,7 @@ impl Plugin for EguiPlugin {
             PreStartup,
             (
                 setup_new_windows_system,
+                #[cfg(feature = "render")]
                 setup_render_to_texture_handles_system,
                 apply_deferred,
                 update_contexts_system,
@@ -706,6 +707,7 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 setup_new_windows_system,
+                #[cfg(feature = "render")]
                 setup_render_to_texture_handles_system,
                 apply_deferred,
                 update_contexts_system,
@@ -922,16 +924,14 @@ pub fn setup_new_windows_system(
         ));
     }
 }
+
 /// Adds bevy_egui components to newly created windows.
+#[cfg(feature = "render")]
 pub fn setup_render_to_texture_handles_system(
     mut commands: Commands,
-    #[cfg(feature = "render")] new_render_to_texture_targets: Query<
+    new_render_to_texture_targets: Query<
         Entity,
         (Added<EguiRenderToTextureHandle>, Without<EguiContext>),
-    >,
-    #[cfg(not(feature = "render"))] new_render_to_texture_targets: Query<
-        Entity,
-        Without<EguiContext>,
     >,
 ) {
     for render_to_texture_target in new_render_to_texture_targets.iter() {
