@@ -97,6 +97,7 @@ bevy = { version = "0.15.0-rc.3", default-features = false, features = [
     "bevy_winit",
     "tonemapping_luts",
     "webgl2",
+    "android-game-activity",
 ] }
 egui = { version = "0.29", default-features = false, features = ["bytemuck"] }
 
