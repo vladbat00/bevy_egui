@@ -96,7 +96,9 @@ pub fn install_text_agent(
         .expect("failed input type coercion");
     let input = std::rc::Rc::new(input);
     input.set_type("text");
-    input.set_autofocus(true);
+    if let Err(err) = (&input as &web_sys::HtmlElement).set_autofocus(true) {
+        log::warn!("Failed to set input autofocus: {err:?}");
+    }
     input
         .set_attribute("autocapitalize", "off")
         .expect("failed to turn off autocapitalize");
@@ -134,7 +136,9 @@ pub fn install_text_agent(
     }
     // Set size as small as possible, in case user may click on it.
     input.set_size(1);
-    input.set_autofocus(true);
+    if let Err(err) = (&input as &web_sys::HtmlElement).set_autofocus(true) {
+        log::warn!("Failed to set input autofocus: {err:?}");
+    }
     input.set_hidden(true);
 
     let sender = text_agent_channel.sender.clone();
