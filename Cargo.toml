@@ -21,8 +21,9 @@ manage_clipboard = ["arboard", "thread_local"]
 open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
 render = [
-    "bevy_render",
     "bevy_asset",
+    "bevy_image",
+    "bevy_render",
     "encase",
     "bytemuck",
     "egui/bytemuck",
@@ -59,25 +60,26 @@ required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.29", default-features = false }
-bevy_app = "0.15.0-rc.3"
-bevy_derive = "0.15.0-rc.3"
-bevy_ecs = "0.15.0-rc.3"
-bevy_input = "0.15.0-rc.3"
-bevy_log = "0.15.0-rc.3"
-bevy_math = "0.15.0-rc.3"
-bevy_reflect = "0.15.0-rc.3"
-bevy_time = "0.15.0-rc.3"
-bevy_utils = "0.15.0-rc.3"
-bevy_winit = { version = "0.15.0-rc.3", features = ["custom_cursor"] }
-bevy_window = "0.15.0-rc.3"
+bevy_app = "0.15.0"
+bevy_derive = "0.15.0"
+bevy_ecs = "0.15.0"
+bevy_input = "0.15.0"
+bevy_log = "0.15.0"
+bevy_math = "0.15.0"
+bevy_reflect = "0.15.0"
+bevy_time = "0.15.0"
+bevy_utils = "0.15.0"
+bevy_winit = { version = "0.15.0", features = ["custom_cursor"] }
+bevy_window = "0.15.0"
 
 # `open_url` feature
 webbrowser = { version = "1.0.1", optional = true }
 
 # `render` feature
 bytemuck = { version = "1", optional = true }
-bevy_asset = { version = "0.15.0-rc.3", optional = true }
-bevy_render = { version = "0.15.0-rc.3", optional = true }
+bevy_asset = { version = "0.15.0", optional = true }
+bevy_image = { version = "0.15.0", optional = true }
+bevy_render = { version = "0.15.0", optional = true }
 encase = { version = "0.10", optional = true }
 wgpu-types = { version = "23.0", optional = true }
 
@@ -88,12 +90,13 @@ thread_local = { version = "1.1.0", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.4"
-bevy = { version = "0.15.0-rc.3", default-features = false, features = [
+bevy = { version = "0.15.0", default-features = false, features = [
     "x11",
     "png",
     "bevy_pbr",
     "bevy_core_pipeline",
     "bevy_asset",
+    "bevy_window",
     "bevy_winit",
     "tonemapping_luts",
     "webgl2",

@@ -6,12 +6,16 @@ use crate::{
     EguiContext, EguiContextQuery, EguiContextQueryItem, EguiFullOutput, EguiInput, EguiSettings,
     RenderTargetSize,
 };
+#[cfg(feature = "render")]
+use bevy_asset::Assets;
 use bevy_ecs::{
     event::EventWriter,
     prelude::*,
     query::QueryEntityError,
     system::{Local, Res, SystemParam},
 };
+#[cfg(feature = "render")]
+use bevy_image::Image;
 use bevy_input::{
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
@@ -22,11 +26,6 @@ use bevy_log::{self, error};
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, Ime, RequestRedraw};
 use bevy_winit::{EventLoopProxy, WakeUp};
-
-#[cfg(feature = "render")]
-use bevy_asset::Assets;
-#[cfg(feature = "render")]
-use bevy_render::texture::Image;
 use std::{marker::PhantomData, time::Duration};
 
 #[allow(missing_docs)]

@@ -79,10 +79,14 @@ mod text_agent;
 ))]
 pub mod web_clipboard;
 
-use bevy_winit::cursor::CursorIcon;
 pub use egui;
 
 use crate::systems::*;
+#[cfg(target_arch = "wasm32")]
+use crate::text_agent::{
+    install_text_agent, is_mobile_safari, process_safari_virtual_keyboard, propagate_text,
+    SafariVirtualKeyboardHack, TextAgentChannel, VirtualTouchInfo,
+};
 #[cfg(feature = "render")]
 use crate::{
     egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
@@ -93,19 +97,9 @@ use crate::{
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use arboard::Clipboard;
-
+use bevy_app::prelude::*;
 #[cfg(feature = "render")]
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle};
-#[cfg(feature = "render")]
-use bevy_render::{
-    extract_component::{ExtractComponent, ExtractComponentPlugin},
-    extract_resource::{ExtractResource, ExtractResourcePlugin},
-    render_resource::SpecializedRenderPipelines,
-    texture::{Image, ImageSampler},
-    ExtractSchedule, Render, RenderApp, RenderSet,
-};
-
-use bevy_app::prelude::*;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
@@ -113,24 +107,26 @@ use bevy_ecs::{
     schedule::apply_deferred,
     system::SystemParam,
 };
+#[cfg(feature = "render")]
+use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
 use bevy_reflect::Reflect;
+#[cfg(feature = "render")]
+use bevy_render::{
+    extract_component::{ExtractComponent, ExtractComponentPlugin},
+    extract_resource::{ExtractResource, ExtractResourcePlugin},
+    render_resource::SpecializedRenderPipelines,
+    ExtractSchedule, Render, RenderApp, RenderSet,
+};
 use bevy_window::{PrimaryWindow, SystemCursorIcon, Window};
-
+use bevy_winit::cursor::CursorIcon;
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
-
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-use crate::text_agent::{
-    install_text_agent, is_mobile_safari, process_safari_virtual_keyboard, propagate_text,
-    SafariVirtualKeyboardHack, TextAgentChannel, VirtualTouchInfo,
-};
 
 /// Adds all Egui resources and render graph nodes.
 pub struct EguiPlugin;

@@ -19,7 +19,6 @@ use bevy_render::{
     sync_world::{MainEntity, RenderEntity},
     texture::GpuImage,
 };
-
 use bytemuck::cast_slice;
 
 /// [`RenderLabel`] type for the Egui Render to Texture pass.

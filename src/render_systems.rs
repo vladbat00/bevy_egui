@@ -7,6 +7,7 @@ use crate::{
 use bevy_asset::prelude::*;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::*, system::SystemParam};
+use bevy_image::Image;
 use bevy_math::Vec2;
 use bevy_render::{
     extract_resource::ExtractResource,
@@ -18,7 +19,7 @@ use bevy_render::{
     },
     renderer::{RenderDevice, RenderQueue},
     sync_world::{MainEntity, RenderEntity},
-    texture::{GpuImage, Image},
+    texture::GpuImage,
     view::ExtractedWindows,
     Extract,
 };

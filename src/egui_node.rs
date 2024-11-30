@@ -9,6 +9,7 @@ use bevy_ecs::{
     prelude::*,
     world::{FromWorld, World},
 };
+use bevy_image::{Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
 use bevy_render::{
     render_asset::RenderAssetUsages,
     render_graph::{Node, NodeRunError, RenderGraphContext},
@@ -25,9 +26,7 @@ use bevy_render::{
     },
     renderer::{RenderContext, RenderDevice, RenderQueue},
     sync_world::{MainEntity, RenderEntity},
-    texture::{
-        GpuImage, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
-    },
+    texture::GpuImage,
     view::{ExtractedWindow, ExtractedWindows},
 };
 use bytemuck::cast_slice;
@@ -167,6 +166,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             depth_stencil: None,
             multisample: MultisampleState::default(),
             push_constant_ranges: vec![],
+            zero_initialize_workgroup_memory: false,
         }
     }
 }

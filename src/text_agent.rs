@@ -1,16 +1,12 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
 
-use std::sync::{LazyLock, Mutex};
-
+use crate::{systems::ContextSystemParams, EventClosure, SubscribedEvents};
 use bevy_ecs::prelude::*;
 use bevy_window::RequestRedraw;
-
 use crossbeam_channel::{unbounded, Receiver, Sender};
-
+use std::sync::{LazyLock, Mutex};
 use wasm_bindgen::prelude::*;
-
-use crate::{systems::ContextSystemParams, EventClosure, SubscribedEvents};
 
 static AGENT_ID: &str = "egui_text_agent";
 
