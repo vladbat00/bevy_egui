@@ -79,6 +79,7 @@ mod text_agent;
 ))]
 pub mod web_clipboard;
 
+use bevy_winit::cursor::CursorIcon;
 pub use egui;
 
 use crate::systems::*;
@@ -96,11 +97,12 @@ use arboard::Clipboard;
 #[cfg(feature = "render")]
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle};
 #[cfg(feature = "render")]
+use bevy_image::{Image, ImageSampler};
+#[cfg(feature = "render")]
 use bevy_render::{
     extract_component::{ExtractComponent, ExtractComponentPlugin},
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
-    texture::{Image, ImageSampler},
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
 
@@ -114,7 +116,7 @@ use bevy_ecs::{
 };
 use bevy_input::InputSystem;
 use bevy_reflect::Reflect;
-use bevy_window::{PrimaryWindow, Window};
+use bevy_window::{PrimaryWindow, SystemCursorIcon, Window};
 
 #[cfg(all(
     feature = "manage_clipboard",
@@ -868,6 +870,8 @@ pub struct EguiContextQuery {
     pub render_target_size: &'static mut RenderTargetSize,
     /// [`Window`] component, when rendering to a window.
     pub window: Option<&'static mut Window>,
+    /// [`CursorIcon`] component.
+    pub cursor: Option<&'static mut CursorIcon>,
     /// [`EguiRenderToTextureHandle`] component, when rendering to a texture.
     #[cfg(feature = "render")]
     pub render_to_texture: Option<&'static mut EguiRenderToTextureHandle>,
@@ -921,6 +925,7 @@ pub fn setup_new_windows_system(
             EguiFullOutput::default(),
             EguiOutput::default(),
             RenderTargetSize::default(),
+            CursorIcon::System(SystemCursorIcon::Default),
         ));
     }
 }
@@ -1034,7 +1039,7 @@ fn free_egui_textures_system(
 
     for image_event in image_events.read() {
         if let AssetEvent::Removed { id } = image_event {
-            egui_user_textures.remove_image(&Handle::<Image>::Weak(*id));
+            egui_user_textures.remove_image(&Handle::<Image>::Weak(id.clone()));
         }
     }
 }
