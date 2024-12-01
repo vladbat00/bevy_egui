@@ -14,7 +14,7 @@ use bevy::{
 };
 use bevy_egui::{
     egui_node::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
-    EguiContexts, EguiPlugin, EguiRenderToTextureHandle,
+    EguiContexts, EguiPlugin, EguiRenderToImage,
 };
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureUsages};
@@ -25,7 +25,7 @@ fn main() {
         .add_systems(Startup, setup_worldspace)
         .add_systems(
             Update,
-            (ui_example_system, ui_render_to_texture_example_system),
+            (ui_example_system, ui_render_to_image_example_system),
         )
         .run();
 }
@@ -209,22 +209,22 @@ fn setup_worldspace(
         Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0).mesh())),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::WHITE,
-            base_color_texture: Some(Handle::clone(&output_texture)),
+            base_color_texture: Some(output_texture.clone()),
             alpha_mode: AlphaMode::Blend,
             // Remove this if you want it to use the world's lighting.
             unlit: true,
             ..default()
         })),
     ));
-    commands.spawn(EguiRenderToTextureHandle(output_texture));
+    commands.spawn(EguiRenderToImage::new(output_texture.clone_weak()));
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(1.5, 1.5, 1.5).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
     ));
 }
 
-fn ui_render_to_texture_example_system(
-    mut contexts: Query<&mut bevy_egui::EguiContext, With<EguiRenderToTextureHandle>>,
+fn ui_render_to_image_example_system(
+    mut contexts: Query<&mut bevy_egui::EguiContext, With<EguiRenderToImage>>,
 ) {
     for mut ctx in contexts.iter_mut() {
         egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {

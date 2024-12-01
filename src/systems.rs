@@ -1,7 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 #[cfg(feature = "render")]
-use crate::EguiRenderToTextureHandle;
+use crate::EguiRenderToImage;
 use crate::{
     EguiContext, EguiContextQuery, EguiContextQueryItem, EguiFullOutput, EguiInput, EguiSettings,
     RenderTargetSize,
@@ -526,7 +526,7 @@ pub fn update_contexts_system(
             ));
         }
         #[cfg(feature = "render")]
-        if let Some(EguiRenderToTextureHandle(handle)) = context.render_to_texture.as_deref() {
+        if let Some(EguiRenderToImage { handle, .. }) = context.render_to_image.as_deref() {
             let image = images.get(handle).expect("rtt handle should be valid");
             let size = image.size_f32();
             render_target_size = Some(RenderTargetSize {

@@ -1,13 +1,12 @@
 use crate::{
-    egui_node::{EguiNode, EguiPipeline, EguiPipelineKey},
-    egui_render_to_texture_node::{EguiRenderToTextureNode, EguiRenderToTexturePass},
-    EguiManagedTextures, EguiRenderToTextureHandle, EguiSettings, EguiUserTextures,
-    RenderTargetSize,
+    egui_node::{EguiNode, EguiPipeline, EguiPipelineKey, EguiRenderTargetType},
+    EguiManagedTextures, EguiRenderToImage, EguiSettings, EguiUserTextures, RenderTargetSize,
 };
 use bevy_asset::prelude::*;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::*, system::SystemParam};
 use bevy_image::Image;
+use bevy_log as log;
 use bevy_math::Vec2;
 use bevy_render::{
     extract_resource::ExtractResource,
@@ -66,6 +65,28 @@ pub struct EguiPass {
     pub entity_index: u32,
     /// Generation of the window entity.
     pub entity_generation: u32,
+    /// Render target type (e.g. window, image).
+    pub render_target_type: EguiRenderTargetType,
+}
+
+impl EguiPass {
+    /// Creates a pass from a window Egui context.
+    pub fn from_window_entity(entity: Entity) -> Self {
+        Self {
+            entity_index: entity.index(),
+            entity_generation: entity.generation(),
+            render_target_type: EguiRenderTargetType::Window,
+        }
+    }
+
+    /// Creates a pass from a "render to image" Egui context.
+    pub fn from_render_to_image_entity(entity: Entity) -> Self {
+        Self {
+            entity_index: entity.index(),
+            entity_generation: entity.generation(),
+            render_target_type: EguiRenderTargetType::Image,
+        }
+    }
 }
 
 impl ExtractedEguiTextures<'_> {
@@ -89,44 +110,68 @@ impl ExtractedEguiTextures<'_> {
     }
 }
 
-/// Sets up the pipeline for newly created windows.
-pub fn setup_new_windows_render_system(
+/// Sets up render nodes for newly created window Egui contexts.
+pub fn setup_new_window_nodes_system(
     windows: Extract<Query<(Entity, &RenderEntity), Added<Window>>>,
     mut render_graph: ResMut<RenderGraph>,
 ) {
-    for (window, render_window) in windows.iter() {
-        let egui_pass = EguiPass {
-            entity_index: render_window.index(),
-            entity_generation: render_window.generation(),
-        };
-        let new_node = EguiNode::new(MainEntity::from(window), *render_window);
+    for (window_entity, window_render_entity) in windows.iter() {
+        let egui_pass = EguiPass::from_window_entity(window_entity);
+        let new_node = EguiNode::new(
+            MainEntity::from(window_entity),
+            *window_render_entity,
+            EguiRenderTargetType::Window,
+        );
 
         render_graph.add_node(egui_pass.clone(), new_node);
 
         render_graph.add_node_edge(bevy_render::graph::CameraDriverLabel, egui_pass);
     }
 }
-/// Sets up the pipeline for newly created Render to texture entities.
-pub fn setup_new_rtt_render_system(
-    render_to_texture_targets: Extract<
-        Query<(Entity, &RenderEntity), Added<EguiRenderToTextureHandle>>,
-    >,
+
+/// Tears render nodes down for deleted window Egui contexts.
+pub fn teardown_window_nodes_system(
+    mut removed_windows: Extract<RemovedComponents<Window>>,
     mut render_graph: ResMut<RenderGraph>,
 ) {
-    for (render_to_texture_target, render_entity) in render_to_texture_targets.iter() {
-        let egui_rtt_pass = EguiRenderToTexturePass {
-            entity_index: render_to_texture_target.index(),
-            entity_generation: render_to_texture_target.generation(),
-        };
+    for window_entity in removed_windows.read() {
+        if let Err(err) = render_graph.remove_node(EguiPass::from_window_entity(window_entity)) {
+            log::error!("Failed to remove a render graph node: {err:?}");
+        }
+    }
+}
 
-        let new_node = EguiRenderToTextureNode::new(
+/// Sets up render nodes for newly created "render to texture" Egui contexts.
+pub fn setup_new_render_to_image_nodes_system(
+    render_to_image_targets: Extract<Query<(Entity, &RenderEntity), Added<EguiRenderToImage>>>,
+    mut render_graph: ResMut<RenderGraph>,
+) {
+    for (render_to_image_entity, render_entity) in render_to_image_targets.iter() {
+        let egui_pass = EguiPass::from_render_to_image_entity(render_to_image_entity);
+
+        let new_node = EguiNode::new(
+            MainEntity::from(render_to_image_entity),
             *render_entity,
-            MainEntity::from(render_to_texture_target),
+            EguiRenderTargetType::Image,
         );
 
-        render_graph.add_node(egui_rtt_pass.clone(), new_node);
+        render_graph.add_node(egui_pass.clone(), new_node);
 
-        render_graph.add_node_edge(egui_rtt_pass, bevy_render::graph::CameraDriverLabel);
+        render_graph.add_node_edge(egui_pass, bevy_render::graph::CameraDriverLabel);
+    }
+}
+
+/// Tears render nodes down for deleted "render to texture" Egui contexts.
+pub fn teardown_render_to_image_nodes_system(
+    mut removed_windows: Extract<RemovedComponents<EguiRenderToImage>>,
+    mut render_graph: ResMut<RenderGraph>,
+) {
+    for window_entity in removed_windows.read() {
+        if let Err(err) =
+            render_graph.remove_node(EguiPass::from_render_to_image_entity(window_entity))
+        {
+            log::error!("Failed to remove a render graph node: {err:?}");
+        }
     }
 }
 
@@ -260,7 +305,7 @@ pub fn queue_pipelines_system(
     mut specialized_pipelines: ResMut<SpecializedRenderPipelines<EguiPipeline>>,
     egui_pipeline: Res<EguiPipeline>,
     windows: Res<ExtractedWindows>,
-    render_to_texture: Query<(&MainEntity, &EguiRenderToTextureHandle)>,
+    render_to_image: Query<(&MainEntity, &EguiRenderToImage)>,
     images: Res<RenderAssets<GpuImage>>,
 ) {
     let mut pipelines: HashMap<MainEntity, CachedRenderPipelineId> = windows
@@ -274,10 +319,10 @@ pub fn queue_pipelines_system(
         .collect();
 
     pipelines.extend(
-        render_to_texture
+        render_to_image
             .iter()
-            .filter_map(|(main_entity, handle)| {
-                let img = images.get(&handle.0)?;
+            .filter_map(|(main_entity, render_to_image)| {
+                let img = images.get(&render_to_image.handle)?;
                 let key = EguiPipelineKey::from_gpu_image(img);
                 let pipeline_id =
                     specialized_pipelines.specialize(&pipeline_cache, &egui_pipeline, key);

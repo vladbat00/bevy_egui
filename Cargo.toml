@@ -56,7 +56,7 @@ required-features = ["render"]
 name = "ui"
 required-features = ["render"]
 [[example]]
-name = "render_egui_to_texture"
+name = "render_egui_to_image"
 required-features = ["render"]
 
 [dependencies]

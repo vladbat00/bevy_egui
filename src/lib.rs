@@ -61,8 +61,6 @@ compile_error!(include_str!("../static/error_web_sys_unstable_apis.txt"));
 #[cfg(feature = "render")]
 pub mod egui_node;
 /// Egui render node for rendering to a texture.
-#[cfg(feature = "render")]
-pub mod egui_render_to_texture_node;
 /// Plugin systems for the render app.
 #[cfg(feature = "render")]
 pub mod render_systems;
@@ -115,7 +113,7 @@ use bevy_reflect::Reflect;
 use bevy_render::{
     extract_component::{ExtractComponent, ExtractComponentPlugin},
     extract_resource::{ExtractResource, ExtractResourcePlugin},
-    render_resource::SpecializedRenderPipelines,
+    render_resource::{LoadOp, SpecializedRenderPipelines},
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_window::{PrimaryWindow, SystemCursorIcon, Window};
@@ -360,7 +358,7 @@ impl EguiContext {
 type EguiContextsFilter = With<Window>;
 
 #[cfg(feature = "render")]
-type EguiContextsFilter = Or<(With<Window>, With<EguiRenderToTextureHandle>)>;
+type EguiContextsFilter = Or<(With<Window>, With<EguiRenderToImage>)>;
 
 #[derive(SystemParam)]
 /// A helper SystemParam that provides a way to get [`EguiContext`] with less boilerplate and
@@ -543,10 +541,32 @@ impl EguiContexts<'_, '_> {
     }
 }
 
-/// Contains the texture [`Image`] to render to.
+/// Contexts with this component will render UI to a specified image.
+///
+/// You can create an entity just with this component, `bevy_egui` will initialize an [`EguiContext`]
+/// automatically.
 #[cfg(feature = "render")]
 #[derive(Component, Clone, Debug, ExtractComponent)]
-pub struct EguiRenderToTextureHandle(pub Handle<Image>);
+pub struct EguiRenderToImage {
+    /// A handle of an image to render to.
+    pub handle: Handle<Image>,
+    /// Customizable [`LoadOp`] for the render node which will be created for this context.
+    ///
+    /// You'll likely want [`LoadOp::Clear`], unless you need to draw the UI on top of existing
+    /// pixels of the image.
+    pub load_op: LoadOp<wgpu_types::Color>,
+}
+
+#[cfg(feature = "render")]
+impl EguiRenderToImage {
+    /// Creates a component from an image handle and sets [`EguiRenderToImage::load_op`] to [`LoadOp::Clear].
+    pub fn new(handle: Handle<Image>) -> Self {
+        Self {
+            handle,
+            load_op: LoadOp::Clear(wgpu_types::Color::TRANSPARENT),
+        }
+    }
+}
 
 /// A resource for storing `bevy_egui` user textures.
 #[derive(Clone, bevy_ecs::system::Resource, Default, ExtractResource)]
@@ -669,7 +689,7 @@ impl Plugin for EguiPlugin {
             app.add_plugins(ExtractComponentPlugin::<EguiSettings>::default());
             app.add_plugins(ExtractComponentPlugin::<RenderTargetSize>::default());
             app.add_plugins(ExtractComponentPlugin::<EguiRenderOutput>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiRenderToTextureHandle>::default());
+            app.add_plugins(ExtractComponentPlugin::<EguiRenderToImage>::default());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -692,7 +712,7 @@ impl Plugin for EguiPlugin {
             (
                 setup_new_windows_system,
                 #[cfg(feature = "render")]
-                setup_render_to_texture_handles_system,
+                setup_render_to_image_handles_system,
                 apply_deferred,
                 update_contexts_system,
             )
@@ -705,7 +725,7 @@ impl Plugin for EguiPlugin {
             (
                 setup_new_windows_system,
                 #[cfg(feature = "render")]
-                setup_render_to_texture_handles_system,
+                setup_render_to_image_handles_system,
                 apply_deferred,
                 update_contexts_system,
             )
@@ -820,10 +840,14 @@ impl Plugin for EguiPlugin {
                 .init_resource::<SpecializedRenderPipelines<EguiPipeline>>()
                 .init_resource::<EguiTransforms>()
                 .add_systems(
+                    // Seems to be just the set to add/remove nodes, as it'll run before
+                    // `RenderSet::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
                     (
-                        render_systems::setup_new_windows_render_system,
-                        render_systems::setup_new_rtt_render_system,
+                        render_systems::setup_new_window_nodes_system,
+                        render_systems::teardown_window_nodes_system,
+                        render_systems::setup_new_render_to_image_nodes_system,
+                        render_systems::teardown_render_to_image_nodes_system,
                     ),
                 )
                 .add_systems(
@@ -867,9 +891,9 @@ pub struct EguiContextQuery {
     pub window: Option<&'static mut Window>,
     /// [`CursorIcon`] component.
     pub cursor: Option<&'static mut CursorIcon>,
-    /// [`EguiRenderToTextureHandle`] component, when rendering to a texture.
+    /// [`EguiRenderToImage`] component, when rendering to a texture.
     #[cfg(feature = "render")]
-    pub render_to_texture: Option<&'static mut EguiRenderToTextureHandle>,
+    pub render_to_image: Option<&'static mut EguiRenderToImage>,
 }
 
 impl EguiContextQueryItem<'_> {
@@ -927,15 +951,12 @@ pub fn setup_new_windows_system(
 
 /// Adds bevy_egui components to newly created windows.
 #[cfg(feature = "render")]
-pub fn setup_render_to_texture_handles_system(
+pub fn setup_render_to_image_handles_system(
     mut commands: Commands,
-    new_render_to_texture_targets: Query<
-        Entity,
-        (Added<EguiRenderToTextureHandle>, Without<EguiContext>),
-    >,
+    new_render_to_image_targets: Query<Entity, (Added<EguiRenderToImage>, Without<EguiContext>)>,
 ) {
-    for render_to_texture_target in new_render_to_texture_targets.iter() {
-        commands.entity(render_to_texture_target).insert((
+    for render_to_image_target in new_render_to_image_targets.iter() {
+        commands.entity(render_to_image_target).insert((
             EguiContext::default(),
             EguiSettings::default(),
             EguiRenderOutput::default(),
@@ -953,7 +974,7 @@ pub fn setup_render_to_texture_handles_system(
 pub fn update_egui_textures_system(
     mut egui_render_output: Query<
         (Entity, &mut EguiRenderOutput),
-        Or<(With<Window>, With<EguiRenderToTextureHandle>)>,
+        Or<(With<Window>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
@@ -1014,7 +1035,7 @@ fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
     mut egui_render_output: Query<
         (Entity, &mut EguiRenderOutput),
-        Or<(With<Window>, With<EguiRenderToTextureHandle>)>,
+        Or<(With<Window>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,

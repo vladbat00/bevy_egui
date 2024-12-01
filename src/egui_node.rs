@@ -2,7 +2,7 @@ use crate::{
     render_systems::{
         EguiPipelines, EguiTextureBindGroups, EguiTextureId, EguiTransform, EguiTransforms,
     },
-    EguiRenderOutput, EguiSettings, RenderTargetSize,
+    EguiRenderOutput, EguiRenderToImage, EguiSettings, RenderTargetSize,
 };
 use bevy_asset::prelude::*;
 use bevy_ecs::{
@@ -10,8 +10,9 @@ use bevy_ecs::{
     world::{FromWorld, World},
 };
 use bevy_image::{Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
+use bevy_log as log;
 use bevy_render::{
-    render_asset::RenderAssetUsages,
+    render_asset::{RenderAssetUsages, RenderAssets},
     render_graph::{Node, NodeRunError, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
@@ -46,7 +47,7 @@ pub struct EguiPipeline {
 
 impl FromWorld for EguiPipeline {
     fn from_world(render_world: &mut World) -> Self {
-        let render_device = render_world.get_resource::<RenderDevice>().unwrap();
+        let render_device = render_world.resource::<RenderDevice>();
 
         let transform_bind_group_layout = render_device.create_bind_group_layout(
             "egui transform bind group layout",
@@ -96,6 +97,17 @@ impl FromWorld for EguiPipeline {
 pub struct EguiPipelineKey {
     /// Texture format of a window's swap chain to render to.
     pub texture_format: TextureFormat,
+    /// Render target type (e.g. window, image).
+    pub render_target_type: EguiRenderTargetType,
+}
+
+/// Is used to make a render node aware of a render target type.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum EguiRenderTargetType {
+    /// Render to a window.
+    Window,
+    /// Render to an image.
+    Image,
 }
 
 impl EguiPipelineKey {
@@ -103,6 +115,7 @@ impl EguiPipelineKey {
     pub fn from_extracted_window(window: &ExtractedWindow) -> Option<Self> {
         Some(Self {
             texture_format: window.swap_chain_texture_format?.add_srgb_suffix(),
+            render_target_type: EguiRenderTargetType::Window,
         })
     }
 
@@ -110,6 +123,7 @@ impl EguiPipelineKey {
     pub fn from_gpu_image(image: &GpuImage) -> Self {
         EguiPipelineKey {
             texture_format: image.texture_format.add_srgb_suffix(),
+            render_target_type: EguiRenderTargetType::Image,
         }
     }
 }
@@ -193,8 +207,9 @@ pub(crate) struct EguiDraw {
 
 /// Egui render node.
 pub struct EguiNode {
-    window_entity_main: MainEntity,
-    window_entity_render: RenderEntity,
+    render_target_main_entity: MainEntity,
+    render_target_render_entity: RenderEntity,
+    render_target_type: EguiRenderTargetType,
     vertex_data: Vec<u8>,
     vertex_buffer_capacity: usize,
     vertex_buffer: Option<Buffer>,
@@ -208,10 +223,15 @@ pub struct EguiNode {
 
 impl EguiNode {
     /// Constructs Egui render node.
-    pub fn new(window_entity_main: MainEntity, window_entity_render: RenderEntity) -> Self {
+    pub fn new(
+        render_target_main_entity: MainEntity,
+        render_target_render_entity: RenderEntity,
+        render_target_type: EguiRenderTargetType,
+    ) -> Self {
         EguiNode {
-            window_entity_main,
-            window_entity_render,
+            render_target_main_entity,
+            render_target_render_entity,
+            render_target_type,
             draw_commands: Vec::new(),
             vertex_data: Vec::new(),
             vertex_buffer_capacity: 0,
@@ -227,27 +247,59 @@ impl EguiNode {
 
 impl Node for EguiNode {
     fn update(&mut self, world: &mut World) {
-        let Some(key) = world
-            .get_resource::<ExtractedWindows>()
-            .and_then(|windows| windows.windows.get(&self.window_entity_main.id()))
-            .and_then(EguiPipelineKey::from_extracted_window)
+        let mut render_target_query = world.query::<(
+            &EguiSettings,
+            &RenderTargetSize,
+            &mut EguiRenderOutput,
+            Option<&EguiRenderToImage>,
+        )>();
+
+        let Ok((egui_settings, render_target_size, mut render_output, render_to_image)) =
+            render_target_query.get_mut(world, self.render_target_render_entity.id())
         else {
+            log::error!(
+                "Failed to update Egui render node for {:?} context: missing components",
+                self.render_target_main_entity.id()
+            );
             return;
         };
+        let render_target_size = *render_target_size;
+        let egui_settings = egui_settings.clone();
+        let image_handle =
+            render_to_image.map(|render_to_image| render_to_image.handle.clone_weak());
 
-        let mut render_target_query =
-            world.query::<(&EguiSettings, &RenderTargetSize, &mut EguiRenderOutput)>();
-
-        let Ok((egui_settings, window_size, mut render_output)) =
-            render_target_query.get_mut(world, self.window_entity_render.id())
-        else {
-            return;
-        };
-        let window_size = *window_size;
         let paint_jobs = std::mem::take(&mut render_output.paint_jobs);
 
-        self.pixels_per_point = window_size.scale_factor * egui_settings.scale_factor;
-        if window_size.physical_width == 0.0 || window_size.physical_height == 0.0 {
+        // Construct a pipeline key based on a render target.
+        let key = match self.render_target_type {
+            EguiRenderTargetType::Window => {
+                let Some(key) = world
+                    .resource::<ExtractedWindows>()
+                    .windows
+                    .get(&self.render_target_main_entity.id())
+                    .and_then(EguiPipelineKey::from_extracted_window)
+                else {
+                    return;
+                };
+                key
+            }
+            EguiRenderTargetType::Image => {
+                let image_handle = image_handle
+                    .expect("Expected an image handle for a render to image node")
+                    .clone();
+                let Some(key) = world
+                    .resource::<RenderAssets<GpuImage>>()
+                    .get(&image_handle)
+                    .map(EguiPipelineKey::from_gpu_image)
+                else {
+                    return;
+                };
+                key
+            }
+        };
+
+        self.pixels_per_point = render_target_size.scale_factor * egui_settings.scale_factor;
+        if render_target_size.physical_width == 0.0 || render_target_size.physical_height == 0.0 {
             return;
         }
 
@@ -258,7 +310,7 @@ impl Node for EguiNode {
         self.index_data.clear();
         self.postponed_updates.clear();
 
-        let render_device = world.get_resource::<RenderDevice>().unwrap();
+        let render_device = world.resource::<RenderDevice>();
 
         for egui::epaint::ClippedPrimitive {
             clip_rect,
@@ -280,8 +332,8 @@ impl Node for EguiNode {
                 .intersect(bevy_math::URect::new(
                     0,
                     0,
-                    window_size.physical_width as u32,
-                    window_size.physical_height as u32,
+                    render_target_size.physical_width as u32,
+                    render_target_size.physical_height as u32,
                 ))
                 .is_empty()
             {
@@ -291,9 +343,13 @@ impl Node for EguiNode {
             let mesh = match primitive {
                 egui::epaint::Primitive::Mesh(mesh) => mesh,
                 egui::epaint::Primitive::Callback(paint_callback) => {
-                    let Ok(callback) = paint_callback.callback.downcast::<EguiBevyPaintCallback>()
-                    else {
-                        unimplemented!("Unsupported egui paint callback type");
+                    let callback = match paint_callback.callback.downcast::<EguiBevyPaintCallback>()
+                    {
+                        Ok(callback) => callback,
+                        Err(err) => {
+                            log::error!("Unsupported Egui paint callback type: {err:?}");
+                            continue;
+                        }
                     };
 
                     self.postponed_updates.push((
@@ -327,7 +383,9 @@ impl Node for EguiNode {
             index_offset += mesh.vertices.len() as u32;
 
             let texture_handle = match mesh.texture_id {
-                egui::TextureId::Managed(id) => EguiTextureId::Managed(self.window_entity_main, id),
+                egui::TextureId::Managed(id) => {
+                    EguiTextureId::Managed(self.render_target_main_entity, id)
+                }
                 egui::TextureId::User(id) => EguiTextureId::User(id),
             };
 
@@ -373,14 +431,14 @@ impl Node for EguiNode {
                 clip_rect,
                 pixels_per_point: self.pixels_per_point,
                 screen_size_px: [
-                    window_size.physical_width as u32,
-                    window_size.physical_height as u32,
+                    render_target_size.physical_width as u32,
+                    render_target_size.physical_height as u32,
                 ],
             };
             command
                 .callback
                 .cb()
-                .update(info, self.window_entity_render, key, world);
+                .update(info, self.render_target_render_entity, key, world);
         }
     }
 
@@ -390,20 +448,57 @@ impl Node for EguiNode {
         render_context: &mut RenderContext<'w>,
         world: &'w World,
     ) -> Result<(), NodeRunError> {
-        let egui_pipelines = &world.get_resource::<EguiPipelines>().unwrap().0;
-        let pipeline_cache = world.get_resource::<PipelineCache>().unwrap();
+        let egui_pipelines = &world.resource::<EguiPipelines>().0;
+        let pipeline_cache = world.resource::<PipelineCache>();
 
-        let extracted_windows = &world.get_resource::<ExtractedWindows>().unwrap().windows;
-        let extracted_window = extracted_windows.get(&self.window_entity_main.id());
-        let swap_chain_texture_view =
-            match extracted_window.and_then(|v| v.swap_chain_texture_view.as_ref()) {
-                None => {
-                    return Ok(());
+        let (key, swap_chain_texture_view, physical_width, physical_height, load_op) =
+            match self.render_target_type {
+                EguiRenderTargetType::Window => {
+                    let Some(window) = world
+                        .resource::<ExtractedWindows>()
+                        .windows
+                        .get(&self.render_target_main_entity.id())
+                    else {
+                        return Ok(());
+                    };
+
+                    let Some(swap_chain_texture_view) = &window.swap_chain_texture_view else {
+                        return Ok(());
+                    };
+
+                    let Some(key) = EguiPipelineKey::from_extracted_window(window) else {
+                        return Ok(());
+                    };
+                    (
+                        key,
+                        swap_chain_texture_view,
+                        window.physical_width,
+                        window.physical_height,
+                        LoadOp::Load,
+                    )
                 }
-                Some(window) => window,
+                EguiRenderTargetType::Image => {
+                    let Some(extracted_render_to_image): Option<&EguiRenderToImage> =
+                        world.get(self.render_target_render_entity.id())
+                    else {
+                        return Ok(());
+                    };
+
+                    let gpu_images = world.resource::<RenderAssets<GpuImage>>();
+                    let Some(gpu_image) = gpu_images.get(&extracted_render_to_image.handle) else {
+                        return Ok(());
+                    };
+                    (
+                        EguiPipelineKey::from_gpu_image(gpu_image),
+                        &gpu_image.texture_view,
+                        gpu_image.size.x,
+                        gpu_image.size.y,
+                        extracted_render_to_image.load_op,
+                    )
+                }
             };
 
-        let render_queue = world.get_resource::<RenderQueue>().unwrap();
+        let render_queue = world.resource::<RenderQueue>();
 
         let (vertex_buffer, index_buffer) = match (&self.vertex_buffer, &self.index_buffer) {
             (Some(vertex), Some(index)) => (vertex, index),
@@ -414,18 +509,6 @@ impl Node for EguiNode {
 
         render_queue.write_buffer(vertex_buffer, 0, &self.vertex_data);
         render_queue.write_buffer(index_buffer, 0, &self.index_data);
-
-        let (physical_width, physical_height, pipeline_key) = match extracted_window {
-            Some(window) => (
-                window.physical_width,
-                window.physical_height,
-                EguiPipelineKey::from_extracted_window(window),
-            ),
-            None => unreachable!(),
-        };
-        let Some(key) = pipeline_key else {
-            return Ok(());
-        };
 
         for draw_command in &self.draw_commands {
             match &draw_command.primitive {
@@ -441,7 +524,7 @@ impl Node for EguiNode {
                     command.callback.cb().prepare_render(
                         info,
                         render_context,
-                        self.window_entity_render,
+                        self.render_target_render_entity,
                         key,
                         world,
                     );
@@ -449,11 +532,9 @@ impl Node for EguiNode {
             }
         }
 
-        let bind_groups = &world.get_resource::<EguiTextureBindGroups>().unwrap();
-
-        let egui_transforms = world.get_resource::<EguiTransforms>().unwrap();
-
-        let device = world.get_resource::<RenderDevice>().unwrap();
+        let bind_groups = &world.resource::<EguiTextureBindGroups>().0;
+        let egui_transforms = world.resource::<EguiTransforms>();
+        let device = world.resource::<RenderDevice>();
 
         let render_pass =
             render_context
@@ -464,7 +545,7 @@ impl Node for EguiNode {
                         view: swap_chain_texture_view,
                         resolve_target: None,
                         ops: Operations {
-                            load: LoadOp::Load,
+                            load: load_op,
                             store: StoreOp::Store,
                         },
                     })],
@@ -474,13 +555,19 @@ impl Node for EguiNode {
                 });
         let mut render_pass = TrackedRenderPass::new(device, render_pass);
 
-        let pipeline_id = egui_pipelines.get(&self.window_entity_main).unwrap();
+        let pipeline_id = egui_pipelines
+            .get(&self.render_target_main_entity)
+            .expect("Expected a queued pipeline");
         let Some(pipeline) = pipeline_cache.get_render_pipeline(*pipeline_id) else {
             return Ok(());
         };
 
-        let transform_buffer_offset = egui_transforms.offsets[&self.window_entity_main];
-        let transform_buffer_bind_group = &egui_transforms.bind_group.as_ref().unwrap().1;
+        let transform_buffer_offset = egui_transforms.offsets[&self.render_target_main_entity];
+        let transform_buffer_bind_group = &egui_transforms
+            .bind_group
+            .as_ref()
+            .expect("Expected a prepared bind group")
+            .1;
 
         let mut requires_reset = true;
 
@@ -541,10 +628,18 @@ impl Node for EguiNode {
 
                     render_pass.set_bind_group(1, texture_bind_group, &[]);
 
-                    render_pass
-                        .set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..));
+                    render_pass.set_vertex_buffer(
+                        0,
+                        self.vertex_buffer
+                            .as_ref()
+                            .expect("Expected an initialized vertex buffer")
+                            .slice(..),
+                    );
                     render_pass.set_index_buffer(
-                        self.index_buffer.as_ref().unwrap().slice(..),
+                        self.index_buffer
+                            .as_ref()
+                            .expect("Expected an initialized index buffer")
+                            .slice(..),
                         0,
                         IndexFormat::Uint32,
                     );
@@ -580,7 +675,7 @@ impl Node for EguiNode {
                         command.callback.cb().render(
                             info,
                             &mut render_pass,
-                            self.window_entity_render,
+                            self.render_target_render_entity,
                             key,
                             world,
                         );
