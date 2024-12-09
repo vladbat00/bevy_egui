@@ -77,6 +77,11 @@ mod text_agent;
 ))]
 pub mod web_clipboard;
 
+use bevy_picking::{
+    backend::{HitData, PointerHits},
+    pointer::{PointerId, PointerLocation},
+};
+use bevy_render::camera::NormalizedRenderTarget;
 pub use egui;
 
 use crate::systems::*;
@@ -155,6 +160,8 @@ pub struct EguiSettings {
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
     pub default_open_url_target: Option<String>,
+    /// Controls if Egui should capture pointer input when using bevy_picking
+    pub capture_pointer_input: bool,
 }
 
 // Just to keep the PartialEq
@@ -175,6 +182,7 @@ impl Default for EguiSettings {
             scale_factor: 1.0,
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
+            capture_pointer_input: true,
         }
     }
 }
@@ -803,6 +811,7 @@ impl Plugin for EguiPlugin {
             PostUpdate,
             process_output_system.in_set(EguiSet::ProcessOutput),
         );
+        app.add_systems(PostUpdate, capture_pointer_input);
 
         #[cfg(feature = "render")]
         app.add_systems(
@@ -946,6 +955,33 @@ pub fn setup_new_windows_system(
             RenderTargetSize::default(),
             CursorIcon::System(SystemCursorIcon::Default),
         ));
+    }
+}
+
+/// The ordering value used for bevy_picking
+pub const PICKING_ORDER: f32 = 1_000_000.0;
+/// Captures pointers on egui windows for bevy_picking
+pub fn capture_pointer_input(
+    pointers: Query<(&PointerId, &PointerLocation)>,
+    mut egui_context: Query<(Entity, &mut EguiContext, &EguiSettings)>,
+    mut output: EventWriter<PointerHits>,
+) {
+    for (pointer, location) in pointers
+        .iter()
+        .filter_map(|(i, p)| p.location.as_ref().map(|l| (i, l)))
+    {
+        if let NormalizedRenderTarget::Window(id) = location.target {
+            if let Ok((entity, mut ctx, settings)) = egui_context.get_mut(id.entity()) {
+                if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
+                    let entry = (entity, HitData::new(entity, 0.0, None, None));
+                    output.send(PointerHits::new(
+                        *pointer,
+                        Vec::from([entry]),
+                        PICKING_ORDER,
+                    ));
+                }
+            }
+        }
     }
 }
 
