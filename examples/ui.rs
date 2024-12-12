@@ -182,7 +182,7 @@ fn ui_example_system(
         ui.heading("Egui Template");
         ui.hyperlink("https://github.com/emilk/egui_template");
         ui.add(egui::github_link_file_line!(
-            "https://github.com/mvlabat/bevy_egui/blob/main/",
+            "https://github.com/vladbat00/bevy_egui/blob/main/",
             "Direct link to source code."
         ));
         egui::warn_if_debug_build(ui);
