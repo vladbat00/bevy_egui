@@ -73,6 +73,9 @@ bevy_utils = "0.15.0"
 bevy_winit = { version = "0.15.0", features = ["custom_cursor"] }
 bevy_window = "0.15.0"
 
+# Enhance performance of color_image_as_bevy_image
+fast-srgb8 = "1.0.0"
+
 # `open_url` feature
 webbrowser = { version = "1.0.1", optional = true }
 
