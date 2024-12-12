@@ -402,9 +402,9 @@ impl EguiContexts<'_, '_> {
 
     /// Egui context of a specific entity.
     #[must_use]
-    pub fn ctx_for_entity_mut(&mut self, enity: Entity) -> &mut egui::Context {
-        self.try_ctx_for_entity_mut(enity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {enity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+    pub fn ctx_for_entity_mut(&mut self, entity: Entity) -> &mut egui::Context {
+        self.try_ctx_for_entity_mut(entity)
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity_mut`].
