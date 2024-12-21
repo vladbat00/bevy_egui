@@ -32,8 +32,8 @@ An example WASM project is live at [vladbat00.github.io/bevy_egui_web_showcase](
 
 On Linux, this crate requires certain parts of [XCB](https://xcb.freedesktop.org/) to be installed on your system. On Debian-based systems, these can be installed with the following command:
 
-```
-$ sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+```bash
+sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 ```
 
 ## Usage
