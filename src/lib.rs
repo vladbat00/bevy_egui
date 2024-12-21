@@ -77,11 +77,6 @@ mod text_agent;
 ))]
 pub mod web_clipboard;
 
-use bevy_picking::{
-    backend::{HitData, PointerHits},
-    pointer::{PointerId, PointerLocation},
-};
-use bevy_render::camera::NormalizedRenderTarget;
 pub use egui;
 
 use crate::systems::*;
@@ -113,9 +108,15 @@ use bevy_ecs::{
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
+#[cfg(feature = "render")]
+use bevy_picking::{
+    backend::{HitData, PointerHits},
+    pointer::{PointerId, PointerLocation},
+};
 use bevy_reflect::Reflect;
 #[cfg(feature = "render")]
 use bevy_render::{
+    camera::NormalizedRenderTarget,
     extract_component::{ExtractComponent, ExtractComponentPlugin},
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::{LoadOp, SpecializedRenderPipelines},
@@ -160,7 +161,8 @@ pub struct EguiSettings {
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
     pub default_open_url_target: Option<String>,
-    /// Controls if Egui should capture pointer input when using bevy_picking
+    /// Controls if Egui should capture pointer input when using [`bevy_picking`].
+    #[cfg(feature = "render")]
     pub capture_pointer_input: bool,
 }
 
@@ -182,6 +184,7 @@ impl Default for EguiSettings {
             scale_factor: 1.0,
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
+            #[cfg(feature = "render")]
             capture_pointer_input: true,
         }
     }
@@ -811,6 +814,7 @@ impl Plugin for EguiPlugin {
             PostUpdate,
             process_output_system.in_set(EguiSet::ProcessOutput),
         );
+        #[cfg(feature = "render")]
         app.add_systems(PostUpdate, capture_pointer_input);
 
         #[cfg(feature = "render")]
@@ -958,9 +962,11 @@ pub fn setup_new_windows_system(
     }
 }
 
-/// The ordering value used for bevy_picking
+/// The ordering value used for bevy_picking.
+#[cfg(feature = "render")]
 pub const PICKING_ORDER: f32 = 1_000_000.0;
-/// Captures pointers on egui windows for bevy_picking
+/// Captures pointers on egui windows for bevy_picking.
+#[cfg(feature = "render")]
 pub fn capture_pointer_input(
     pointers: Query<(&PointerId, &PointerLocation)>,
     mut egui_context: Query<(Entity, &mut EguiContext, &EguiSettings)>,
