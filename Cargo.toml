@@ -7,7 +7,7 @@ authors = ["mvlabat <mvlabat@gmail.com>"]
 description = "A plugin for Egui integration into Bevy"
 license = "MIT"
 edition = "2021"
-repository = "https://github.com/mvlabat/bevy_egui"
+repository = "https://github.com/vladbat00/bevy_egui"
 exclude = ["assets/**/*", ".github/**/*"]
 
 [package.metadata.docs.rs]

@@ -26,9 +26,6 @@ An example WASM project is live at [vladbat00.github.io/bevy_egui_web_showcase](
 - Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/paint_callback.rs))
 - Mobile web virtual keyboard (still rough support and only works without prevent_default_event_handling set to false on the WindowPlugin primary_window)
 
-`bevy_egui` can be compiled with using only `bevy` subcrates and `egui` as dependencies: `manage_clipboard`, `open_url` and `render` features,
-that require additional crates, can be disabled.
-
 ![bevy_egui](bevy_egui.png)
 
 ## Dependencies

@@ -4,16 +4,23 @@
 //!
 //! **Trying out:**
 //!
-//! An example WASM project is live at [mvlabat.github.io/bevy_egui_web_showcase](https://mvlabat.github.io/bevy_egui_web_showcase/index.html) [[source](https://github.com/mvlabat/bevy_egui_web_showcase)].
+//! An example WASM project is live at [vladbat00.github.io/bevy_egui_web_showcase](https://vladbat00.github.io/bevy_egui_web_showcase/index.html) [[source](https://github.com/vladbat00/bevy_egui_web_showcase)].
 //!
 //! **Features:**
 //! - Desktop and web platforms support
-//! - Clipboard (web support is limited to the same window, see [rust-windowing/winit#1829](https://github.com/rust-windowing/winit/issues/1829))
+//! - Clipboard
 //! - Opening URLs
-//! - Multiple windows support (see [./examples/two_windows.rs](https://github.com/mvlabat/bevy_egui/blob/v0.20.1/examples/two_windows.rs))
+//! - Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/two_windows.rs))
+//! - Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/paint_callback.rs))
+//! - Mobile web virtual keyboard (still rough support and only works without prevent_default_event_handling set to false on the WindowPlugin primary_window)
 //!
-//! `bevy_egui` can be compiled with using only `bevy` and `egui` as dependencies: `manage_clipboard` and `open_url` features,
-//! that require additional crates, can be disabled.
+//! ## Dependencies
+//!
+//! On Linux, this crate requires certain parts of [XCB](https://xcb.freedesktop.org/) to be installed on your system. On Debian-based systems, these can be installed with the following command:
+//!
+//! ```
+//! $ sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+//! ```
 //!
 //! ## Usage
 //!
@@ -40,7 +47,7 @@
 //! }
 //! ```
 //!
-//! For a more advanced example, see [examples/ui.rs](https://github.com/mvlabat/bevy_egui/blob/v0.20.1/examples/ui.rs).
+//! For a more advanced example, see [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.20.1/examples/ui.rs).
 //!
 //! ```bash
 //! cargo run --example ui
@@ -413,9 +420,9 @@ impl EguiContexts<'_, '_> {
 
     /// Egui context of a specific entity.
     #[must_use]
-    pub fn ctx_for_entity_mut(&mut self, enity: Entity) -> &mut egui::Context {
-        self.try_ctx_for_entity_mut(enity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {enity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+    pub fn ctx_for_entity_mut(&mut self, entity: Entity) -> &mut egui::Context {
+        self.try_ctx_for_entity_mut(entity)
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity_mut`].
