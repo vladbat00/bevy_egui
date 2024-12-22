@@ -22,8 +22,8 @@ An example WASM project is live at [vladbat00.github.io/bevy_egui_web_showcase](
 - Desktop and web platforms support
 - Clipboard
 - Opening URLs
-- Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/two_windows.rs))
-- Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/paint_callback.rs))
+- Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.31.1/examples/two_windows.rs))
+- Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.31.1/examples/paint_callback.rs))
 - Mobile web virtual keyboard (still rough support and only works without prevent_default_event_handling set to false on the WindowPlugin primary_window)
 
 ![bevy_egui](bevy_egui.png)
@@ -68,7 +68,7 @@ fn ui_example_system(mut contexts: EguiContexts) {
 
 ```
 
-For a more advanced example, see [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.20.1/examples/ui.rs).
+For a more advanced example, see [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.31.1/examples/ui.rs).
 
 ```bash
 cargo run --example ui
