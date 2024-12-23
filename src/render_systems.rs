@@ -1,6 +1,7 @@
 use crate::{
     egui_node::{EguiNode, EguiPipeline, EguiPipelineKey, EguiRenderTargetType},
-    EguiManagedTextures, EguiRenderToImage, EguiSettings, EguiUserTextures, RenderTargetSize,
+    EguiContext, EguiManagedTextures, EguiRenderToImage, EguiSettings, EguiUserTextures,
+    RenderTargetSize,
 };
 use bevy_asset::prelude::*;
 use bevy_derive::{Deref, DerefMut};
@@ -112,7 +113,7 @@ impl ExtractedEguiTextures<'_> {
 
 /// Sets up render nodes for newly created window Egui contexts.
 pub fn setup_new_window_nodes_system(
-    windows: Extract<Query<(Entity, &RenderEntity), Added<Window>>>,
+    windows: Extract<Query<(Entity, &RenderEntity), Added<EguiContext>>>,
     mut render_graph: ResMut<RenderGraph>,
 ) {
     for (window_entity, window_render_entity) in windows.iter() {
