@@ -1,7 +1,7 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
 
-use crate::{systems::ContextSystemParams, EventClosure, SubscribedEvents};
+use crate::{input::ContextSystemParams, EventClosure, SubscribedEvents};
 use bevy_ecs::prelude::*;
 use bevy_window::RequestRedraw;
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -16,6 +16,7 @@ pub struct VirtualTouchInfo {
     pub editing_text: bool,
 }
 
+// TODO!
 #[derive(Resource)]
 pub struct TextAgentChannel {
     pub sender: Sender<egui::Event>,
@@ -36,7 +37,7 @@ pub struct SafariVirtualKeyboardHack {
     pub touch_info: &'static LazyLock<Mutex<VirtualTouchInfo>>,
 }
 
-pub fn process_safari_virtual_keyboard(
+pub fn process_safari_virtual_keyboard_system(
     context_params: ContextSystemParams,
     safari_virtual_keyboard_hack: Res<SafariVirtualKeyboardHack>,
 ) {
@@ -60,7 +61,7 @@ pub fn process_safari_virtual_keyboard(
     }
 }
 
-pub fn propagate_text(
+pub fn propagate_text_system(
     channel: Res<TextAgentChannel>,
     mut context_params: ContextSystemParams,
     mut redraw_event: EventWriter<RequestRedraw>,
@@ -80,8 +81,8 @@ pub fn propagate_text(
     }
 }
 
-/// Text event handler,
-pub fn install_text_agent(
+/// Text event handler, TODO!
+pub fn install_text_agent_system(
     mut subscribed_events: NonSendMut<SubscribedEvents>,
     text_agent_channel: Res<TextAgentChannel>,
     safari_virtual_keyboard_hack: Res<SafariVirtualKeyboardHack>,
