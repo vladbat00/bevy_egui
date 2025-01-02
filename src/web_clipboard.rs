@@ -1,4 +1,7 @@
-use crate::{string_from_js_value, EguiClipboard, EventClosure, SubscribedEvents};
+use crate::{
+    input::{EguiInputEvent, FocusedEguiContext},
+    string_from_js_value, EguiClipboard, EventClosure, SubscribedEvents,
+};
 use bevy_ecs::prelude::*;
 use bevy_log as log;
 use crossbeam_channel::{Receiver, Sender};
@@ -6,7 +9,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
 /// Startup system to initialize web clipboard events.
-pub fn startup_setup_web_events(
+pub fn startup_setup_web_events_system(
     mut egui_clipboard: ResMut<EguiClipboard>,
     mut subscribed_events: NonSendMut<SubscribedEvents>,
 ) {
@@ -15,6 +18,40 @@ pub fn startup_setup_web_events(
     setup_clipboard_copy(&mut subscribed_events, tx.clone());
     setup_clipboard_cut(&mut subscribed_events, tx.clone());
     setup_clipboard_paste(&mut subscribed_events, tx);
+}
+
+pub fn write_web_clipboard_events_system(
+    focused_egui_context: Option<Res<FocusedEguiContext>>,
+    mut egui_clipboard: ResMut<EguiClipboard>,
+    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+) {
+    while let Some(event) = egui_clipboard.try_receive_clipboard_event() {
+        let Some(focused_egui_context) = focused_egui_context.as_deref() else {
+            continue;
+        };
+
+        match event {
+            crate::web_clipboard::WebClipboardEvent::Copy => {
+                egui_input_event_writer.send(EguiInputEvent {
+                    context: focused_egui_context,
+                    event: egui::Event::Copy,
+                });
+            }
+            crate::web_clipboard::WebClipboardEvent::Cut => {
+                egui_input_event_writer.send(EguiInputEvent {
+                    context: focused_egui_context,
+                    event: egui::Event::Cut,
+                });
+            }
+            crate::web_clipboard::WebClipboardEvent::Paste(contents) => {
+                egui_clipboard.set_contents_internal(&contents);
+                egui_input_event_writer.send(EguiInputEvent {
+                    context: focused_egui_context,
+                    event: egui::Event::Text(contents),
+                });
+            }
+        }
+    }
 }
 
 /// Internal implementation of `[crate::EguiClipboard]` for web.
