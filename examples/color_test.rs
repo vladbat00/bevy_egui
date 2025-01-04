@@ -3,7 +3,11 @@ use bevy::{
     render::render_resource::LoadOp,
     window::PrimaryWindow,
 };
-use bevy_egui::{EguiContexts, EguiPlugin, EguiRenderToImage};
+use bevy_egui::{
+    helpers::vec2_into_egui_pos2,
+    input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
+    EguiContext, EguiContexts, EguiInputSet, EguiPlugin, EguiRenderToImage, EguiSettings,
+};
 
 fn main() {
     App::new()
@@ -12,6 +16,10 @@ fn main() {
         .add_plugins(EguiPlugin)
         .init_resource::<AppState>()
         .add_systems(Startup, setup_system)
+        .add_systems(
+            PreUpdate,
+            update_egui_hovered_context.in_set(EguiInputSet::InitReading),
+        )
         .add_systems(Update, (ui_system, update_image_size.after(ui_system)))
         .run();
 }
@@ -76,7 +84,6 @@ fn setup_system(
         .spawn((
             Mesh2d(meshes.add(Rectangle::new(256.0, 256.0))),
             MeshMaterial2d(materials.add(mesh_image_handle.clone())),
-            // MeshMaterial2d(materials.add(Color::srgb_u8(255, 0, 255))),
             EguiRenderToImage {
                 handle: mesh_image_handle,
                 load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
@@ -141,6 +148,45 @@ fn update_image_size(
     }
 }
 
+#[allow(clippy::type_complexity)]
+fn update_egui_hovered_context(
+    mut commands: Commands,
+    app_state: Res<AppState>,
+    mut cursor_moved_reader: EventReader<CursorMoved>,
+    mut egui_contexts: Query<
+        (
+            Entity,
+            &mut EguiContextPointerPosition,
+            &EguiSettings,
+            Option<&Mesh2d>,
+        ),
+        (With<EguiContext>, Without<PrimaryWindow>),
+    >,
+) {
+    for (entity, mut context_pointer_position, settings, mesh) in egui_contexts.iter_mut() {
+        if !matches!(
+            (&app_state.displayed_ui, mesh),
+            (DisplayedUi::MeshImage, Some(_)) | (DisplayedUi::EguiTextureImage, None)
+        ) {
+            continue;
+        }
+
+        // We expect to reach this code only once since we can have only 1 active context matching the conditions.
+        for event in cursor_moved_reader.read() {
+            let scale_factor = settings.scale_factor;
+            let pointer_position = vec2_into_egui_pos2(event.position / scale_factor)
+                - Vec2::new(0.0, app_state.top_panel_height as f32);
+            if pointer_position.y < 0.0 {
+                commands.remove_resource::<HoveredNonWindowEguiContext>();
+                continue;
+            }
+
+            context_pointer_position.position = pointer_position;
+            commands.insert_resource(HoveredNonWindowEguiContext(entity));
+        }
+    }
+}
+
 fn ui_system(
     mut app_state: ResMut<AppState>,
     mut contexts: EguiContexts,
@@ -181,7 +227,6 @@ fn ui_system(
         }
         DisplayedUi::MeshImage => {
             let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
-            // mesh_image_ctx.request_repaint();
             egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     app_state.color_test.ui(ui);

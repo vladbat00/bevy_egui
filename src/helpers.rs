@@ -197,6 +197,26 @@ pub fn bevy_to_egui_physical_key(key: &KeyCode) -> Option<egui::Key> {
     Some(key)
 }
 
+/// Converts [`bevy_math::Vec2`] into [`egui::Pos2`].
+pub fn vec2_into_egui_pos2(vec: bevy_math::Vec2) -> egui::Pos2 {
+    egui::Pos2::new(vec.x, vec.y)
+}
+
+/// Converts [`bevy_math::Vec2`] into [`egui::Vec2`].
+pub fn vec2_into_egui_vec2(vec: bevy_math::Vec2) -> egui::Vec2 {
+    egui::Vec2::new(vec.x, vec.y)
+}
+
+/// Converts [`egui::Pos2`] into [`bevy_math::Vec2`].
+pub fn egui_pos2_into_vec2(pos: egui::Pos2) -> bevy_math::Vec2 {
+    bevy_math::Vec2::new(pos.x, pos.y)
+}
+
+/// Converts [`egui::Vec2`] into [`bevy_math::Vec2`].
+pub fn egui_vec2_into_vec2(pos: egui::Vec2) -> bevy_math::Vec2 {
+    bevy_math::Vec2::new(pos.x, pos.y)
+}
+
 pub(crate) trait QueryHelper<'w> {
     type QueryData: bevy_ecs::query::QueryData;
 
@@ -230,5 +250,3 @@ impl<'w, D: QueryData, F: QueryFilter> QueryHelper<'w> for Query<'w, '_, D, F> {
         }
     }
 }
-
-

@@ -68,7 +68,7 @@ compile_error!(include_str!("../static/error_web_sys_unstable_apis.txt"));
 /// Egui render node.
 #[cfg(feature = "render")]
 pub mod egui_node;
-/// Helpers for casting Bevy types into Egui ones and vice versa.
+/// Helpers for converting Bevy types into Egui ones and vice versa.
 pub mod helpers;
 /// Systems for translating Bevy input events into Egui input.
 pub mod input;
@@ -79,7 +79,7 @@ pub mod output;
 pub mod render_systems;
 /// Mobile web keyboard input support.
 #[cfg(target_arch = "wasm32")]
-mod text_agent;
+pub mod text_agent;
 /// Clipboard management for web.
 #[cfg(all(
     feature = "manage_clipboard",
@@ -90,17 +90,18 @@ pub mod web_clipboard;
 
 pub use egui;
 
-use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
-    propagate_text_system, SafariVirtualKeyboardHack, TextAgentChannel, VirtualTouchInfo,
+    write_text_agent_channel_events_system, SafariVirtualKeyboardTouchState, TextAgentChannel,
+    VirtualTouchInfo,
 };
 #[cfg(feature = "render")]
 use crate::{
     egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
     render_systems::{EguiTransforms, ExtractedEguiManagedTextures},
 };
+use crate::{helpers::QueryHelper, input::*};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -143,7 +144,6 @@ use output::process_output_system;
 use std::cell::{RefCell, RefMut};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use crate::helpers::QueryHelper;
 
 /// Adds all Egui resources and render graph nodes.
 pub struct EguiPlugin;
@@ -151,13 +151,17 @@ pub struct EguiPlugin;
 /// A resource for storing global plugin settings.
 #[derive(Clone, Debug, Resource, Reflect)]
 pub struct EguiGlobalSettings {
-    pub enable_focused_context_updates: bool,
+    /// Set this to `false` if you want to disable updating focused contexts by the plugin's systems
+    /// (enabled by default).
+    ///
+    /// For more info, see the [`FocusedNonWindowEguiContext`] documentation.
+    pub enable_focused_non_window_context_updates: bool,
 }
 
 impl Default for EguiGlobalSettings {
     fn default() -> Self {
         Self {
-            enable_focused_context_updates: true,
+            enable_focused_non_window_context_updates: true,
         }
     }
 }
@@ -272,14 +276,14 @@ pub struct EguiOutput {
 #[require(
     EguiSettings,
     EguiInput,
-    EguiContextMousePosition,
+    EguiContextPointerPosition,
     EguiContextPointerTouchId,
     EguiContextImeState,
     EguiFullOutput,
     EguiRenderOutput,
     EguiOutput,
     RenderTargetSize,
-    CursorIcon,
+    CursorIcon
 )]
 pub struct EguiContext {
     ctx: egui::Context,
@@ -659,16 +663,26 @@ pub enum EguiPreUpdateSet {
 /// Subsets of the [`EguiSet::ProcessInput`] set.
 #[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
 pub enum EguiInputSet {
+    /// Reads key modifiers state and pointer positions.
+    ///
+    /// This is where [`HoveredNonWindowEguiContext`] should get inserted or removed.
     InitReading,
+    /// Processes window mouse button click and touch events, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
+    FocusContext,
+    /// Processes rest of the events for both window and non-window contexts.
     ReadBevyEvents,
+    /// Feeds all the events into [`EguiInput`].
     WriteEguiEvents,
 }
 
 /// System sets that run during the [`PostUpdate`] schedule.
 #[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
 pub enum EguiPostUpdateSet {
+    /// Ends Egui pass.
     EndPass,
+    /// Processes Egui output, reads paint jobs for the renderer.
     ProcessOutput,
+    /// Post-processing of Egui output (updates textures, browser virtual keyboard state, etc).
     PostProcessOutput,
 }
 
@@ -676,8 +690,9 @@ impl Plugin for EguiPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<EguiGlobalSettings>();
         app.register_type::<EguiSettings>();
-        app.add_event::<EguiInputEvent>();
+        app.init_resource::<EguiGlobalSettings>();
         app.init_resource::<ModifierKeysState>();
+        app.add_event::<EguiInputEvent>();
 
         #[cfg(feature = "render")]
         {
@@ -711,6 +726,7 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 EguiInputSet::InitReading,
+                EguiInputSet::FocusContext,
                 EguiInputSet::ReadBevyEvents,
                 EguiInputSet::WriteEguiEvents,
             )
@@ -727,11 +743,7 @@ impl Plugin for EguiPlugin {
         );
 
         // Startup systems.
-        #[cfg(all(
-            feature = "manage_clipboard",
-            target_arch = "wasm32",
-            web_sys_unstable_apis
-        ))]
+        #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
         {
             app.add_systems(PreStartup, web_clipboard::startup_setup_web_events_system);
         }
@@ -766,11 +778,15 @@ impl Plugin for EguiPlugin {
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
-                    write_window_pointer_button_events_system,
-                    write_window_mouse_wheel_events_system,
-                    write_keyboard_input_events_system,
-                    write_window_ime_events_system,
+                    write_pointer_button_events_system,
                     write_window_touch_events_system,
+                )
+                    .in_set(EguiInputSet::FocusContext),
+                (
+                    write_non_window_pointer_moved_events_system,
+                    write_mouse_wheel_events_system,
+                    write_keyboard_input_events_system,
+                    write_ime_events_system,
                 )
                     .in_set(EguiInputSet::ReadBevyEvents),
                 write_egui_input_system.in_set(EguiInputSet::WriteEguiEvents),
@@ -804,7 +820,7 @@ impl Plugin for EguiPlugin {
                 static TOUCH_INFO: LazyLock<Mutex<VirtualTouchInfo>> =
                     LazyLock::new(|| Mutex::new(VirtualTouchInfo::default()));
 
-                app.insert_resource(SafariVirtualKeyboardHack {
+                app.insert_resource(SafariVirtualKeyboardTouchState {
                     sender,
                     receiver,
                     touch_info: &TOUCH_INFO,
@@ -815,10 +831,17 @@ impl Plugin for EguiPlugin {
                     install_text_agent_system.in_set(EguiStartupSet::InitContexts),
                 );
 
-                // We want to run the system after
                 app.add_systems(
                     PreUpdate,
-                    propagate_text_system
+                    write_text_agent_channel_events_system
+                        .in_set(EguiPreUpdateSet::ProcessInput)
+                        .in_set(EguiInputSet::ReadBevyEvents),
+                );
+
+                #[cfg(feature = "manage_clipboard")]
+                app.add_systems(
+                    PreUpdate,
+                    web_clipboard::write_web_clipboard_events_system
                         .in_set(EguiPreUpdateSet::ProcessInput)
                         .in_set(EguiInputSet::ReadBevyEvents),
                 );
@@ -932,7 +955,6 @@ pub fn setup_new_windows_system(
     }
 }
 
-// TODO! move into a separate module.
 #[cfg(all(
     feature = "manage_clipboard",
     not(target_os = "android"),

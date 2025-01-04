@@ -1,7 +1,4 @@
-use crate::{
-    helpers, EguiContext, EguiFullOutput, EguiRenderOutput,
-    EguiSettings,
-};
+use crate::{helpers, EguiContext, EguiFullOutput, EguiRenderOutput, EguiSettings};
 use bevy_ecs::{
     event::EventWriter,
     system::{NonSend, Query},

@@ -1,26 +1,29 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
 
-use crate::{input::ContextSystemParams, EventClosure, SubscribedEvents};
+use crate::{
+    input::{EguiInputEvent, FocusedNonWindowEguiContext},
+    EguiContext, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
+};
 use bevy_ecs::prelude::*;
-use bevy_window::RequestRedraw;
+use bevy_window::{PrimaryWindow, RequestRedraw};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
 use wasm_bindgen::prelude::*;
 
 static AGENT_ID: &str = "egui_text_agent";
 
-#[allow(missing_docs)]
+// Stores if we are editing text, to react on touch events as a workaround for Safari.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct VirtualTouchInfo {
-    pub editing_text: bool,
+pub(crate) struct VirtualTouchInfo {
+    editing_text: bool,
 }
 
-// TODO!
+/// Channel for receiving events from a text agent.
 #[derive(Resource)]
 pub struct TextAgentChannel {
-    pub sender: Sender<egui::Event>,
-    pub receiver: Receiver<egui::Event>,
+    sender: Sender<egui::Event>,
+    receiver: Receiver<egui::Event>,
 }
 
 impl Default for TextAgentChannel {
@@ -30,62 +33,76 @@ impl Default for TextAgentChannel {
     }
 }
 
+/// Wraps [`VirtualTouchInfo`] and channels that notify when we need to update it.
 #[derive(Resource)]
-pub struct SafariVirtualKeyboardHack {
-    pub sender: Sender<bool>,
-    pub receiver: Receiver<bool>,
-    pub touch_info: &'static LazyLock<Mutex<VirtualTouchInfo>>,
+pub struct SafariVirtualKeyboardTouchState {
+    pub(crate) sender: Sender<()>,
+    pub(crate) receiver: Receiver<()>,
+    pub(crate) touch_info: &'static LazyLock<Mutex<VirtualTouchInfo>>,
 }
 
+/// Listens to the [`SafariVirtualKeyboardTouchState`] channel and updates the wrapped [`VirtualTouchInfo`].
 pub fn process_safari_virtual_keyboard_system(
-    context_params: ContextSystemParams,
-    safari_virtual_keyboard_hack: Res<SafariVirtualKeyboardHack>,
+    egui_contexts: Query<(&EguiInput, &EguiOutput)>,
+    safari_virtual_keyboard_touch_state: Res<SafariVirtualKeyboardTouchState>,
 ) {
-    for contexts in context_params.contexts.iter() {
-        while let Ok(true) = safari_virtual_keyboard_hack.receiver.try_recv() {
-            let platform_output = &contexts.egui_output.platform_output;
-            let mut editing_text = false;
-
-            if platform_output.ime.is_some() || platform_output.mutable_text_under_cursor {
-                editing_text = true;
-            }
-            match safari_virtual_keyboard_hack.touch_info.lock() {
-                Ok(mut touch_info) => {
-                    touch_info.editing_text = editing_text;
-                }
-                Err(poisoned) => {
-                    let _unused = poisoned.into_inner();
-                }
-            };
-        }
+    let mut received = false;
+    while let Ok(()) = safari_virtual_keyboard_touch_state.receiver.try_recv() {
+        received = true;
     }
-}
+    if !received {
+        return;
+    }
 
-pub fn propagate_text_system(
-    channel: Res<TextAgentChannel>,
-    mut context_params: ContextSystemParams,
-    mut redraw_event: EventWriter<RequestRedraw>,
-) {
-    for mut contexts in context_params.contexts.iter_mut() {
-        if contexts.egui_input.focused {
-            let mut redraw = false;
-            while let Ok(r) = channel.receiver.try_recv() {
-                redraw = true;
-                contexts.egui_input.events.push(r);
-            }
-            if redraw {
-                redraw_event.send(RequestRedraw);
-            }
+    let mut editing_text = false;
+    for (egui_input, egui_output) in egui_contexts.iter() {
+        if !egui_input.focused {
+            continue;
+        }
+        let platform_output = &egui_output.platform_output;
+        if platform_output.ime.is_some() || platform_output.mutable_text_under_cursor {
+            editing_text = true;
             break;
         }
     }
+
+    match safari_virtual_keyboard_touch_state.touch_info.lock() {
+        Ok(mut touch_info) => {
+            touch_info.editing_text = editing_text;
+        }
+        Err(poisoned) => {
+            let _unused = poisoned.into_inner();
+        }
+    };
 }
 
-/// Text event handler, TODO!
+/// Listens to the [`TextAgentChannel`] channel and wraps messages into [`EguiInputEvent`] events.
+pub fn write_text_agent_channel_events_system(
+    channel: Res<TextAgentChannel>,
+    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
+    // We can safely assume that we have only 1 window in WASM.
+    primary_context: Single<Entity, (With<PrimaryWindow>, With<EguiContext>)>,
+    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut redraw_event: EventWriter<RequestRedraw>,
+) {
+    let mut redraw = false;
+    let context = focused_non_window_egui_context
+        .as_deref()
+        .map_or(*primary_context, |context| context.0);
+    while let Ok(event) = channel.receiver.try_recv() {
+        redraw = true;
+        egui_input_event_writer.send(EguiInputEvent { context, event });
+    }
+    if redraw {
+        redraw_event.send(RequestRedraw);
+    }
+}
+
+/// Installs a text agent on startup.
 pub fn install_text_agent_system(
     mut subscribed_events: NonSendMut<SubscribedEvents>,
     text_agent_channel: Res<TextAgentChannel>,
-    safari_virtual_keyboard_hack: Res<SafariVirtualKeyboardHack>,
+    safari_virtual_keyboard_touch_state: Res<SafariVirtualKeyboardTouchState>,
 ) {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -247,11 +264,11 @@ pub fn install_text_agent_system(
 
         // Mobile safari doesn't let you set input focus outside of an event handler.
         if is_mobile_safari() {
-            let safari_sender = safari_virtual_keyboard_hack.sender.clone();
+            let safari_sender = safari_virtual_keyboard_touch_state.sender.clone();
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
                 #[cfg(feature = "log_input_events")]
                 log::info!("Touch start: {:?}", _event);
-                let _ = safari_sender.send(true);
+                let _ = safari_sender.send(());
             }) as Box<dyn FnMut(_)>);
             document
                 .add_event_listener_with_callback("touchstart", closure.as_ref().unchecked_ref())
@@ -265,7 +282,7 @@ pub fn install_text_agent_system(
                 closure,
             });
 
-            let safari_touch_info_lock = safari_virtual_keyboard_hack.touch_info;
+            let safari_touch_info_lock = safari_virtual_keyboard_touch_state.touch_info;
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
                 #[cfg(feature = "log_input_events")]
                 log::info!("Touch end: {:?}", _event);
@@ -407,7 +424,7 @@ pub fn update_text_agent(editing_text: bool) {
     }
 }
 
-pub fn is_mobile_safari() -> bool {
+pub(crate) fn is_mobile_safari() -> bool {
     (|| {
         let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
         let is_ios = user_agent.contains("iPhone")
