@@ -90,6 +90,7 @@ pub mod web_clipboard;
 
 pub use egui;
 
+use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
@@ -101,7 +102,6 @@ use crate::{
     egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
     render_systems::{EguiTransforms, ExtractedEguiManagedTextures},
 };
-use crate::{helpers::QueryHelper, input::*};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -1051,6 +1051,8 @@ pub fn capture_pointer_input_system(
     mut egui_context: Query<(Entity, &mut EguiContext, &EguiSettings), With<Window>>,
     mut output: EventWriter<PointerHits>,
 ) {
+    use helpers::QueryHelper;
+
     for (pointer, location) in pointers
         .iter()
         .filter_map(|(i, p)| p.location.as_ref().map(|l| (i, l)))

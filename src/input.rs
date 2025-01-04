@@ -2,7 +2,7 @@
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
     helpers::{vec2_into_egui_pos2, QueryHelper},
-    EguiContext, EguiInput, EguiOutput, EguiSettings,
+    EguiContext, EguiGlobalSettings, EguiInput, EguiOutput, EguiSettings,
 };
 use bevy_ecs::prelude::*;
 use bevy_input::{
@@ -201,6 +201,7 @@ pub fn write_window_pointer_moved_events_system(
 /// Reads [`MouseButtonInput`] events and wraps them into [`EguiInputEvent`], can redirect events to [`HoveredNonWindowEguiContext`],
 /// inserts, updates or removes the [`FocusedNonWindowEguiContext`] resource based on a hovered context.
 pub fn write_pointer_button_events_system(
+    egui_global_settings: Res<EguiGlobalSettings>,
     mut commands: Commands,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
     modifier_keys_state: Res<ModifierKeysState>,
@@ -244,7 +245,7 @@ pub fn write_pointer_button_events_system(
         });
 
         // If we are hovering over some UI in world space, we want to mark it as focused on mouse click.
-        if pressed {
+        if egui_global_settings.enable_focused_non_window_context_updates && pressed {
             if let Some(hovered_non_window_egui_context) = &hovered_non_window_egui_context {
                 commands.insert_resource(FocusedNonWindowEguiContext(
                     hovered_non_window_egui_context.0,
@@ -484,6 +485,7 @@ pub fn write_ime_events_system(
 /// Reads [`TouchInput`] events and wraps them into [`EguiInputEvent`].
 pub fn write_window_touch_events_system(
     mut commands: Commands,
+    egui_global_settings: Res<EguiGlobalSettings>,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut touch_input_reader: EventReader<TouchInput>,
@@ -529,16 +531,20 @@ pub fn write_window_touch_events_system(
                 }
             }
 
-            if let bevy_input::touch::TouchPhase::Started = event.phase {
-                commands.insert_resource(FocusedNonWindowEguiContext(
-                    hovered_non_window_egui_context.0,
-                ));
+            if egui_global_settings.enable_focused_non_window_context_updates {
+                if let bevy_input::touch::TouchPhase::Started = event.phase {
+                    commands.insert_resource(FocusedNonWindowEguiContext(
+                        hovered_non_window_egui_context.0,
+                    ));
+                }
             }
 
             continue;
         }
-        if let bevy_input::touch::TouchPhase::Started = event.phase {
-            commands.remove_resource::<FocusedNonWindowEguiContext>();
+        if egui_global_settings.enable_focused_non_window_context_updates {
+            if let bevy_input::touch::TouchPhase::Started = event.phase {
+                commands.remove_resource::<FocusedNonWindowEguiContext>();
+            }
         }
 
         let scale_factor = context_settings.scale_factor;

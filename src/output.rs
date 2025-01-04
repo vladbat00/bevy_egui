@@ -24,7 +24,7 @@ pub fn process_output_system(
 ) {
     let mut should_request_redraw = false;
 
-    for (mut context, mut full_output, mut render_output, cursor_icon, settings) in
+    for (mut context, mut full_output, mut render_output, cursor_icon, _settings) in
         contexts.iter_mut()
     {
         let ctx = context.get_mut();
@@ -96,7 +96,7 @@ pub fn process_output_system(
             let target = if new_tab {
                 "_blank"
             } else {
-                settings
+                _settings
                     .default_open_url_target
                     .as_deref()
                     .unwrap_or("_self")
