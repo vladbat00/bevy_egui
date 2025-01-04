@@ -2,6 +2,7 @@ use crate::{helpers, EguiContext, EguiFullOutput, EguiRenderOutput, EguiSettings
 #[cfg(windows)]
 use bevy_ecs::system::Local;
 use bevy_ecs::{
+    entity::Entity,
     event::EventWriter,
     system::{NonSend, Query},
 };
@@ -12,6 +13,7 @@ use std::time::Duration;
 /// Reads Egui output.
 pub fn process_output_system(
     mut contexts: Query<(
+        Entity,
         &mut EguiContext,
         &mut EguiFullOutput,
         &mut EguiRenderOutput,
@@ -26,7 +28,7 @@ pub fn process_output_system(
 ) {
     let mut should_request_redraw = false;
 
-    for (mut context, mut full_output, mut render_output, cursor_icon, _settings) in
+    for (_entity, mut context, mut full_output, mut render_output, cursor_icon, _settings) in
         contexts.iter_mut()
     {
         let ctx = context.get_mut();
@@ -61,7 +63,7 @@ pub fn process_output_system(
 
             #[cfg(windows)]
             {
-                let last_cursor_icon = last_cursor_icon.entry(context.render_target).or_default();
+                let last_cursor_icon = last_cursor_icon.entry(_entity).or_default();
                 if *last_cursor_icon != platform_output.cursor_icon {
                     set_icon();
                     *last_cursor_icon = platform_output.cursor_icon;

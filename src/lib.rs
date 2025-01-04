@@ -238,7 +238,7 @@ pub struct EguiClipboard {
 pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
-    /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`]) and reset during [`egui_node::EguiNode::update`].
+    /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`]) and reset during [`egui_node::EguiNode`]'s `update`.
     pub paint_jobs: Vec<egui::ClippedPrimitive>,
 
     /// The change in egui textures since last frame.
