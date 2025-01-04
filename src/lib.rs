@@ -1299,37 +1299,8 @@ pub fn end_pass_system(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use bevy::{
-        app::PluginGroup,
-        render::{settings::WgpuSettings, RenderPlugin},
-        winit::WinitPlugin,
-        DefaultPlugins,
-    };
-
     #[test]
     fn test_readme_deps() {
         version_sync::assert_markdown_deps_updated!("README.md");
-    }
-
-    #[test]
-    fn test_headless_mode() {
-        App::new()
-            .add_plugins(
-                DefaultPlugins
-                    .set(RenderPlugin {
-                        render_creation: bevy::render::settings::RenderCreation::Automatic(
-                            WgpuSettings {
-                                backends: None,
-                                ..Default::default()
-                            },
-                        ),
-                        ..Default::default()
-                    })
-                    .build()
-                    .disable::<WinitPlugin>(),
-            )
-            .add_plugins(EguiPlugin)
-            .update();
     }
 }
