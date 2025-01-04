@@ -61,7 +61,7 @@ name = "ui"
 required-features = ["render"]
 [[example]]
 name = "render_egui_to_image"
-required-features = ["render"]
+required-features = ["render", "bevy/bevy_gizmos"]
 
 [dependencies]
 egui = { version = "0.30", default-features = false }
@@ -99,7 +99,6 @@ version-sync = "0.9.4"
 bevy = { version = "0.15.0", default-features = false, features = [
     "bevy_asset",
     "bevy_core_pipeline",
-    "bevy_gizmos",
     "bevy_sprite",
     "bevy_pbr",
     "bevy_window",

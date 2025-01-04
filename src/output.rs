@@ -1,4 +1,6 @@
 use crate::{helpers, EguiContext, EguiFullOutput, EguiRenderOutput, EguiSettings};
+#[cfg(windows)]
+use bevy_ecs::system::Local;
 use bevy_ecs::{
     event::EventWriter,
     system::{NonSend, Query},
@@ -44,11 +46,7 @@ pub fn process_output_system(
         render_output.paint_jobs = paint_jobs;
         render_output.textures_delta.append(textures_delta);
 
-        #[cfg(all(
-            feature = "manage_clipboard",
-            not(target_os = "android"),
-            not(all(target_arch = "wasm32", not(web_sys_unstable_apis)))
-        ))]
+        #[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
         if !platform_output.copied_text.is_empty() {
             egui_clipboard.set_contents(&platform_output.copied_text);
         }

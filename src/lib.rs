@@ -35,8 +35,8 @@
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
 //!         .add_plugins(EguiPlugin)
-//!         // Systems that create Egui widgets should be run during the `CoreSet::Update` set,
-//!         // or after the `EguiSet::BeginPass` system (which belongs to the `CoreSet::PreUpdate` set).
+//!         // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
+//!         // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
 //!         .add_systems(Update, ui_example_system)
 //!         .run();
 //! }
@@ -58,13 +58,6 @@
 //!
 //! - [`bevy-inspector-egui`](https://github.com/jakobhellermann/bevy-inspector-egui)
 
-#[cfg(all(
-    feature = "manage_clipboard",
-    target_arch = "wasm32",
-    not(web_sys_unstable_apis)
-))]
-compile_error!(include_str!("../static/error_web_sys_unstable_apis.txt"));
-
 /// Egui render node.
 #[cfg(feature = "render")]
 pub mod egui_node;
@@ -81,11 +74,7 @@ pub mod render_systems;
 #[cfg(target_arch = "wasm32")]
 pub mod text_agent;
 /// Clipboard management for web.
-#[cfg(all(
-    feature = "manage_clipboard",
-    target_arch = "wasm32",
-    web_sys_unstable_apis
-))]
+#[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
 pub mod web_clipboard;
 
 pub use egui;
@@ -223,7 +212,7 @@ impl Default for EguiSettings {
 
 /// Is used for storing Egui context input.
 ///
-/// It gets reset during the [`EguiSet::ProcessInput`] system.
+/// It gets reset during the [`crate::EguiInputSet::WriteEguiEvents`] system set.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
 pub struct EguiInput(pub egui::RawInput);
 
@@ -239,7 +228,7 @@ pub struct EguiFullOutput(pub Option<egui::FullOutput>);
 pub struct EguiClipboard {
     #[cfg(not(target_arch = "wasm32"))]
     clipboard: thread_local::ThreadLocal<Option<RefCell<Clipboard>>>,
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     clipboard: web_clipboard::WebClipboard,
 }
 
@@ -249,7 +238,7 @@ pub struct EguiClipboard {
 pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
-    /// The field gets populated during the [`EguiSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`]) and reset during `EguiNode::update`.
+    /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`]) and reset during [`egui_node::EguiNode::update`].
     pub paint_jobs: Vec<egui::ClippedPrimitive>,
 
     /// The change in egui textures since last frame.
@@ -257,7 +246,7 @@ pub struct EguiRenderOutput {
 }
 
 impl EguiRenderOutput {
-    /// Returns `true` if the output has no Egui shapes and no textures delta
+    /// Returns `true` if the output has no Egui shapes and no textures delta.
     pub fn is_empty(&self) -> bool {
         self.paint_jobs.is_empty() && self.textures_delta.is_empty()
     }
@@ -266,7 +255,7 @@ impl EguiRenderOutput {
 /// Stores last Egui output.
 #[derive(Component, Clone, Default)]
 pub struct EguiOutput {
-    /// The field gets updated during the [`EguiSet::ProcessOutput`] system (belonging to [`PostUpdate`]).
+    /// The field gets updated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to [`PostUpdate`]).
     pub platform_output: egui::PlatformOutput,
 }
 
@@ -349,7 +338,7 @@ impl EguiContexts<'_, '_> {
     #[must_use]
     pub fn ctx_mut(&mut self) -> &mut egui::Context {
         self.try_ctx_mut()
-            .expect("`EguiContexts::ctx_mut` was called for an uninitialized context (primary window), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
+            .expect("`EguiContexts::ctx_mut` was called for an uninitialized context (primary window), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
     }
 
     /// Fallible variant of [`EguiContexts::ctx_mut`].
@@ -370,7 +359,7 @@ impl EguiContexts<'_, '_> {
     #[must_use]
     pub fn ctx_for_entity_mut(&mut self, entity: Entity) -> &mut egui::Context {
         self.try_ctx_for_entity_mut(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity_mut`].
@@ -413,7 +402,7 @@ impl EguiContexts<'_, '_> {
     #[must_use]
     pub fn ctx(&self) -> &egui::Context {
         self.try_ctx()
-            .expect("`EguiContexts::ctx` was called for an uninitialized context (primary window), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
+            .expect("`EguiContexts::ctx` was called for an uninitialized context (primary window), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
     }
 
     /// Fallible variant of [`EguiContexts::ctx`].
@@ -452,7 +441,7 @@ impl EguiContexts<'_, '_> {
     #[cfg(feature = "immutable_ctx")]
     pub fn ctx_for_entity(&self, entity: Entity) -> &egui::Context {
         self.try_ctx_for_entity(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_entity` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_entity` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity`].
@@ -654,13 +643,13 @@ pub enum EguiPreUpdateSet {
     ///
     /// To modify the input, you can hook your system like this:
     ///
-    /// `system.after(EguiSet::ProcessInput).before(EguiSet::BeginPass)`.
+    /// `system.after(EguiPreUpdateSet::ProcessInput).before(EguiSet::BeginPass)`.
     ProcessInput,
     /// Begins the `egui` pass.
     BeginPass,
 }
 
-/// Subsets of the [`EguiSet::ProcessInput`] set.
+/// Subsets of the [`EguiPreUpdateSet::ProcessInput`] set.
 #[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
 pub enum EguiInputSet {
     /// Reads key modifiers state and pointer positions.
@@ -955,11 +944,7 @@ pub fn setup_new_windows_system(
     }
 }
 
-#[cfg(all(
-    feature = "manage_clipboard",
-    not(target_os = "android"),
-    not(all(target_arch = "wasm32", not(web_sys_unstable_apis)))
-))]
+#[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
 impl EguiClipboard {
     /// Sets clipboard contents.
     pub fn set_contents(&mut self, contents: &str) {
@@ -968,7 +953,7 @@ impl EguiClipboard {
 
     /// Sets the internal buffer of clipboard contents.
     /// This buffer is used to remember the contents of the last "Paste" event.
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     pub fn set_contents_internal(&mut self, contents: &str) {
         self.clipboard.set_contents_internal(contents);
     }
@@ -982,13 +967,13 @@ impl EguiClipboard {
 
     /// Gets clipboard contents. Returns [`None`] if clipboard provider is unavailable or returns an error.
     #[must_use]
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     pub fn get_contents(&mut self) -> Option<String> {
         self.get_contents_impl()
     }
 
     /// Receives a clipboard event sent by the `copy`/`cut`/`paste` listeners.
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     pub fn try_receive_clipboard_event(&self) -> Option<web_clipboard::WebClipboardEvent> {
         self.clipboard.try_receive_clipboard_event()
     }
@@ -1002,7 +987,7 @@ impl EguiClipboard {
         }
     }
 
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     fn set_contents_impl(&mut self, contents: &str) {
         self.clipboard.set_contents(contents);
     }
@@ -1018,7 +1003,7 @@ impl EguiClipboard {
         None
     }
 
-    #[cfg(all(target_arch = "wasm32", web_sys_unstable_apis))]
+    #[cfg(target_arch = "wasm32")]
     #[allow(clippy::unnecessary_wraps)]
     fn get_contents_impl(&mut self) -> Option<String> {
         self.clipboard.get_contents()
@@ -1183,7 +1168,7 @@ struct EventClosure<T> {
 #[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 pub struct SubscribedEvents {
-    #[cfg(all(feature = "manage_clipboard", web_sys_unstable_apis))]
+    #[cfg(feature = "manage_clipboard")]
     clipboard_event_closures: Vec<EventClosure<web_sys::ClipboardEvent>>,
     composition_event_closures: Vec<EventClosure<web_sys::CompositionEvent>>,
     keyboard_event_closures: Vec<EventClosure<web_sys::KeyboardEvent>>,
@@ -1196,7 +1181,7 @@ impl SubscribedEvents {
     /// Use this method to unsubscribe from all stored events, this can be useful
     /// for gracefully destroying a Bevy instance in a page.
     pub fn unsubscribe_from_all_events(&mut self) {
-        #[cfg(all(feature = "manage_clipboard", web_sys_unstable_apis))]
+        #[cfg(feature = "manage_clipboard")]
         Self::unsubscribe_from_events(&mut self.clipboard_event_closures);
         Self::unsubscribe_from_events(&mut self.composition_event_closures);
         Self::unsubscribe_from_events(&mut self.keyboard_event_closures);

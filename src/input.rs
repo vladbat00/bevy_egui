@@ -64,7 +64,7 @@ pub struct HoveredNonWindowEguiContext(pub Entity);
 /// We might be able to add proper `bevy_picking` support for world space UI once [`bevy_picking::backend::HitData`]
 /// starts exposing triangle index or UV.
 ///
-/// Updating focused contexts happens during [`EguiInputSet::FocusContext`],
+/// Updating focused contexts happens during [`crate::EguiInputSet::FocusContext`],
 /// see [`write_pointer_button_events_system`] and [`write_window_touch_events_system`].
 #[derive(Resource)]
 pub struct FocusedNonWindowEguiContext(pub Entity);
@@ -74,7 +74,7 @@ pub struct FocusedNonWindowEguiContext(pub Entity);
 pub struct ModifierKeysState {
     /// Indicates whether the [`Key::Shift`] key is pressed.
     pub shift: bool,
-    /// Indicates whether the [`Key::Ctrl`] key is pressed.
+    /// Indicates whether the [`Key::Control`] key is pressed.
     pub ctrl: bool,
     /// Indicates whether the [`Key::Alt`] key is pressed.
     pub alt: bool,
