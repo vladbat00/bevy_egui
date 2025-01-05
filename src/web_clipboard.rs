@@ -1,6 +1,7 @@
 use crate::{
     input::{EguiInputEvent, FocusedNonWindowEguiContext},
-    string_from_js_value, EguiClipboard, EguiContext, EventClosure, SubscribedEvents,
+    string_from_js_value, EguiClipboard, EguiContext, EguiContextSettings, EventClosure,
+    SubscribedEvents,
 };
 use bevy_ecs::prelude::*;
 use bevy_log as log;
@@ -25,13 +26,21 @@ pub fn startup_setup_web_events_system(
 pub fn write_web_clipboard_events_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     // We can safely assume that we have only 1 window in WASM.
-    primary_context: Single<Entity, (With<PrimaryWindow>, With<EguiContext>)>,
+    egui_context: Single<(Entity, &EguiContextSettings), (With<PrimaryWindow>, With<EguiContext>)>,
     mut egui_clipboard: ResMut<EguiClipboard>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
 ) {
+    let (primary_context, context_settings) = *egui_context;
+    if !context_settings
+        .input_system_settings
+        .run_write_web_clipboard_events_system
+    {
+        return;
+    }
+
     let context = focused_non_window_egui_context
         .as_deref()
-        .map_or(*primary_context, |context| context.0);
+        .map_or(primary_context, |context| context.0);
     while let Some(event) = egui_clipboard.try_receive_clipboard_event() {
         match event {
             crate::web_clipboard::WebClipboardEvent::Copy => {

@@ -1,4 +1,4 @@
-use crate::{helpers, EguiContext, EguiFullOutput, EguiRenderOutput, EguiSettings};
+use crate::{helpers, EguiContext, EguiContextSettings, EguiFullOutput, EguiRenderOutput};
 #[cfg(windows)]
 use bevy_ecs::system::Local;
 use bevy_ecs::{
@@ -18,7 +18,7 @@ pub fn process_output_system(
         &mut EguiFullOutput,
         &mut EguiRenderOutput,
         Option<&mut CursorIcon>,
-        &EguiSettings,
+        &EguiContextSettings,
     )>,
     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
     mut egui_clipboard: bevy_ecs::system::ResMut<crate::EguiClipboard>,

@@ -2,7 +2,7 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
 };
-use bevy_egui::{EguiContexts, EguiPlugin, EguiSettings};
+use bevy_egui::{EguiContextSettings, EguiContexts, EguiPlugin};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -74,7 +74,7 @@ fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
 fn update_ui_scale_factor_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut toggle_scale_factor: Local<Option<bool>>,
-    mut contexts: Query<(&mut EguiSettings, &Window)>,
+    mut contexts: Query<(&mut EguiContextSettings, &Window)>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Slash) || toggle_scale_factor.is_none() {
         *toggle_scale_factor = Some(!toggle_scale_factor.unwrap_or(true));

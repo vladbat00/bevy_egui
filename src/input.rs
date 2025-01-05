@@ -2,7 +2,7 @@
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
     helpers::{vec2_into_egui_pos2, QueryHelper},
-    EguiContext, EguiGlobalSettings, EguiInput, EguiOutput, EguiSettings,
+    EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
 };
 use bevy_ecs::prelude::*;
 use bevy_input::{
@@ -177,7 +177,7 @@ pub fn write_window_pointer_moved_events_system(
     mut cursor_moved_reader: EventReader<CursorMoved>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
     mut egui_contexts: Query<
-        (&EguiSettings, &mut EguiContextPointerPosition),
+        (&EguiContextSettings, &mut EguiContextPointerPosition),
         (With<EguiContext>, With<Window>),
     >,
 ) {
@@ -187,6 +187,13 @@ pub fn write_window_pointer_moved_events_system(
         else {
             continue;
         };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_window_pointer_moved_events_system
+        {
+            continue;
+        }
 
         let scale_factor = context_settings.scale_factor;
         let pointer_position = vec2_into_egui_pos2(event.position / scale_factor);
@@ -207,7 +214,7 @@ pub fn write_pointer_button_events_system(
     modifier_keys_state: Res<ModifierKeysState>,
     mut mouse_button_input_reader: EventReader<MouseButtonInput>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
-    egui_contexts: Query<&EguiContextPointerPosition, With<EguiContext>>,
+    egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
     for event in mouse_button_input_reader.read() {
@@ -215,9 +222,18 @@ pub fn write_pointer_button_events_system(
             .as_deref()
             .map_or(event.window, |hovered| hovered.0);
 
-        let Some(context_pointer_position) = egui_contexts.get_some(hovered_context) else {
+        let Some((context_settings, context_pointer_position)) =
+            egui_contexts.get_some(hovered_context)
+        else {
             continue;
         };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_pointer_button_events_system
+        {
+            continue;
+        }
 
         let button = match event.button {
             MouseButton::Left => Some(egui::PointerButton::Primary),
@@ -262,7 +278,7 @@ pub fn write_non_window_pointer_moved_events_system(
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
     mut cursor_moved_reader: EventReader<CursorMoved>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
-    egui_contexts: Query<&EguiContextPointerPosition, With<EguiContext>>,
+    egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     if cursor_moved_reader.is_empty() {
         return;
@@ -275,10 +291,18 @@ pub fn write_non_window_pointer_moved_events_system(
         return;
     };
 
-    let Some(context_pointer_position) = egui_contexts.get_some(*hovered_non_window_egui_context)
+    let Some((context_settings, context_pointer_position)) =
+        egui_contexts.get_some(*hovered_non_window_egui_context)
     else {
         return;
     };
+
+    if !context_settings
+        .input_system_settings
+        .run_write_non_window_pointer_moved_events_system
+    {
+        return;
+    }
 
     egui_input_event_writer.send(EguiInputEvent {
         context: *hovered_non_window_egui_context,
@@ -292,6 +316,7 @@ pub fn write_mouse_wheel_events_system(
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
     mut mouse_wheel_reader: EventReader<MouseWheel>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
     for event in mouse_wheel_reader.read() {
@@ -301,10 +326,23 @@ pub fn write_mouse_wheel_events_system(
             MouseScrollUnit::Pixel => egui::MouseWheelUnit::Point,
         };
 
+        let context = hovered_non_window_egui_context
+            .as_deref()
+            .map_or(event.window, |hovered| hovered.0);
+
+        let Some(context_settings) = egui_contexts.get_some(context) else {
+            continue;
+        };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_mouse_wheel_events_system
+        {
+            continue;
+        }
+
         egui_input_event_writer.send(EguiInputEvent {
-            context: hovered_non_window_egui_context
-                .as_deref()
-                .map_or(event.window, |hovered| hovered.0),
+            context,
             event: egui::Event::MouseWheel {
                 unit,
                 delta,
@@ -326,12 +364,24 @@ pub fn write_keyboard_input_events_system(
     mut egui_clipboard: ResMut<crate::EguiClipboard>,
     mut keyboard_input_reader: EventReader<KeyboardInput>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
     for event in keyboard_input_reader.read() {
         let context = focused_non_window_egui_context
             .as_deref()
             .map_or(event.window, |context| context.0);
+
+        let Some(context_settings) = egui_contexts.get_some(context) else {
+            continue;
+        };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_keyboard_input_events_system
+        {
+            continue;
+        }
 
         if modifier_keys_state.text_input_is_allowed() && event.state.is_pressed() {
             match &event.logical_key {
@@ -410,7 +460,15 @@ pub fn write_ime_events_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     mut ime_reader: EventReader<Ime>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
-    mut egui_contexts: Query<(Entity, &mut EguiContextImeState, &EguiOutput), With<EguiContext>>,
+    mut egui_contexts: Query<
+        (
+            Entity,
+            &EguiContextSettings,
+            &mut EguiContextImeState,
+            &EguiOutput,
+        ),
+        With<EguiContext>,
+    >,
 ) {
     for event in ime_reader.read() {
         let window = match &event {
@@ -423,10 +481,18 @@ pub fn write_ime_events_system(
             .as_deref()
             .map_or(window, |context| context.0);
 
-        let Some((_entity, mut ime_state, _egui_output)) = egui_contexts.get_some_mut(context)
+        let Some((_entity, context_settings, mut ime_state, _egui_output)) =
+            egui_contexts.get_some_mut(context)
         else {
             continue;
         };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_ime_events_system
+        {
+            continue;
+        }
 
         let ime_event_enable =
             |ime_state: &mut EguiContextImeState,
@@ -492,7 +558,7 @@ pub fn write_window_touch_events_system(
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (
-            &EguiSettings,
+            &EguiContextSettings,
             &mut EguiContextPointerPosition,
             &mut EguiContextPointerTouchId,
             &EguiOutput,
@@ -500,51 +566,41 @@ pub fn write_window_touch_events_system(
         (With<EguiContext>, With<Window>),
     >,
 ) {
-    #[cfg(target_arch = "wasm32")]
-    let mut editing_text = false;
-    #[cfg(target_arch = "wasm32")]
-    for (_, _, _, egui_output) in egui_contexts.iter() {
-        let platform_output = &egui_output.platform_output;
-        if platform_output.ime.is_some() || platform_output.mutable_text_under_cursor {
-            editing_text = true;
-            break;
-        }
-    }
-
     let modifiers = modifier_keys_state.to_egui_modifiers();
     for event in touch_input_reader.read() {
-        let Some((context_settings, mut context_pointer_position, mut context_pointer_touch_id, _)) =
-            egui_contexts.get_some_mut(event.window)
+        let Some((
+            context_settings,
+            mut context_pointer_position,
+            mut context_pointer_touch_id,
+            output,
+        )) = egui_contexts.get_some_mut(event.window)
         else {
             continue;
         };
 
-        if let Some(hovered_non_window_egui_context) = hovered_non_window_egui_context.as_deref() {
-            #[cfg(target_arch = "wasm32")]
-            if context_pointer_touch_id.pointer_touch_id.is_none()
-                || context_pointer_touch_id.pointer_touch_id.unwrap() == event.id
-            {
-                if let bevy_input::touch::TouchPhase::Ended = event.phase {
-                    if !is_mobile_safari() {
-                        update_text_agent(editing_text);
-                    }
-                }
-            }
-
-            if egui_global_settings.enable_focused_non_window_context_updates {
-                if let bevy_input::touch::TouchPhase::Started = event.phase {
-                    commands.insert_resource(FocusedNonWindowEguiContext(
-                        hovered_non_window_egui_context.0,
-                    ));
-                }
-            }
-
-            continue;
-        }
         if egui_global_settings.enable_focused_non_window_context_updates {
             if let bevy_input::touch::TouchPhase::Started = event.phase {
+                if let Some(hovered_non_window_egui_context) =
+                    hovered_non_window_egui_context.as_deref()
+                {
+                    if let bevy_input::touch::TouchPhase::Started = event.phase {
+                        commands.insert_resource(FocusedNonWindowEguiContext(
+                            hovered_non_window_egui_context.0,
+                        ));
+                    }
+
+                    continue;
+                }
+
                 commands.remove_resource::<FocusedNonWindowEguiContext>();
             }
+        }
+
+        if !context_settings
+            .input_system_settings
+            .run_write_window_touch_events_system
+        {
+            continue;
         }
 
         let scale_factor = context_settings.scale_factor;
@@ -554,7 +610,61 @@ pub fn write_window_touch_events_system(
             &mut egui_input_event_writer,
             event,
             event.window,
+            output,
             touch_position,
+            modifiers,
+            &mut context_pointer_touch_id,
+        );
+    }
+}
+
+/// Reads [`TouchInput`] events and wraps them into [`EguiInputEvent`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
+pub fn write_non_window_touch_events_system(
+    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
+    mut touch_input_reader: EventReader<TouchInput>,
+    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    modifier_keys_state: Res<ModifierKeysState>,
+    mut egui_contexts: Query<
+        (
+            &EguiContextSettings,
+            &EguiContextPointerPosition,
+            &mut EguiContextPointerTouchId,
+            &EguiOutput,
+        ),
+        With<EguiContext>,
+    >,
+) {
+    let modifiers = modifier_keys_state.to_egui_modifiers();
+    for event in touch_input_reader.read() {
+        let Some(&FocusedNonWindowEguiContext(focused_non_window_egui_context)) =
+            focused_non_window_egui_context.as_deref()
+        else {
+            continue;
+        };
+
+        let Some((
+            context_settings,
+            context_pointer_position,
+            mut context_pointer_touch_id,
+            output,
+        )) = egui_contexts.get_some_mut(focused_non_window_egui_context)
+        else {
+            continue;
+        };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_non_window_touch_events_system
+        {
+            continue;
+        }
+
+        write_touch_event(
+            &mut egui_input_event_writer,
+            event,
+            focused_non_window_egui_context,
+            output,
+            context_pointer_position.position,
             modifiers,
             &mut context_pointer_touch_id,
         );
@@ -565,6 +675,7 @@ fn write_touch_event(
     egui_input_event_writer: &mut EventWriter<EguiInputEvent>,
     event: &TouchInput,
     context: Entity,
+    _output: &EguiOutput,
     pointer_position: egui::Pos2,
     modifiers: Modifiers,
     context_pointer_touch_id: &mut EguiContextPointerTouchId,
@@ -642,6 +753,14 @@ fn write_touch_event(
                     context,
                     event: egui::Event::PointerGone,
                 });
+
+                #[cfg(target_arch = "wasm32")]
+                if !is_mobile_safari() {
+                    update_text_agent(
+                        _output.platform_output.ime.is_some()
+                            || _output.platform_output.mutable_text_under_cursor,
+                    );
+                }
             }
             bevy_input::touch::TouchPhase::Canceled => {
                 context_pointer_touch_id.pointer_touch_id = None;

@@ -2,7 +2,7 @@ use crate::{
     render_systems::{
         EguiPipelines, EguiTextureBindGroups, EguiTextureId, EguiTransform, EguiTransforms,
     },
-    EguiRenderOutput, EguiRenderToImage, EguiSettings, RenderTargetSize,
+    EguiContextSettings, EguiRenderOutput, EguiRenderToImage, RenderTargetSize,
 };
 use bevy_asset::prelude::*;
 use bevy_ecs::{
@@ -248,7 +248,7 @@ impl EguiNode {
 impl Node for EguiNode {
     fn update(&mut self, world: &mut World) {
         let mut render_target_query = world.query::<(
-            &EguiSettings,
+            &EguiContextSettings,
             &RenderTargetSize,
             &mut EguiRenderOutput,
             Option<&EguiRenderToImage>,

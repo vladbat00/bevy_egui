@@ -186,12 +186,15 @@ pub struct EguiGlobalSettings {
     ///
     /// For more info, see the [`FocusedNonWindowEguiContext`] documentation.
     pub enable_focused_non_window_context_updates: bool,
+    /// Controls running of the input systems.
+    pub input_system_settings: EguiInputSystemSettings,
 }
 
 impl Default for EguiGlobalSettings {
     fn default() -> Self {
         Self {
             enable_focused_non_window_context_updates: true,
+            input_system_settings: EguiInputSystemSettings::default(),
         }
     }
 }
@@ -199,7 +202,7 @@ impl Default for EguiGlobalSettings {
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
 #[cfg_attr(feature = "render", derive(ExtractComponent))]
-pub struct EguiSettings {
+pub struct EguiContextSettings {
     /// Controls if Egui is run manually.
     ///
     /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
@@ -209,9 +212,9 @@ pub struct EguiSettings {
     /// This setting can be used to force the UI to render in physical pixels regardless of DPI as follows:
     /// ```rust
     /// use bevy::{prelude::*, window::PrimaryWindow};
-    /// use bevy_egui::EguiSettings;
+    /// use bevy_egui::EguiContextSettings;
     ///
-    /// fn update_ui_scale_factor(mut windows: Query<(&mut EguiSettings, &Window), With<PrimaryWindow>>) {
+    /// fn update_ui_scale_factor(mut windows: Query<(&mut EguiContextSettings, &Window), With<PrimaryWindow>>) {
     ///     if let Ok((mut egui_settings, window)) = windows.get_single_mut() {
     ///         egui_settings.scale_factor = 1.0 / window.scale_factor();
     ///     }
@@ -225,10 +228,12 @@ pub struct EguiSettings {
     /// Controls if Egui should capture pointer input when using [`bevy_picking`] (i.e. suppress `bevy_picking` events when a pointer is over an Egui window).
     #[cfg(feature = "render")]
     pub capture_pointer_input: bool,
+    /// Controls running of the input systems.
+    pub input_system_settings: EguiInputSystemSettings,
 }
 
 // Just to keep the PartialEq
-impl PartialEq for EguiSettings {
+impl PartialEq for EguiContextSettings {
     #[allow(clippy::let_and_return)]
     fn eq(&self, other: &Self) -> bool {
         let eq = self.scale_factor == other.scale_factor;
@@ -238,7 +243,7 @@ impl PartialEq for EguiSettings {
     }
 }
 
-impl Default for EguiSettings {
+impl Default for EguiContextSettings {
     fn default() -> Self {
         Self {
             run_manually: false,
@@ -247,6 +252,54 @@ impl Default for EguiSettings {
             default_open_url_target: None,
             #[cfg(feature = "render")]
             capture_pointer_input: true,
+            input_system_settings: EguiInputSystemSettings::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Reflect, PartialEq, Eq)]
+/// All the systems are enabled by default. These settings exist within both [`EguiGlobalSettings`] and [`EguiContextSettings`].
+pub struct EguiInputSystemSettings {
+    /// Controls running of the [`run_write_modifiers_keys_state_system`] system.
+    pub run_write_modifiers_keys_state_system: bool,
+    /// Controls running of the [`run_write_window_pointer_moved_events_system`] system.
+    pub run_write_window_pointer_moved_events_system: bool,
+    /// Controls running of the [`run_write_pointer_button_events_system`] system.
+    pub run_write_pointer_button_events_system: bool,
+    /// Controls running of the [`run_write_window_touch_events_system`] system.
+    pub run_write_window_touch_events_system: bool,
+    /// Controls running of the [`run_write_non_window_pointer_moved_events_system`] system.
+    pub run_write_non_window_pointer_moved_events_system: bool,
+    /// Controls running of the [`run_write_mouse_wheel_events_system`] system.
+    pub run_write_mouse_wheel_events_system: bool,
+    /// Controls running of the [`run_write_non_window_touch_events_system`] system.
+    pub run_write_non_window_touch_events_system: bool,
+    /// Controls running of the [`run_write_keyboard_input_events_system`] system.
+    pub run_write_keyboard_input_events_system: bool,
+    /// Controls running of the [`run_write_ime_events_system`] system.
+    pub run_write_ime_events_system: bool,
+    /// Controls running of the [`run_write_text_agent_channel_events_system`] system.
+    pub run_write_text_agent_channel_events_system: bool,
+    /// Controls running of the [`run_write_web_clipboard_events_system`] system.
+    #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
+    pub run_write_web_clipboard_events_system: bool,
+}
+
+impl Default for EguiInputSystemSettings {
+    fn default() -> Self {
+        Self {
+            run_write_modifiers_keys_state_system: true,
+            run_write_window_pointer_moved_events_system: true,
+            run_write_pointer_button_events_system: true,
+            run_write_window_touch_events_system: true,
+            run_write_non_window_pointer_moved_events_system: true,
+            run_write_mouse_wheel_events_system: true,
+            run_write_non_window_touch_events_system: true,
+            run_write_keyboard_input_events_system: true,
+            run_write_ime_events_system: true,
+            run_write_text_agent_channel_events_system: true,
+            #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
+            run_write_web_clipboard_events_system: true,
         }
     }
 }
@@ -304,7 +357,7 @@ pub struct EguiOutput {
 #[derive(Clone, Component, Default)]
 #[cfg_attr(feature = "render", derive(ExtractComponent))]
 #[require(
-    EguiSettings,
+    EguiContextSettings,
     EguiInput,
     EguiContextPointerPosition,
     EguiContextPointerTouchId,
@@ -719,7 +772,7 @@ pub enum EguiPostUpdateSet {
 impl Plugin for EguiPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<EguiGlobalSettings>();
-        app.register_type::<EguiSettings>();
+        app.register_type::<EguiContextSettings>();
         app.init_resource::<EguiGlobalSettings>();
         app.init_resource::<ModifierKeysState>();
         app.add_event::<EguiInputEvent>();
@@ -731,7 +784,7 @@ impl Plugin for EguiPlugin {
             app.add_plugins(ExtractResourcePlugin::<EguiUserTextures>::default());
             app.add_plugins(ExtractResourcePlugin::<ExtractedEguiManagedTextures>::default());
             app.add_plugins(ExtractComponentPlugin::<EguiContext>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiSettings>::default());
+            app.add_plugins(ExtractComponentPlugin::<EguiContextSettings>::default());
             app.add_plugins(ExtractComponentPlugin::<RenderTargetSize>::default());
             app.add_plugins(ExtractComponentPlugin::<EguiRenderOutput>::default());
             app.add_plugins(ExtractComponentPlugin::<EguiRenderToImage>::default());
@@ -803,20 +856,38 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 (
-                    write_modifiers_keys_state_system,
-                    write_window_pointer_moved_events_system,
+                    write_modifiers_keys_state_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_modifiers_keys_state_system
+                    })),
+                    write_window_pointer_moved_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_window_pointer_moved_events_system
+                    })),
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
-                    write_pointer_button_events_system,
-                    write_window_touch_events_system,
+                    write_pointer_button_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_pointer_button_events_system
+                    })),
+                    write_window_touch_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_window_touch_events_system
+                    })),
                 )
                     .in_set(EguiInputSet::FocusContext),
                 (
-                    write_non_window_pointer_moved_events_system,
-                    write_mouse_wheel_events_system,
-                    write_keyboard_input_events_system,
-                    write_ime_events_system,
+                    write_non_window_pointer_moved_events_system.run_if(input_system_is_enabled(
+                        |s| s.run_write_non_window_pointer_moved_events_system,
+                    )),
+                    write_non_window_touch_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_non_window_touch_events_system
+                    })),
+                    write_mouse_wheel_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_mouse_wheel_events_system
+                    })),
+                    write_keyboard_input_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_keyboard_input_events_system
+                    })),
+                    write_ime_events_system
+                        .run_if(input_system_is_enabled(|s| s.run_write_ime_events_system)),
                 )
                     .in_set(EguiInputSet::ReadBevyEvents),
                 write_egui_input_system.in_set(EguiInputSet::WriteEguiEvents),
@@ -864,6 +935,9 @@ impl Plugin for EguiPlugin {
                 app.add_systems(
                     PreUpdate,
                     write_text_agent_channel_events_system
+                        .run_if(input_system_is_enabled(|s| {
+                            s.run_write_text_agent_channel_events_system
+                        }))
                         .in_set(EguiPreUpdateSet::ProcessInput)
                         .in_set(EguiInputSet::ReadBevyEvents),
                 );
@@ -872,6 +946,9 @@ impl Plugin for EguiPlugin {
                 app.add_systems(
                     PreUpdate,
                     web_clipboard::write_web_clipboard_events_system
+                        .run_if(input_system_is_enabled(|s| {
+                            s.run_write_web_clipboard_events_system
+                        }))
                         .in_set(EguiPreUpdateSet::ProcessInput)
                         .in_set(EguiInputSet::ReadBevyEvents),
                 );
@@ -958,6 +1035,12 @@ impl Plugin for EguiPlugin {
                 );
         }
     }
+}
+
+fn input_system_is_enabled(
+    test: impl Fn(&EguiInputSystemSettings) -> bool,
+) -> impl Fn(Res<EguiGlobalSettings>) -> bool {
+    move |settings| test(&settings.input_system_settings)
 }
 
 /// Contains textures allocated and painted by Egui.
@@ -1074,7 +1157,7 @@ pub const PICKING_ORDER: f32 = 1_000_000.0;
 #[cfg(feature = "render")]
 pub fn capture_pointer_input_system(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    mut egui_context: Query<(Entity, &mut EguiContext, &EguiSettings), With<Window>>,
+    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings), With<Window>>,
     mut output: EventWriter<PointerHits>,
 ) {
     use helpers::QueryHelper;
@@ -1256,7 +1339,7 @@ pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
     render_target_size: &'static mut RenderTargetSize,
-    egui_settings: &'static EguiSettings,
+    egui_settings: &'static EguiContextSettings,
     window: Option<&'static Window>,
     #[cfg(feature = "render")]
     render_to_image: Option<&'static EguiRenderToImage>,
@@ -1319,7 +1402,9 @@ pub fn update_ui_size_and_scale_system(
 }
 
 /// Marks a pass start for Egui.
-pub fn begin_pass_system(mut contexts: Query<(&mut EguiContext, &EguiSettings, &mut EguiInput)>) {
+pub fn begin_pass_system(
+    mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiInput)>,
+) {
     for (mut ctx, egui_settings, mut egui_input) in contexts.iter_mut() {
         if !egui_settings.run_manually {
             ctx.get_mut().begin_pass(egui_input.take());
@@ -1329,7 +1414,7 @@ pub fn begin_pass_system(mut contexts: Query<(&mut EguiContext, &EguiSettings, &
 
 /// Marks a pass end for Egui.
 pub fn end_pass_system(
-    mut contexts: Query<(&mut EguiContext, &EguiSettings, &mut EguiFullOutput)>,
+    mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiFullOutput)>,
 ) {
     for (mut ctx, egui_settings, mut full_output) in contexts.iter_mut() {
         if !egui_settings.run_manually {

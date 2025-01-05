@@ -3,7 +3,7 @@
 
 use crate::{
     input::{EguiInputEvent, FocusedNonWindowEguiContext},
-    EguiContext, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
+    EguiContext, EguiContextSettings, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
 };
 use bevy_ecs::prelude::*;
 use bevy_window::{PrimaryWindow, RequestRedraw};
@@ -81,14 +81,22 @@ pub fn write_text_agent_channel_events_system(
     channel: Res<TextAgentChannel>,
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     // We can safely assume that we have only 1 window in WASM.
-    primary_context: Single<Entity, (With<PrimaryWindow>, With<EguiContext>)>,
+    egui_context: Single<(Entity, &EguiContextSettings), (With<PrimaryWindow>, With<EguiContext>)>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
     mut redraw_event: EventWriter<RequestRedraw>,
 ) {
+    let (primary_context, context_settings) = *egui_context;
+    if !context_settings
+        .input_system_settings
+        .run_write_text_agent_channel_events_system
+    {
+        return;
+    }
+
     let mut redraw = false;
     let context = focused_non_window_egui_context
         .as_deref()
-        .map_or(*primary_context, |context| context.0);
+        .map_or(primary_context, |context| context.0);
     while let Ok(event) = channel.receiver.try_recv() {
         redraw = true;
         egui_input_event_writer.send(EguiInputEvent { context, event });

@@ -1,6 +1,7 @@
 use crate::{
     egui_node::{EguiNode, EguiPipeline, EguiPipelineKey, EguiRenderTargetType},
-    EguiManagedTextures, EguiRenderToImage, EguiSettings, EguiUserTextures, RenderTargetSize,
+    EguiContextSettings, EguiManagedTextures, EguiRenderToImage, EguiUserTextures,
+    RenderTargetSize,
 };
 use bevy_asset::prelude::*;
 use bevy_derive::{Deref, DerefMut};
@@ -27,7 +28,7 @@ use bevy_window::Window;
 
 /// Extracted Egui settings.
 #[derive(Resource, Deref, DerefMut, Default)]
-pub struct ExtractedEguiSettings(pub EguiSettings);
+pub struct ExtractedEguiSettings(pub EguiContextSettings);
 
 /// The extracted version of [`EguiManagedTextures`].
 #[derive(Debug, Resource)]
@@ -190,7 +191,7 @@ pub struct EguiTransforms {
 /// the screen space with the center at (0, 0) to the normalised viewport space.
 #[derive(encase::ShaderType, Default)]
 pub struct EguiTransform {
-    /// Is affected by window size and [`EguiSettings::scale_factor`].
+    /// Is affected by window size and [`EguiContextSettings::scale_factor`].
     pub scale: Vec2,
     /// Normally equals `Vec2::new(-1.0, 1.0)`.
     pub translation: Vec2,
@@ -215,7 +216,7 @@ impl EguiTransform {
 /// Prepares Egui transforms.
 pub fn prepare_egui_transforms_system(
     mut egui_transforms: ResMut<EguiTransforms>,
-    render_targets: Query<(Option<&MainEntity>, &EguiSettings, &RenderTargetSize)>,
+    render_targets: Query<(Option<&MainEntity>, &EguiContextSettings, &RenderTargetSize)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     egui_pipeline: Res<EguiPipeline>,

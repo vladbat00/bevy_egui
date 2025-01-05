@@ -6,7 +6,7 @@ use bevy::{
 use bevy_egui::{
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext, EguiContexts, EguiInputSet, EguiPlugin, EguiRenderToImage, EguiSettings,
+    EguiContext, EguiContextSettings, EguiContexts, EguiInputSet, EguiPlugin, EguiRenderToImage,
 };
 
 fn main() {
@@ -157,7 +157,7 @@ fn update_egui_hovered_context(
         (
             Entity,
             &mut EguiContextPointerPosition,
-            &EguiSettings,
+            &EguiContextSettings,
             Option<&Mesh2d>,
         ),
         (With<EguiContext>, Without<PrimaryWindow>),
