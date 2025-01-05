@@ -260,27 +260,28 @@ impl Default for EguiContextSettings {
 #[derive(Clone, Debug, Reflect, PartialEq, Eq)]
 /// All the systems are enabled by default. These settings exist within both [`EguiGlobalSettings`] and [`EguiContextSettings`].
 pub struct EguiInputSystemSettings {
-    /// Controls running of the [`run_write_modifiers_keys_state_system`] system.
+    /// Controls running of the [`write_modifiers_keys_state_system`] system.
     pub run_write_modifiers_keys_state_system: bool,
-    /// Controls running of the [`run_write_window_pointer_moved_events_system`] system.
+    /// Controls running of the [`write_window_pointer_moved_events_system`] system.
     pub run_write_window_pointer_moved_events_system: bool,
-    /// Controls running of the [`run_write_pointer_button_events_system`] system.
+    /// Controls running of the [`write_pointer_button_events_system`] system.
     pub run_write_pointer_button_events_system: bool,
-    /// Controls running of the [`run_write_window_touch_events_system`] system.
+    /// Controls running of the [`write_window_touch_events_system`] system.
     pub run_write_window_touch_events_system: bool,
-    /// Controls running of the [`run_write_non_window_pointer_moved_events_system`] system.
+    /// Controls running of the [`write_non_window_pointer_moved_events_system`] system.
     pub run_write_non_window_pointer_moved_events_system: bool,
-    /// Controls running of the [`run_write_mouse_wheel_events_system`] system.
+    /// Controls running of the [`write_mouse_wheel_events_system`] system.
     pub run_write_mouse_wheel_events_system: bool,
-    /// Controls running of the [`run_write_non_window_touch_events_system`] system.
+    /// Controls running of the [`write_non_window_touch_events_system`] system.
     pub run_write_non_window_touch_events_system: bool,
-    /// Controls running of the [`run_write_keyboard_input_events_system`] system.
+    /// Controls running of the [`write_keyboard_input_events_system`] system.
     pub run_write_keyboard_input_events_system: bool,
-    /// Controls running of the [`run_write_ime_events_system`] system.
+    /// Controls running of the [`write_ime_events_system`] system.
     pub run_write_ime_events_system: bool,
-    /// Controls running of the [`run_write_text_agent_channel_events_system`] system.
+    /// Controls running of the [`write_text_agent_channel_events_system`] system.
+    #[cfg(target_arch = "wasm32")]
     pub run_write_text_agent_channel_events_system: bool,
-    /// Controls running of the [`run_write_web_clipboard_events_system`] system.
+    /// Controls running of the [`web_clipboard::write_web_clipboard_events_system`] system.
     #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
     pub run_write_web_clipboard_events_system: bool,
 }
@@ -297,6 +298,7 @@ impl Default for EguiInputSystemSettings {
             run_write_non_window_touch_events_system: true,
             run_write_keyboard_input_events_system: true,
             run_write_ime_events_system: true,
+            #[cfg(target_arch = "wasm32")]
             run_write_text_agent_channel_events_system: true,
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
             run_write_web_clipboard_events_system: true,
