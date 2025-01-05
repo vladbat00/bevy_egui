@@ -11,6 +11,7 @@ use bevy_input::{
     touch::TouchInput,
     ButtonState,
 };
+use bevy_log as log;
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, Ime, Window};
 use egui::Modifiers;
@@ -783,12 +784,12 @@ pub fn write_egui_input_system(
 ) {
     for EguiInputEvent { context, event } in egui_input_event_reader.read() {
         #[cfg(feature = "log_input_events")]
-        bevy_log::info!("{context:?}: {event:?}");
+        log::warn!("{context:?}: {event:?}");
 
         let (_, mut egui_input, _) = match egui_contexts.get_mut(*context) {
             Ok(egui_input) => egui_input,
             Err(err) => {
-                bevy_log::error!(
+                log::error!(
                     "Failed to get an Egui context ({context:?}) for an event ({event:?}): {err:?}"
                 );
                 continue;

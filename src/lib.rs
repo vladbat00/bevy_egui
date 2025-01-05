@@ -150,6 +150,7 @@ use bevy_ecs::{
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
+use bevy_log as log;
 #[cfg(feature = "render")]
 use bevy_picking::{
     backend::{HitData, PointerHits},
@@ -655,7 +656,7 @@ impl EguiUserTextures {
                 .free_list
                 .pop()
                 .expect("free list must contain at least 1 element");
-            bevy_log::debug!("Add a new image (id: {}, handle: {:?})", id, image);
+            log::debug!("Add a new image (id: {}, handle: {:?})", id, image);
             if self.free_list.is_empty() {
                 self.free_list.push(id.checked_add(1).expect("out of ids"));
             }
@@ -667,7 +668,7 @@ impl EguiUserTextures {
     /// Removes the image handle and an Egui texture id associated with it.
     pub fn remove_image(&mut self, image: &Handle<Image>) -> Option<egui::TextureId> {
         let id = self.textures.remove(image);
-        bevy_log::debug!("Remove image (id: {:?}, handle: {:?})", id, image);
+        log::debug!("Remove image (id: {:?}, handle: {:?})", id, image);
         if let Some(id) = id {
             self.free_list.push(id);
         }
@@ -828,7 +829,7 @@ impl Plugin for EguiPlugin {
         );
 
         // Startup systems.
-        #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
+        #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
         {
             app.add_systems(PreStartup, web_clipboard::startup_setup_web_events_system);
         }
@@ -944,17 +945,6 @@ impl Plugin for EguiPlugin {
                         .in_set(EguiInputSet::ReadBevyEvents),
                 );
 
-                #[cfg(feature = "manage_clipboard")]
-                app.add_systems(
-                    PreUpdate,
-                    web_clipboard::write_web_clipboard_events_system
-                        .run_if(input_system_is_enabled(|s| {
-                            s.run_write_web_clipboard_events_system
-                        }))
-                        .in_set(EguiPreUpdateSet::ProcessInput)
-                        .in_set(EguiInputSet::ReadBevyEvents),
-                );
-
                 if is_mobile_safari() {
                     app.add_systems(
                         PostUpdate,
@@ -963,6 +953,17 @@ impl Plugin for EguiPlugin {
                     );
                 }
             }
+
+            #[cfg(feature = "manage_clipboard")]
+            app.add_systems(
+                PreUpdate,
+                web_clipboard::write_web_clipboard_events_system
+                    .run_if(input_system_is_enabled(|s| {
+                        s.run_write_web_clipboard_events_system
+                    }))
+                    .in_set(EguiPreUpdateSet::ProcessInput)
+                    .in_set(EguiInputSet::ReadBevyEvents),
+            );
         }
 
         // PostUpdate systems.
@@ -1108,7 +1109,7 @@ impl EguiClipboard {
     fn set_contents_impl(&mut self, contents: &str) {
         if let Some(mut clipboard) = self.get() {
             if let Err(err) = clipboard.set_text(contents.to_owned()) {
-                bevy_log::error!("Failed to set clipboard contents: {:?}", err);
+                log::error!("Failed to set clipboard contents: {:?}", err);
             }
         }
     }
@@ -1123,7 +1124,9 @@ impl EguiClipboard {
         if let Some(mut clipboard) = self.get() {
             match clipboard.get_text() {
                 Ok(contents) => return Some(contents),
-                Err(err) => bevy_log::error!("Failed to get clipboard contents: {:?}", err),
+                // We don't want to spam with this error as it usually means that the clipboard is either empty or has an incompatible format (e.g. image).
+                Err(arboard::Error::ContentNotAvailable) => return Some("".to_string()),
+                Err(err) => log::error!("Failed to get clipboard contents: {:?}", err),
             }
         };
         None
@@ -1142,7 +1145,7 @@ impl EguiClipboard {
                 Clipboard::new()
                     .map(RefCell::new)
                     .map_err(|err| {
-                        bevy_log::error!("Failed to initialize clipboard: {:?}", err);
+                        log::error!("Failed to initialize clipboard: {:?}", err);
                     })
                     .ok()
             })
@@ -1217,7 +1220,7 @@ pub fn update_egui_textures_system(
                         egui_node::color_image_as_bevy_image(&managed_texture.color_image, sampler);
                     managed_texture.handle = image_assets.add(image);
                 } else {
-                    bevy_log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
+                    log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
                 }
             } else {
                 // Full update.
@@ -1371,12 +1374,12 @@ pub fn update_ui_size_and_scale_system(
                     scale_factor: 1.0,
                 })
             } else {
-                bevy_log::warn!("Invalid EguiRenderToImage handle: {handle:?}");
+                log::warn!("Invalid EguiRenderToImage handle: {handle:?}");
             }
         }
 
         let Some(new_render_target_size) = render_target_size else {
-            bevy_log::error!("bevy_egui context without window or render to texture!");
+            log::error!("bevy_egui context without window or render to texture!");
             continue;
         };
         let width = new_render_target_size.physical_width

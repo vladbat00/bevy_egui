@@ -24,7 +24,7 @@ A basic WASM example is live at [vladbat00.github.io/bevy_egui/ui](https://vladb
 - Opening URLs
 - Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.31.1/examples/two_windows.rs))
 - Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.31.1/examples/paint_callback.rs))
-- Mobile web virtual keyboard (still rough support and only works without prevent_default_event_handling set to false on the WindowPlugin primary_window)
+- Mobile web virtual keyboard (still rough around the edges and only works without `prevent_default_event_handling` set to `false` in the `WindowPlugin` settings)
 
 ![bevy_egui](bevy_egui.png)
 

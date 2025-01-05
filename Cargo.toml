@@ -130,5 +130,4 @@ web-sys = { version = "0.3.74", features = [
 js-sys = "0.3.63"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.36"
-log = "0.4"
 crossbeam-channel = "0.5.8"

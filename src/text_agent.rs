@@ -6,6 +6,7 @@ use crate::{
     EguiContext, EguiContextSettings, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
 };
 use bevy_ecs::prelude::*;
+use bevy_log as log;
 use bevy_window::{PrimaryWindow, RequestRedraw};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
@@ -174,7 +175,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!(
+            log::warn!(
                 "Input event: is_composing={}, data={:?}",
                 event.is_composing(),
                 event.data()
@@ -206,7 +207,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::CompositionEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!("Composition start: data={:?}", _event.data());
+            log::warn!("Composition start: data={:?}", _event.data());
             input_clone.set_value("");
             let _ = sender_clone.send(egui::Event::Ime(egui::ImeEvent::Enabled));
         }) as Box<dyn FnMut(_)>);
@@ -227,7 +228,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!("Composition update: data={:?}", event.data());
+            log::warn!("Composition update: data={:?}", event.data());
             let Some(text) = event.data() else { return };
             let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
             let _ = sender_clone.send(event);
@@ -250,7 +251,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!("Composition end: data={:?}", event.data());
+            log::warn!("Composition end: data={:?}", event.data());
             let Some(text) = event.data() else { return };
             input_clone.set_value("");
             let event = egui::Event::Ime(egui::ImeEvent::Commit(text));
@@ -275,7 +276,7 @@ pub fn install_text_agent_system(
             let safari_sender = safari_virtual_keyboard_touch_state.sender.clone();
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
                 #[cfg(feature = "log_input_events")]
-                log::info!("Touch start: {:?}", _event);
+                log::warn!("Touch start: {:?}", _event);
                 let _ = safari_sender.send(());
             }) as Box<dyn FnMut(_)>);
             document
@@ -293,7 +294,7 @@ pub fn install_text_agent_system(
             let safari_touch_info_lock = safari_virtual_keyboard_touch_state.touch_info;
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
                 #[cfg(feature = "log_input_events")]
-                log::info!("Touch end: {:?}", _event);
+                log::warn!("Touch end: {:?}", _event);
                 match safari_touch_info_lock.lock() {
                     Ok(touch_info) => {
                         update_text_agent(touch_info.editing_text);
@@ -319,7 +320,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!("Keyboard event: {:?}", event);
+            log::warn!("Keyboard event: {:?}", event);
             if event.is_composing() || event.key_code() == 229 {
                 // https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 return;
@@ -352,7 +353,7 @@ pub fn install_text_agent_system(
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
             #[cfg(feature = "log_input_events")]
-            log::info!("{:?}", event);
+            log::warn!("{:?}", event);
             input_clone.focus().ok();
             if "Backspace" == event.key() {
                 let _ = sender_clone.send(egui::Event::Key {
