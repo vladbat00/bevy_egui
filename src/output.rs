@@ -48,9 +48,35 @@ pub fn process_output_system(
         render_output.paint_jobs = paint_jobs;
         render_output.textures_delta.append(textures_delta);
 
-        #[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
-        if !platform_output.copied_text.is_empty() {
-            egui_clipboard.set_contents(&platform_output.copied_text);
+        for command in platform_output.commands {
+            match command {
+                #[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
+                egui::OutputCommand::CopyText(text) => {
+                    if !text.is_empty() {
+                        egui_clipboard.set_contents(&text);
+                    }
+                }
+                #[cfg(feature = "open_url")]
+                egui::OutputCommand::OpenUrl(url) => {
+                    let egui::output::OpenUrl { url, new_tab } = url;
+                    let target = if new_tab {
+                        "_blank"
+                    } else {
+                        _settings
+                            .default_open_url_target
+                            .as_deref()
+                            .unwrap_or("_self")
+                    };
+                    if let Err(err) = webbrowser::open_browser_with_options(
+                        webbrowser::Browser::Default,
+                        &url,
+                        webbrowser::BrowserOptions::new().with_target_hint(target),
+                    ) {
+                        bevy_log::error!("Failed to open '{}': {:?}", url, err);
+                    }
+                }
+                _ => {}
+            }
         }
 
         if let Some(mut cursor) = cursor_icon {
@@ -88,25 +114,6 @@ pub fn process_output_system(
                 ctx.viewport(|viewport| viewport.input.wants_repaint_after())
             {
                 let _ = event_loop_proxy.send_event(WakeUp);
-            }
-        }
-
-        #[cfg(feature = "open_url")]
-        if let Some(egui::output::OpenUrl { url, new_tab }) = platform_output.open_url {
-            let target = if new_tab {
-                "_blank"
-            } else {
-                _settings
-                    .default_open_url_target
-                    .as_deref()
-                    .unwrap_or("_self")
-            };
-            if let Err(err) = webbrowser::open_browser_with_options(
-                webbrowser::Browser::Default,
-                &url,
-                webbrowser::BrowserOptions::new().with_target_hint(target),
-            ) {
-                bevy_log::error!("Failed to open '{}': {:?}", url, err);
             }
         }
     }
