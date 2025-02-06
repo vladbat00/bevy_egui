@@ -238,7 +238,7 @@ fn ui_system(
                 .get(&app_state.egui_texture_image_handle)
                 .expect("Expected a created image");
             egui::CentralPanel::default()
-                .frame(egui::Frame::none())
+                .frame(egui::Frame::NONE)
                 .show(ctx, |ui| {
                     ui.image(egui::load::SizedTexture::new(
                         app_state.egui_texture_image_id,
@@ -711,7 +711,12 @@ fn pixel_test_strokes(ui: &mut Ui) {
                 Pos2::new(cursor_pixel.x, cursor_pixel.y),
                 Vec2::splat(size as f32),
             );
-            painter.rect_stroke(rect_points / pixels_per_point, 0.0, stroke);
+            painter.rect_stroke(
+                rect_points / pixels_per_point,
+                0.0,
+                stroke,
+                egui::StrokeKind::Inside,
+            );
             cursor_pixel.x += (1 + size) as f32 + thickness_pixels * 2.0;
         }
     }
