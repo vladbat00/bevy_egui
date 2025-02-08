@@ -172,6 +172,7 @@ use output::process_output_system;
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
+use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -334,11 +335,16 @@ pub struct EguiClipboard {
 pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
-    /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`]) and reset during [`egui_node::EguiNode`]'s `update`.
-    pub paint_jobs: Vec<egui::ClippedPrimitive>,
+    /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`])
+    /// and processed during [`egui_node::EguiNode`]'s `update`.
+    ///
+    /// Value is wrapped in [`Arc`] to improve [`ExtractComponent`] performance.
+    pub paint_jobs: Arc<Vec<egui::ClippedPrimitive>>,
 
     /// The change in egui textures since last frame.
-    pub textures_delta: egui::TexturesDelta,
+    ///
+    /// Value is wrapped in [`Arc`] to improve [`ExtractComponent`] performance.
+    pub textures_delta: Arc<egui::TexturesDelta>,
 }
 
 impl EguiRenderOutput {
@@ -1194,20 +1200,18 @@ pub fn capture_pointer_input_system(
 #[cfg(feature = "render")]
 pub fn update_egui_textures_system(
     mut egui_render_output: Query<
-        (Entity, &mut EguiRenderOutput),
+        (Entity, &EguiRenderOutput),
         Or<(With<Window>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
-    for (entity, mut egui_render_output) in egui_render_output.iter_mut() {
-        let set_textures = std::mem::take(&mut egui_render_output.textures_delta.set);
-
-        for (texture_id, image_delta) in set_textures {
-            let color_image = egui_node::as_color_image(image_delta.image);
+    for (entity, egui_render_output) in egui_render_output.iter_mut() {
+        for (texture_id, image_delta) in &egui_render_output.textures_delta.set {
+            let color_image = egui_node::as_color_image(&image_delta.image);
 
             let texture_id = match texture_id {
-                egui::TextureId::Managed(texture_id) => texture_id,
+                egui::TextureId::Managed(texture_id) => *texture_id,
                 egui::TextureId::User(_) => continue,
             };
 
@@ -1257,17 +1261,16 @@ pub fn update_egui_textures_system(
 #[cfg(feature = "render")]
 pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
-    mut egui_render_output: Query<
-        (Entity, &mut EguiRenderOutput),
+    egui_render_output: Query<
+        (Entity, &EguiRenderOutput),
         Or<(With<Window>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
     mut image_events: EventReader<AssetEvent<Image>>,
 ) {
-    for (entity, mut egui_render_output) in egui_render_output.iter_mut() {
-        let free_textures = std::mem::take(&mut egui_render_output.textures_delta.free);
-        for texture_id in free_textures {
+    for (entity, egui_render_output) in egui_render_output.iter() {
+        for &texture_id in &egui_render_output.textures_delta.free {
             if let egui::TextureId::Managed(texture_id) = texture_id {
                 let managed_texture = egui_managed_textures.remove(&(entity, texture_id));
                 if let Some(managed_texture) = managed_texture {

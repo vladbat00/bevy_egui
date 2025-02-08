@@ -363,11 +363,11 @@ pub(crate) struct EguiRenderTargetData {
 /// Prepares Egui transforms.
 pub fn prepare_egui_render_target_data(
     mut render_data: ResMut<EguiRenderData>,
-    mut render_targets: Query<(
+    render_targets: Query<(
         &MainEntity,
         &EguiContextSettings,
         &RenderTargetSize,
-        &mut EguiRenderOutput,
+        &EguiRenderOutput,
         Option<&EguiRenderToImage>,
     )>,
     render_device: Res<RenderDevice>,
@@ -382,8 +382,8 @@ pub fn prepare_egui_render_target_data(
         keep
     });
 
-    for (main_entity, egui_settings, render_target_size, mut render_output, render_to_image) in
-        render_targets.iter_mut()
+    for (main_entity, egui_settings, render_target_size, render_output, render_to_image) in
+        render_targets.iter()
     {
         let data = render_data.entry(*main_entity).or_default();
 
@@ -393,8 +393,6 @@ pub fn prepare_egui_render_target_data(
         let egui_settings = egui_settings.clone();
         let image_handle =
             render_to_image.map(|render_to_image| render_to_image.handle.clone_weak());
-
-        let paint_jobs = std::mem::take(&mut render_output.paint_jobs);
 
         data.render_target_size = Some(render_target_size);
 
@@ -446,8 +444,10 @@ pub fn prepare_egui_render_target_data(
         for egui::epaint::ClippedPrimitive {
             clip_rect,
             primitive,
-        } in paint_jobs
+        } in render_output.paint_jobs.as_slice()
         {
+            let clip_rect = *clip_rect;
+
             let clip_urect = bevy_math::URect {
                 min: bevy_math::UVec2 {
                     x: (clip_rect.min.x * data.pixels_per_point).round() as u32,
@@ -474,7 +474,10 @@ pub fn prepare_egui_render_target_data(
             let mesh = match primitive {
                 egui::epaint::Primitive::Mesh(mesh) => mesh,
                 egui::epaint::Primitive::Callback(paint_callback) => {
-                    let callback = match paint_callback.callback.downcast::<EguiBevyPaintCallback>()
+                    let callback = match paint_callback
+                        .callback
+                        .clone()
+                        .downcast::<EguiBevyPaintCallback>()
                     {
                         Ok(callback) => callback,
                         Err(err) => {
@@ -537,7 +540,7 @@ pub fn prepare_egui_render_target_data(
             data.index_buffer_capacity = round_up_to_pow2(index_data_size);
             data.index_buffer = Some(render_device.create_buffer(&BufferDescriptor {
                 label: Some("egui index buffer"),
-                size: index_data_size as BufferAddress,
+                size: data.index_buffer_capacity as BufferAddress,
                 usage: BufferUsages::COPY_DST | BufferUsages::INDEX,
                 mapped_at_creation: false,
             }));
