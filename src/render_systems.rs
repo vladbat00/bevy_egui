@@ -554,7 +554,7 @@ pub fn prepare_egui_render_target_data(
         };
 
         render_queue.write_buffer(vertex_buffer, 0, &data.vertex_data);
-        render_queue.write_buffer(index_buffer, 0, &cast_slice(&data.index_data));
+        render_queue.write_buffer(index_buffer, 0, cast_slice(&data.index_data));
     }
 }
 

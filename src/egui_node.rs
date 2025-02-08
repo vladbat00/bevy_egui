@@ -513,7 +513,7 @@ impl Node for EguiNode {
 pub(crate) fn as_color_image(image: &egui::ImageData) -> egui::ColorImage {
     match image {
         egui::ImageData::Color(image) => (**image).clone(),
-        egui::ImageData::Font(image) => alpha_image_as_color_image(&image),
+        egui::ImageData::Font(image) => alpha_image_as_color_image(image),
     }
 }
 
