@@ -129,7 +129,7 @@ use crate::text_agent::{
 #[cfg(feature = "render")]
 use crate::{
     egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
-    render_systems::{EguiTransforms, ExtractedEguiManagedTextures},
+    render_systems::{EguiRenderData, EguiTransforms, ExtractedEguiManagedTextures},
 };
 #[cfg(all(
     feature = "manage_clipboard",
@@ -1012,6 +1012,7 @@ impl Plugin for EguiPlugin {
                 .init_resource::<egui_node::EguiPipeline>()
                 .init_resource::<SpecializedRenderPipelines<EguiPipeline>>()
                 .init_resource::<EguiTransforms>()
+                .init_resource::<EguiRenderData>()
                 .add_systems(
                     // Seems to be just the set to add/remove nodes, as it'll run before
                     // `RenderSet::ExtractCommands` where render nodes get updated.
@@ -1026,6 +1027,10 @@ impl Plugin for EguiPlugin {
                 .add_systems(
                     Render,
                     render_systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+                )
+                .add_systems(
+                    Render,
+                    render_systems::prepare_egui_render_target_data.in_set(RenderSet::Prepare),
                 )
                 .add_systems(
                     Render,
