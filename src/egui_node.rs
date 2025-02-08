@@ -386,6 +386,7 @@ impl Node for EguiNode {
             let mut render_pass = TrackedRenderPass::new(&device, render_pass);
 
             let mut requires_reset = true;
+            let mut last_scissor_rect = None;
 
             let mut vertex_offset: u32 = 0;
             for draw_command in &data.draw_commands {
@@ -398,6 +399,7 @@ impl Node for EguiNode {
                         0.,
                         1.,
                     );
+                    last_scissor_rect = None;
                     render_pass.set_render_pipeline(pipeline);
                     render_pass.set_bind_group(
                         0,
@@ -429,12 +431,18 @@ impl Node for EguiNode {
                     continue;
                 }
 
-                render_pass.set_scissor_rect(
-                    scissor_rect.min.x,
-                    scissor_rect.min.y,
-                    scissor_rect.width(),
-                    scissor_rect.height(),
-                );
+                if Some(scissor_rect) != last_scissor_rect {
+                    last_scissor_rect = Some(scissor_rect);
+
+                    // Bevy TrackedRenderPass doesn't track set_scissor_rect calls
+                    // So set_scissor_rect is updated only when it is needed
+                    render_pass.set_scissor_rect(
+                        scissor_rect.min.x,
+                        scissor_rect.min.y,
+                        scissor_rect.width(),
+                        scissor_rect.height(),
+                    );
+                }
 
                 match &draw_command.primitive {
                     DrawPrimitive::Egui(command) => {
@@ -447,7 +455,6 @@ impl Node for EguiNode {
                         };
 
                         render_pass.set_bind_group(1, texture_bind_group, &[]);
-
                         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                         render_pass.set_index_buffer(
                             index_buffer.slice(..),

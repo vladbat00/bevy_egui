@@ -350,7 +350,7 @@ pub(crate) struct EguiRenderTargetData {
     pub(crate) vertex_data: Vec<u8>,
     pub(crate) vertex_buffer_capacity: usize,
     pub(crate) vertex_buffer: Option<Buffer>,
-    pub(crate) index_data: Vec<u8>,
+    pub(crate) index_data: Vec<u32>,
     pub(crate) index_buffer_capacity: usize,
     pub(crate) index_buffer: Option<Buffer>,
     pub(crate) draw_commands: Vec<DrawCommand>,
@@ -504,13 +504,8 @@ pub fn prepare_egui_render_target_data(
 
             data.vertex_data
                 .extend_from_slice(cast_slice::<_, u8>(mesh.vertices.as_slice()));
-            let indices_with_offset = mesh
-                .indices
-                .iter()
-                .map(|i| i + index_offset)
-                .collect::<Vec<_>>();
             data.index_data
-                .extend_from_slice(cast_slice(indices_with_offset.as_slice()));
+                .extend(mesh.indices.iter().map(|i| i + index_offset));
             index_offset += mesh.vertices.len() as u32;
 
             let texture_handle = match mesh.texture_id {
@@ -528,11 +523,7 @@ pub fn prepare_egui_render_target_data(
         }
 
         if data.vertex_data.len() > data.vertex_buffer_capacity {
-            data.vertex_buffer_capacity = if data.vertex_data.len().is_power_of_two() {
-                data.vertex_data.len()
-            } else {
-                data.vertex_data.len().next_power_of_two()
-            };
+            data.vertex_buffer_capacity = round_up_to_pow2(data.vertex_data.len());
             data.vertex_buffer = Some(render_device.create_buffer(&BufferDescriptor {
                 label: Some("egui vertex buffer"),
                 size: data.vertex_buffer_capacity as BufferAddress,
@@ -540,15 +531,13 @@ pub fn prepare_egui_render_target_data(
                 mapped_at_creation: false,
             }));
         }
-        if data.index_data.len() > data.index_buffer_capacity {
-            data.index_buffer_capacity = if data.index_data.len().is_power_of_two() {
-                data.index_data.len()
-            } else {
-                data.index_data.len().next_power_of_two()
-            };
+
+        let index_data_size = data.index_data.len() * std::mem::size_of::<u32>();
+        if index_data_size > data.index_buffer_capacity {
+            data.index_buffer_capacity = round_up_to_pow2(index_data_size);
             data.index_buffer = Some(render_device.create_buffer(&BufferDescriptor {
                 label: Some("egui index buffer"),
-                size: data.index_buffer_capacity as BufferAddress,
+                size: index_data_size as BufferAddress,
                 usage: BufferUsages::COPY_DST | BufferUsages::INDEX,
                 mapped_at_creation: false,
             }));
@@ -562,6 +551,14 @@ pub fn prepare_egui_render_target_data(
         };
 
         render_queue.write_buffer(vertex_buffer, 0, &data.vertex_data);
-        render_queue.write_buffer(index_buffer, 0, &data.index_data);
+        render_queue.write_buffer(index_buffer, 0, &cast_slice(&data.index_data));
+    }
+}
+
+fn round_up_to_pow2(size: usize) -> usize {
+    if size.is_power_of_two() {
+        size
+    } else {
+        size.next_power_of_two()
     }
 }
