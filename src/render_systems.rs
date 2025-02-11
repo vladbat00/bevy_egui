@@ -526,7 +526,7 @@ pub fn prepare_egui_render_target_data(
         }
 
         if data.vertex_data.len() > data.vertex_buffer_capacity {
-            data.vertex_buffer_capacity = round_up_to_pow2(data.vertex_data.len());
+            data.vertex_buffer_capacity = data.vertex_data.len().next_power_of_two();
             data.vertex_buffer = Some(render_device.create_buffer(&BufferDescriptor {
                 label: Some("egui vertex buffer"),
                 size: data.vertex_buffer_capacity as BufferAddress,
@@ -537,7 +537,7 @@ pub fn prepare_egui_render_target_data(
 
         let index_data_size = data.index_data.len() * std::mem::size_of::<u32>();
         if index_data_size > data.index_buffer_capacity {
-            data.index_buffer_capacity = round_up_to_pow2(index_data_size);
+            data.index_buffer_capacity = index_data_size.next_power_of_two();
             data.index_buffer = Some(render_device.create_buffer(&BufferDescriptor {
                 label: Some("egui index buffer"),
                 size: data.index_buffer_capacity as BufferAddress,
@@ -555,13 +555,5 @@ pub fn prepare_egui_render_target_data(
 
         render_queue.write_buffer(vertex_buffer, 0, &data.vertex_data);
         render_queue.write_buffer(index_buffer, 0, cast_slice(&data.index_data));
-    }
-}
-
-fn round_up_to_pow2(size: usize) -> usize {
-    if size.is_power_of_two() {
-        size
-    } else {
-        size.next_power_of_two()
     }
 }
