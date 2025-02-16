@@ -62,7 +62,7 @@ struct UiState {
 
 fn configure_visuals_system(mut contexts: EguiContexts) {
     contexts.ctx_mut().set_visuals(egui::Visuals {
-        window_rounding: 0.0.into(),
+        window_corner_radius: 0.0.into(),
         ..Default::default()
     });
 }
