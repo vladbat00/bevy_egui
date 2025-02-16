@@ -1,4 +1,5 @@
 on:
+  workflow_dispatch:
   push:
     tags:
       - '*'
@@ -50,7 +51,7 @@ jobs:
         run: bevy build --example ui web --bundle
 
       - name: Upload the artifacts
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: 'target/bevy_web/web'
 
