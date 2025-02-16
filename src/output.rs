@@ -50,32 +50,38 @@ pub fn process_output_system(
 
         for command in platform_output.commands {
             match command {
-                #[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
-                egui::OutputCommand::CopyText(text) => {
-                    if !text.is_empty() {
-                        egui_clipboard.set_contents(&text);
+                egui::OutputCommand::CopyText(_text) =>
+                {
+                    #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
+                    if !_text.is_empty() {
+                        egui_clipboard.set_text(&_text);
                     }
                 }
-                #[cfg(feature = "open_url")]
-                egui::OutputCommand::OpenUrl(url) => {
-                    let egui::output::OpenUrl { url, new_tab } = url;
-                    let target = if new_tab {
-                        "_blank"
-                    } else {
-                        _settings
-                            .default_open_url_target
-                            .as_deref()
-                            .unwrap_or("_self")
-                    };
-                    if let Err(err) = webbrowser::open_browser_with_options(
-                        webbrowser::Browser::Default,
-                        &url,
-                        webbrowser::BrowserOptions::new().with_target_hint(target),
-                    ) {
-                        bevy_log::error!("Failed to open '{}': {:?}", url, err);
+                egui::OutputCommand::CopyImage(_image) => {
+                    #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
+                    egui_clipboard.set_image(&_image);
+                }
+                egui::OutputCommand::OpenUrl(_url) => {
+                    #[cfg(feature = "open_url")]
+                    {
+                        let egui::output::OpenUrl { url, new_tab } = _url;
+                        let target = if new_tab {
+                            "_blank"
+                        } else {
+                            _settings
+                                .default_open_url_target
+                                .as_deref()
+                                .unwrap_or("_self")
+                        };
+                        if let Err(err) = webbrowser::open_browser_with_options(
+                            webbrowser::Browser::Default,
+                            &url,
+                            webbrowser::BrowserOptions::new().with_target_hint(target),
+                        ) {
+                            bevy_log::error!("Failed to open '{}': {:?}", url, err);
+                        }
                     }
                 }
-                _ => {}
             }
         }
 

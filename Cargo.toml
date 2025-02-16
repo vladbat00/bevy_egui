@@ -18,7 +18,7 @@ all-features = true
 [features]
 default = ["manage_clipboard", "open_url", "default_fonts", "render"]
 immutable_ctx = []
-manage_clipboard = ["arboard", "thread_local"]
+manage_clipboard = ["arboard", "thread_local", "bytemuck"]
 open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
 render = [
@@ -116,6 +116,7 @@ winit = "0.30"
 web-sys = { version = "0.3.74", features = [
     "Clipboard",
     "ClipboardEvent",
+    "ClipboardItem",
     "CompositionEvent",
     "DataTransfer",
     "Document",
@@ -127,6 +128,7 @@ web-sys = { version = "0.3.74", features = [
     "TouchEvent",
     "Window",
 ] }
+image = { version = "0.25.5", features = ["png"] } # For copying images
 js-sys = "0.3.63"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.36"
