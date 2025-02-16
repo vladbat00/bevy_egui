@@ -1081,32 +1081,29 @@ pub fn setup_new_windows_system(
     }
 }
 
-#[cfg(all(feature = "manage_clipboard", not(target_os = "android"),))]
+#[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
 impl EguiClipboard {
-    /// Sets clipboard contents.
-    pub fn set_contents(&mut self, contents: &str) {
-        self.set_contents_impl(contents);
+    /// Places the text onto the clipboard.
+    pub fn set_text(&mut self, contents: &str) {
+        self.set_text_impl(contents);
     }
 
     /// Sets the internal buffer of clipboard contents.
     /// This buffer is used to remember the contents of the last "Paste" event.
     #[cfg(target_arch = "wasm32")]
-    pub fn set_contents_internal(&mut self, contents: &str) {
-        self.clipboard.set_contents_internal(contents);
+    pub fn set_text_internal(&mut self, text: &str) {
+        self.clipboard.set_text_internal(text);
     }
 
-    /// Gets clipboard contents. Returns [`None`] if clipboard provider is unavailable or returns an error.
+    /// Gets clipboard text content. Returns [`None`] if clipboard provider is unavailable or returns an error.
     #[must_use]
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn get_contents(&mut self) -> Option<String> {
-        self.get_contents_impl()
+    pub fn get_text(&mut self) -> Option<String> {
+        self.get_text_impl()
     }
 
-    /// Gets clipboard contents. Returns [`None`] if clipboard provider is unavailable or returns an error.
-    #[must_use]
-    #[cfg(target_arch = "wasm32")]
-    pub fn get_contents(&mut self) -> Option<String> {
-        self.get_contents_impl()
+    /// Places an image to the clipboard.
+    pub fn set_image(&mut self, image: &egui::ColorImage) {
+        self.set_image_impl(image);
     }
 
     /// Receives a clipboard event sent by the `copy`/`cut`/`paste` listeners.
@@ -1116,7 +1113,7 @@ impl EguiClipboard {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn set_contents_impl(&mut self, contents: &str) {
+    fn set_text_impl(&mut self, contents: &str) {
         if let Some(mut clipboard) = self.get() {
             if let Err(err) = clipboard.set_text(contents.to_owned()) {
                 log::error!("Failed to set clipboard contents: {:?}", err);
@@ -1125,12 +1122,12 @@ impl EguiClipboard {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn set_contents_impl(&mut self, contents: &str) {
-        self.clipboard.set_contents(contents);
+    fn set_text_impl(&mut self, contents: &str) {
+        self.clipboard.set_text(contents);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn get_contents_impl(&mut self) -> Option<String> {
+    fn get_text_impl(&mut self) -> Option<String> {
         if let Some(mut clipboard) = self.get() {
             match clipboard.get_text() {
                 Ok(contents) => return Some(contents),
@@ -1144,8 +1141,26 @@ impl EguiClipboard {
 
     #[cfg(target_arch = "wasm32")]
     #[allow(clippy::unnecessary_wraps)]
-    fn get_contents_impl(&mut self) -> Option<String> {
-        self.clipboard.get_contents()
+    fn get_text_impl(&mut self) -> Option<String> {
+        self.clipboard.get_text()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn set_image_impl(&mut self, image: &egui::ColorImage) {
+        if let Some(mut clipboard) = self.get() {
+            if let Err(err) = clipboard.set_image(arboard::ImageData {
+                width: image.width(),
+                height: image.height(),
+                bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
+            }) {
+                log::error!("Failed to set clipboard contents: {:?}", err);
+            }
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn set_image_impl(&mut self, image: &egui::ColorImage) {
+        self.clipboard.set_image(image);
     }
 
     #[cfg(not(target_arch = "wasm32"))]

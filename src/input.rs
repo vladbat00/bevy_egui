@@ -443,7 +443,7 @@ pub fn write_keyboard_input_events_system(
                     });
                 }
                 egui::Key::V => {
-                    if let Some(contents) = egui_clipboard.get_contents() {
+                    if let Some(contents) = egui_clipboard.get_text() {
                         egui_input_event_writer.send(EguiInputEvent {
                             context,
                             event: egui::Event::Text(contents),
