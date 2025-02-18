@@ -326,10 +326,12 @@ pub fn process_input_system(
             }
         }
 
-        let (Some(key), physical_key) = (
-            bevy_to_egui_key(&event.logical_key),
-            bevy_to_egui_physical_key(&event.key_code),
-        ) else {
+        let key = bevy_to_egui_key(&event.logical_key);
+        let physical_key = bevy_to_egui_physical_key(&event.key_code);
+
+        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters
+        // See: https://github.com/emilk/egui/blob/66c73b9cbfbd4d44489fc6f6a840d7d82bc34389/crates/egui-winit/src/lib.rs#L760
+        let (Some(key), physical_key) = (key.or(physical_key), physical_key) else {
             continue;
         };
 
