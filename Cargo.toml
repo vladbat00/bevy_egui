@@ -16,7 +16,7 @@ all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["manage_clipboard", "open_url", "default_fonts", "render"]
+default = ["manage_clipboard", "open_url", "default_fonts", "render", "picking"]
 immutable_ctx = []
 manage_clipboard = ["arboard", "thread_local", "bytemuck"]
 open_url = ["webbrowser"]
@@ -24,13 +24,13 @@ default_fonts = ["egui/default_fonts"]
 render = [
     "bevy_asset",
     "bevy_image",
-    "bevy_picking",
     "bevy_render",
     "encase",
     "bytemuck",
     "egui/bytemuck",
     "wgpu-types",
 ]
+picking = ["bevy_picking"]
 serde = ["egui/serde"]
 # The enabled logs will print with the info log level, to make it less cumbersome to debug in browsers.
 log_input_events = []
@@ -84,10 +84,12 @@ webbrowser = { version = "1.0.1", optional = true }
 bytemuck = { version = "1", optional = true }
 bevy_asset = { version = "0.15.0", optional = true }
 bevy_image = { version = "0.15.0", optional = true }
-bevy_picking = { version = "0.15.0", optional = true }
 bevy_render = { version = "0.15.0", optional = true }
 encase = { version = "0.10", optional = true }
 wgpu-types = { version = "23.0", optional = true }
+
+# `picking` feature
+bevy_picking = { version = "0.15.0", optional = true }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]

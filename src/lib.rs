@@ -150,7 +150,7 @@ use bevy_ecs::{
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
 use bevy_log as log;
-#[cfg(feature = "render")]
+#[cfg(feature = "picking")]
 use bevy_picking::{
     backend::{HitData, PointerHits},
     pointer::{PointerId, PointerLocation},
@@ -227,7 +227,7 @@ pub struct EguiContextSettings {
     #[cfg(feature = "open_url")]
     pub default_open_url_target: Option<String>,
     /// Controls if Egui should capture pointer input when using [`bevy_picking`] (i.e. suppress `bevy_picking` events when a pointer is over an Egui window).
-    #[cfg(feature = "render")]
+    #[cfg(feature = "picking")]
     pub capture_pointer_input: bool,
     /// Controls running of the input systems.
     pub input_system_settings: EguiInputSystemSettings,
@@ -251,7 +251,7 @@ impl Default for EguiContextSettings {
             scale_factor: 1.0,
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
-            #[cfg(feature = "render")]
+            #[cfg(feature = "picking")]
             capture_pointer_input: true,
             input_system_settings: EguiInputSystemSettings::default(),
         }
@@ -980,7 +980,7 @@ impl Plugin for EguiPlugin {
             PostUpdate,
             process_output_system.in_set(EguiPostUpdateSet::ProcessOutput),
         );
-        #[cfg(feature = "render")]
+        #[cfg(feature = "picking")]
         app.add_systems(PostUpdate, capture_pointer_input_system);
 
         #[cfg(feature = "render")]
@@ -1180,11 +1180,11 @@ impl EguiClipboard {
 }
 
 /// The ordering value used for [`bevy_picking`].
-#[cfg(feature = "render")]
+#[cfg(feature = "picking")]
 pub const PICKING_ORDER: f32 = 1_000_000.0;
 
 /// Captures pointers on egui windows for [`bevy_picking`].
-#[cfg(feature = "render")]
+#[cfg(feature = "picking")]
 pub fn capture_pointer_input_system(
     pointers: Query<(&PointerId, &PointerLocation)>,
     mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings), With<Window>>,
