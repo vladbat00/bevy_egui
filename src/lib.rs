@@ -156,9 +156,10 @@ use bevy_picking::{
     pointer::{PointerId, PointerLocation},
 };
 use bevy_reflect::Reflect;
+#[cfg(feature = "picking")]
+use bevy_render::camera::NormalizedRenderTarget;
 #[cfg(feature = "render")]
 use bevy_render::{
-    camera::NormalizedRenderTarget,
     extract_component::{ExtractComponent, ExtractComponentPlugin},
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::{LoadOp, SpecializedRenderPipelines},
