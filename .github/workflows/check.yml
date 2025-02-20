@@ -11,7 +11,7 @@ jobs:
     name: Formatter check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
@@ -69,8 +69,6 @@ jobs:
             "render",
             "manage_clipboard,open_url,render",
           ]
-    env:
-      RUSTFLAGS: --cfg=web_sys_unstable_apis
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master

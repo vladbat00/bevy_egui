@@ -16,18 +16,15 @@ This crate provides an [Egui](https://github.com/emilk/egui) integration for the
 
 **Trying out:**
 
-An example WASM project is live at [vladbat00.github.io/bevy_egui_web_showcase](https://vladbat00.github.io/bevy_egui_web_showcase/index.html) [[source](https://github.com/vladbat00/bevy_egui_web_showcase)].
+A basic WASM example is live at [vladbat00.github.io/bevy_egui/ui](https://vladbat00.github.io/bevy_egui/ui/).
 
 **Features:**
 - Desktop and web platforms support
 - Clipboard
 - Opening URLs
-- Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/two_windows.rs))
-- Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.29.0/examples/paint_callback.rs))
-- Mobile web virtual keyboard (still rough support and only works without prevent_default_event_handling set to false on the WindowPlugin primary_window)
-
-`bevy_egui` can be compiled with using only `bevy` subcrates and `egui` as dependencies: `manage_clipboard`, `open_url` and `render` features,
-that require additional crates, can be disabled.
+- Multiple windows support (see [./examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/two_windows.rs))
+- Paint callback support (see [./examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/paint_callback.rs))
+- Mobile web virtual keyboard (still rough around the edges and only works without `prevent_default_event_handling` set to `false` in the `WindowPlugin` settings)
 
 ![bevy_egui](bevy_egui.png)
 
@@ -35,8 +32,8 @@ that require additional crates, can be disabled.
 
 On Linux, this crate requires certain parts of [XCB](https://xcb.freedesktop.org/) to be installed on your system. On Debian-based systems, these can be installed with the following command:
 
-```
-$ sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+```bash
+sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 ```
 
 ## Usage
@@ -46,7 +43,7 @@ Here's a minimal usage example:
 # Cargo.toml
 [dependencies]
 bevy = "0.15"
-bevy_egui = "0.31"
+bevy_egui = "0.33"
 ```
 
 ```rust
@@ -57,8 +54,8 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin)
-        // Systems that create Egui widgets should be run during the `CoreSet::Update` set,
-        // or after the `EguiSet::BeginPass` system (which belongs to the `CoreSet::PreUpdate` set).
+        // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
+        // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
         .add_systems(Update, ui_example_system)
         .run();
 }
@@ -71,11 +68,51 @@ fn ui_example_system(mut contexts: EguiContexts) {
 
 ```
 
-For a more advanced example, see [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.20.1/examples/ui.rs).
+For more advanced examples, see the section below.
+
+## Examples
+
+To run an example, use the following command (you may replace `ui` with a name of another example):
 
 ```bash
 cargo run --example ui
 ```
+
+### ui ([live page](https://vladbat00.github.io/bevy_egui/ui), source: [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/ui.rs))
+
+Showcasing some more advanced UI, rendering images, hidpi scaling.
+
+### color_test ([live page](https://vladbat00.github.io/bevy_egui/color_test), source: [examples/color_test.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/color_test.rs))
+
+Rendering test from [egui.rs](https://egui.rs). We don't fully pass it, help is wanted ([#291](https://github.com/vladbat00/bevy_egui/issues/291)).
+
+### side_panel ([live page](https://vladbat00.github.io/bevy_egui/side_panel), source: [examples/side_panel.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/side_panel.rs))
+
+Showing how to display an Egui side panel and transform camera to make rendering centered relative to the remaining screen area.
+
+### render_egui_to_image ([live page](https://vladbat00.github.io/bevy_egui/render_egui_to_image), source: [examples/render_egui_to_image.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/render_egui_to_image.rs))
+
+Rendering UI to an image (texture) and then using it as a mesh material texture.
+
+### render_to_image_widget ([live page](https://vladbat00.github.io/bevy_egui/render_to_image_widget), source: [examples/render_to_image_widget.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/render_to_image_widget.rs))
+
+Rendering to a texture with Bevy and showing it as an Egui image widget.
+
+### two_windows (source: [examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/two_windows.rs))
+
+Setting up two windows with an Egui context for each.
+
+### paint_callback ([live page](https://vladbat00.github.io/bevy_egui/paint_callback), source: [examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/paint_callback.rs))
+
+Using Egui paint callbacks.
+
+### simple ([live page](https://vladbat00.github.io/bevy_egui/simple), source: [examples/simple.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/simple.rs))
+
+The minimal usage example from this readme.
+
+### simple_multipass ([live page](https://vladbat00.github.io/bevy_egui/simple_multipass), source: [examples/simple_multipass.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/simple_multipass.rs))
+
+The same minimal example demonstrating running Egui passes manually.
 
 ## See also
 
@@ -87,7 +124,7 @@ cargo run --example ui
 
 | bevy | bevy_egui |
 |------|-----------|
-| 0.15 | 0.31      |
+| 0.15 | 0.31-0.33 |
 | 0.14 | 0.28-0.30 |
 | 0.13 | 0.25-0.27 |
 | 0.12 | 0.23-0.24 |

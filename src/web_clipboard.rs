@@ -1,12 +1,17 @@
-use crate::{string_from_js_value, EguiClipboard, EventClosure, SubscribedEvents};
+use crate::{
+    input::{EguiInputEvent, FocusedNonWindowEguiContext},
+    string_from_js_value, EguiClipboard, EguiContext, EguiContextSettings, EventClosure,
+    SubscribedEvents,
+};
 use bevy_ecs::prelude::*;
 use bevy_log as log;
+use bevy_window::PrimaryWindow;
 use crossbeam_channel::{Receiver, Sender};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
 /// Startup system to initialize web clipboard events.
-pub fn startup_setup_web_events(
+pub fn startup_setup_web_events_system(
     mut egui_clipboard: ResMut<EguiClipboard>,
     mut subscribed_events: NonSendMut<SubscribedEvents>,
 ) {
@@ -15,6 +20,50 @@ pub fn startup_setup_web_events(
     setup_clipboard_copy(&mut subscribed_events, tx.clone());
     setup_clipboard_cut(&mut subscribed_events, tx.clone());
     setup_clipboard_paste(&mut subscribed_events, tx);
+}
+
+/// Receives web clipboard events and wraps them as [`EguiInputEvent`] events.
+pub fn write_web_clipboard_events_system(
+    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
+    // We can safely assume that we have only 1 window in WASM.
+    egui_context: Single<(Entity, &EguiContextSettings), (With<PrimaryWindow>, With<EguiContext>)>,
+    mut egui_clipboard: ResMut<EguiClipboard>,
+    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+) {
+    let (primary_context, context_settings) = *egui_context;
+    if !context_settings
+        .input_system_settings
+        .run_write_web_clipboard_events_system
+    {
+        return;
+    }
+
+    let context = focused_non_window_egui_context
+        .as_deref()
+        .map_or(primary_context, |context| context.0);
+    while let Some(event) = egui_clipboard.try_receive_clipboard_event() {
+        match event {
+            crate::web_clipboard::WebClipboardEvent::Copy => {
+                egui_input_event_writer.send(EguiInputEvent {
+                    context,
+                    event: egui::Event::Copy,
+                });
+            }
+            crate::web_clipboard::WebClipboardEvent::Cut => {
+                egui_input_event_writer.send(EguiInputEvent {
+                    context,
+                    event: egui::Event::Cut,
+                });
+            }
+            crate::web_clipboard::WebClipboardEvent::Paste(text) => {
+                egui_clipboard.set_text_internal(&text);
+                egui_input_event_writer.send(EguiInputEvent {
+                    context,
+                    event: egui::Event::Paste(text),
+                });
+            }
+        }
+    }
 }
 
 /// Internal implementation of `[crate::EguiClipboard]` for web.
@@ -36,22 +85,28 @@ pub enum WebClipboardEvent {
 }
 
 impl WebClipboard {
-    /// Sets clipboard contents.
-    pub fn set_contents(&mut self, contents: &str) {
-        self.set_contents_internal(contents);
-        clipboard_copy(contents.to_owned());
+    /// Places the text onto the clipboard.
+    pub fn set_text(&mut self, text: &str) {
+        self.set_text_internal(text);
+        set_clipboard_text(text.to_owned());
     }
 
     /// Sets the internal buffer of clipboard contents.
     /// This buffer is used to remember the contents of the last `paste` event.
-    pub fn set_contents_internal(&mut self, contents: &str) {
-        self.contents = Some(contents.to_owned());
+    pub fn set_text_internal(&mut self, text: &str) {
+        self.contents = Some(text.to_owned());
     }
 
     /// Gets clipboard contents. Returns [`None`] if the `copy`/`cut` operation have never been invoked yet,
     /// or the `paste` event has never been received yet.
-    pub fn get_contents(&mut self) -> Option<String> {
+    pub fn get_text(&mut self) -> Option<String> {
         self.contents.clone()
+    }
+
+    /// Places the image onto the clipboard.
+    pub fn set_image(&mut self, image: &egui::ColorImage) {
+        self.contents = None;
+        set_clipboard_image(image);
     }
 
     /// Receives a clipboard event sent by the `copy`/`cut`/`paste` listeners.
@@ -200,8 +255,7 @@ fn setup_clipboard_paste(subscribed_events: &mut SubscribedEvents, tx: Sender<We
         });
 }
 
-/// Sets contents of the clipboard via the Web API.
-fn clipboard_copy(contents: String) {
+fn set_clipboard_text(contents: String) {
     spawn_local(async move {
         let Some(window) = web_sys::window() else {
             log::warn!("Failed to access the window object");
@@ -218,4 +272,91 @@ fn clipboard_copy(contents: String) {
             );
         }
     });
+}
+
+fn set_clipboard_image(image: &egui::ColorImage) {
+    if let Some(window) = web_sys::window() {
+        if !window.is_secure_context() {
+            log::error!(
+                "Clipboard is not available because we are not in a secure context. \
+                See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts"
+            );
+            return;
+        }
+
+        let png_bytes = to_image(image).and_then(|image| to_png_bytes(&image));
+        let png_bytes = match png_bytes {
+            Ok(png_bytes) => png_bytes,
+            Err(err) => {
+                log::error!("Failed to encode image to png: {err}");
+                return;
+            }
+        };
+
+        let mime = "image/png";
+
+        let item = match create_clipboard_item(mime, &png_bytes) {
+            Ok(item) => item,
+            Err(err) => {
+                log::error!("Failed to copy image: {}", string_from_js_value(&err));
+                return;
+            }
+        };
+        let items = js_sys::Array::of1(&item);
+        let promise = window.navigator().clipboard().write(&items);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                log::error!(
+                    "Copy/cut image action failed: {}",
+                    string_from_js_value(&err)
+                );
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
+    }
+}
+
+fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
+    image::RgbaImage::from_raw(
+        image.width() as _,
+        image.height() as _,
+        bytemuck::cast_slice(&image.pixels).to_vec(),
+    )
+    .ok_or_else(|| "Invalid IconData".to_owned())
+}
+
+fn to_png_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
+    let mut png_bytes: Vec<u8> = Vec::new();
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
+        .map_err(|err| err.to_string())?;
+    Ok(png_bytes)
+}
+
+// https://github.com/emilk/egui/blob/08c5a641a17580fb6cfac947aaf95634018abeb7/crates/eframe/src/web/mod.rs#L267
+fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardItem, JsValue> {
+    let array = js_sys::Uint8Array::from(bytes);
+    let blob_parts = js_sys::Array::new();
+    blob_parts.push(&array);
+
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime);
+
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&blob_parts, &options)?;
+
+    let items = js_sys::Object::new();
+
+    // SAFETY: I hope so
+    #[allow(unsafe_code, unused_unsafe)] // Weird false positive
+    unsafe {
+        js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
+    };
+
+    let clipboard_item = web_sys::ClipboardItem::new_with_record_from_str_to_blob_promise(&items)?;
+
+    Ok(clipboard_item)
 }

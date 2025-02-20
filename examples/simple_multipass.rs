@@ -1,7 +1,9 @@
 use std::num::NonZero;
 
 use bevy::prelude::*;
-use bevy_egui::{EguiContext, EguiFullOutput, EguiInput, EguiPlugin, EguiSettings, EguiStartupSet};
+use bevy_egui::{
+    EguiContext, EguiContextSettings, EguiFullOutput, EguiInput, EguiPlugin, EguiStartupSet,
+};
 
 fn main() {
     App::new()
@@ -15,7 +17,7 @@ fn main() {
         .run();
 }
 
-fn configure_context(mut egui_settings: Query<&mut EguiSettings>) {
+fn configure_context(mut egui_settings: Query<&mut EguiContextSettings>) {
     egui_settings.single_mut().run_manually = true;
 }
 
