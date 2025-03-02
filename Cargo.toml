@@ -45,10 +45,10 @@ required-features = ["render"]
 name = "render_to_image_widget"
 required-features = ["render"]
 [[example]]
-name = "side_panel"
+name = "side_panel_2d"
 required-features = ["render"]
 [[example]]
-name = "side_panel_2d"
+name = "side_panel_3d"
 required-features = ["render"]
 [[example]]
 name = "simple"
