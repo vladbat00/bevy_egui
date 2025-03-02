@@ -22,13 +22,13 @@ manage_clipboard = ["arboard", "thread_local", "bytemuck"]
 open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
 render = [
-  "bevy_asset",
-  "bevy_image",
-  "bevy_render",
-  "encase",
-  "bytemuck",
-  "egui/bytemuck",
-  "wgpu-types",
+    "bevy_asset",
+    "bevy_image",
+    "bevy_render",
+    "encase",
+    "bytemuck",
+    "egui/bytemuck",
+    "wgpu-types",
 ]
 picking = ["bevy_picking"]
 serde = ["egui/serde"]
@@ -102,36 +102,36 @@ thread_local = { version = "1.1.0", optional = true }
 [dev-dependencies]
 version-sync = "0.9.4"
 bevy = { version = "0.15.0", default-features = false, features = [
-  "bevy_asset",
-  "bevy_core_pipeline",
-  "bevy_sprite",
-  "bevy_pbr",
-  "bevy_window",
-  "bevy_winit",
-  "android-game-activity",
-  "png",
-  "tonemapping_luts",
-  "webgl2",
-  "x11",
+    "bevy_asset",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_pbr",
+    "bevy_window",
+    "bevy_winit",
+    "android-game-activity",
+    "png",
+    "tonemapping_luts",
+    "webgl2",
+    "x11",
 ] }
 egui = { version = "0.31", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 winit = "0.30"
 web-sys = { version = "0.3.74", features = [
-  "Clipboard",
-  "ClipboardEvent",
-  "ClipboardItem",
-  "CompositionEvent",
-  "DataTransfer",
-  "Document",
-  "EventTarget",
-  "HtmlInputElement",
-  "InputEvent",
-  "KeyboardEvent",
-  "Navigator",
-  "TouchEvent",
-  "Window",
+    "Clipboard",
+    "ClipboardEvent",
+    "ClipboardItem",
+    "CompositionEvent",
+    "DataTransfer",
+    "Document",
+    "EventTarget",
+    "HtmlInputElement",
+    "InputEvent",
+    "KeyboardEvent",
+    "Navigator",
+    "TouchEvent",
+    "Window",
 ] }
 image = { version = "0.25.5", features = ["png"] } # For copying images
 js-sys = "0.3.63"

@@ -11,9 +11,9 @@ fn main() {
         .run();
 }
 
-// This function run every frame. Therefore updating the viewport after drawing the gui.
-// With a resorce which stores the dimensions of the panels, the update of the Viewport can
-// be done in another sytem
+// This function runs every frame. Therefore, updating the viewport after drawing the gui.
+// With a resource which stores the dimensions of the panels, the update of the Viewport can
+// be done in another system.
 fn ui_example_system(
     mut contexts: EguiContexts,
     mut camera: Single<&mut Camera>,
@@ -106,7 +106,7 @@ fn ui_example_system(
     });
 }
 
-// Setup the example entities for the 2D scene. The only importen thing is a 2D Camera which
+// Set up the example entities for the 2D scene. The only important thing is a 2D Camera which
 // renders directly to the window.
 fn setup_system(
     mut commands: Commands,
