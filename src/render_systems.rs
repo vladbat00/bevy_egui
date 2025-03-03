@@ -116,17 +116,29 @@ impl ExtractedEguiTextures<'_> {
     }
 }
 
-/// Sets up render nodes for newly created window Egui contexts.
-pub fn setup_new_window_nodes_system(
-    windows: Extract<Query<(Entity, &RenderEntity), Added<EguiContext>>>,
+/// Sets up render nodes for newly created Egui contexts.
+pub fn setup_new_egui_nodes_system(
+    windows: Extract<
+        Query<(Entity, &RenderEntity, AnyOf<(&Window, &EguiRenderToImage)>), Added<EguiContext>>,
+    >,
     mut render_graph: ResMut<RenderGraph>,
 ) {
-    for (window_entity, window_render_entity) in windows.iter() {
-        let egui_pass = EguiPass::from_window_entity(window_entity);
+    for (main_entity, render_entity, (window, render_to_image)) in windows.iter() {
+        let egui_pass = EguiPass::from_window_entity(main_entity);
         let new_node = EguiNode::new(
-            MainEntity::from(window_entity),
-            *window_render_entity,
-            EguiRenderTargetType::Window,
+            MainEntity::from(main_entity),
+            *render_entity,
+            match (window.is_some(), render_to_image.is_some()) {
+                (true, false) => EguiRenderTargetType::Window,
+                (false, true) => EguiRenderTargetType::Image,
+                (true, true) => {
+                    log::error!(
+                        "Failed to set up an Egui node: can't render both to a window and an image"
+                    );
+                    continue;
+                }
+                (false, false) => unreachable!(),
+            },
         );
 
         render_graph.add_node(egui_pass.clone(), new_node);
@@ -144,26 +156,6 @@ pub fn teardown_window_nodes_system(
         if let Err(err) = render_graph.remove_node(EguiPass::from_window_entity(window_entity)) {
             log::error!("Failed to remove a render graph node: {err:?}");
         }
-    }
-}
-
-/// Sets up render nodes for newly created "render to texture" Egui contexts.
-pub fn setup_new_render_to_image_nodes_system(
-    render_to_image_targets: Extract<Query<(Entity, &RenderEntity), Added<EguiRenderToImage>>>,
-    mut render_graph: ResMut<RenderGraph>,
-) {
-    for (render_to_image_entity, render_entity) in render_to_image_targets.iter() {
-        let egui_pass = EguiPass::from_render_to_image_entity(render_to_image_entity);
-
-        let new_node = EguiNode::new(
-            MainEntity::from(render_to_image_entity),
-            *render_entity,
-            EguiRenderTargetType::Image,
-        );
-
-        render_graph.add_node(egui_pass.clone(), new_node);
-
-        render_graph.add_node_edge(egui_pass, bevy_render::graph::CameraDriverLabel);
     }
 }
 

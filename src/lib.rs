@@ -1024,9 +1024,8 @@ impl Plugin for EguiPlugin {
                     // `RenderSet::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
                     (
-                        render_systems::setup_new_window_nodes_system,
+                        render_systems::setup_new_egui_nodes_system,
                         render_systems::teardown_window_nodes_system,
-                        render_systems::setup_new_render_to_image_nodes_system,
                         render_systems::teardown_render_to_image_nodes_system,
                     ),
                 )
