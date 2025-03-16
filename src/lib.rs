@@ -121,6 +121,7 @@ pub mod text_agent;
 #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
 pub mod web_clipboard;
 
+use bevy_a11y::{AccessibilityRequested, AccessibilitySystem, ManageAccessibilityUpdates};
 pub use egui;
 
 use crate::input::*;
@@ -170,7 +171,7 @@ use bevy_render::{
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_window::{PrimaryWindow, Window};
-use bevy_winit::cursor::CursorIcon;
+use bevy_winit::{accessibility::AccessKitAdapters, cursor::CursorIcon};
 use output::process_output_system;
 #[cfg(all(
     feature = "manage_clipboard",
@@ -1039,6 +1040,13 @@ impl Plugin for EguiPlugin {
             "egui.wgsl",
             bevy_render::render_resource::Shader::from_wgsl
         );
+
+        app.add_systems(
+            PostUpdate,
+            update_accessibility
+                .after(EguiPostUpdateSet::ProcessOutput)
+                .before(AccessibilitySystem::Update),
+        );
     }
 
     #[cfg(feature = "render")]
@@ -1103,8 +1111,19 @@ pub struct EguiManagedTexture {
 pub fn setup_new_windows_system(
     mut commands: Commands,
     new_windows: Query<Entity, (Added<Window>, Without<EguiContext>)>,
+    adapters: Option<NonSend<AccessKitAdapters>>,
+    mut manage_accessibility_updates: ResMut<ManageAccessibilityUpdates>,
 ) {
     for window in new_windows.iter() {
+        let context = EguiContext::default();
+        if let Some(adapters) = &adapters {
+            println!("Got adapters");
+            if  adapters.get(&window).is_some() {
+                println!("Got a window");
+                context.ctx.enable_accesskit();
+                **manage_accessibility_updates = false;
+            }
+        }
         // See the list of required components to check the full list of components we add.
         commands.entity(window).insert(EguiContext::default());
     }
@@ -1475,6 +1494,32 @@ pub fn end_pass_system(
     for (mut ctx, egui_settings, mut full_output) in contexts.iter_mut() {
         if !egui_settings.run_manually {
             **full_output = Some(ctx.get_mut().end_pass());
+            if full_output.0.as_ref().unwrap().platform_output.accesskit_update.is_some() {
+                println!("Got one!");
+            }
+        }
+    }
+}
+
+fn update_accessibility(
+    requested: Res<AccessibilityRequested>,
+    mut manage_accessibility_updates: ResMut<ManageAccessibilityUpdates>,
+    outputs: Query<(Entity, &EguiOutput)>,
+    mut adapters: NonSendMut<AccessKitAdapters>,
+) {
+    if requested.get() {
+        println!("Accessibility requested");
+        for (entity, output) in &outputs {
+            println!("Got an output");
+            if let Some(adapter) = adapters.get_mut(&entity) {
+                println!("Got  an adapter");
+                if let Some(update) = &output.platform_output.accesskit_update {
+                    **manage_accessibility_updates = false;
+                    adapter.update_if_active(|| update.clone());
+                } else if !**manage_accessibility_updates {
+                    **manage_accessibility_updates = true;
+                }
+            }
         }
     }
 }
