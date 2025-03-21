@@ -105,7 +105,7 @@ fn setup(
             Camera {
                 // render before the "main pass" camera
                 order: -1,
-                target: RenderTarget::Image(image_handle),
+                target: RenderTarget::Image(image_handle.into()),
                 clear_color: ClearColorConfig::Custom(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                 ..default()
             },
@@ -147,7 +147,7 @@ fn render_to_image_example_system(
     mut contexts: EguiContexts,
 ) {
     let cube_preview_texture_id = contexts.image_id(&cube_preview_image).unwrap();
-    let preview_material_handle = preview_cube_query.single();
+    let preview_material_handle = preview_cube_query.single().unwrap();
     let preview_material = materials.get_mut(preview_material_handle).unwrap();
 
     let ctx = contexts.ctx_mut();
@@ -187,7 +187,7 @@ fn render_to_image_example_system(
     if apply {
         let material_clone = preview_material.clone();
 
-        let main_material_handle = main_cube_query.single();
+        let main_material_handle = main_cube_query.single().unwrap();
         materials.insert(main_material_handle, material_clone);
     }
 }

@@ -12,6 +12,7 @@ use bevy_ecs::{prelude::*, system::SystemParam};
 use bevy_image::Image;
 use bevy_log as log;
 use bevy_math::Vec2;
+use bevy_platform_support::collections::HashMap;
 use bevy_render::{
     extract_resource::ExtractResource,
     render_asset::RenderAssets,
@@ -26,7 +27,6 @@ use bevy_render::{
     view::ExtractedWindows,
     Extract,
 };
-use bevy_utils::HashMap;
 use bevy_window::Window;
 use bytemuck::cast_slice;
 use wgpu_types::{BufferAddress, BufferUsages};

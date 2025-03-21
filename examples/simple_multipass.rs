@@ -18,11 +18,11 @@ fn main() {
 }
 
 fn configure_context(mut egui_settings: Query<&mut EguiContextSettings>) {
-    egui_settings.single_mut().run_manually = true;
+    egui_settings.single_mut().unwrap().run_manually = true;
 }
 
 fn ui_example_system(mut contexts: Query<(&mut EguiContext, &mut EguiInput, &mut EguiFullOutput)>) {
-    let (mut ctx, mut egui_input, mut egui_full_output) = contexts.single_mut();
+    let (mut ctx, mut egui_input, mut egui_full_output) = contexts.single_mut().unwrap();
 
     let ui = |ctx: &egui::Context| {
         egui::Window::new("Hello").show(ctx, |ui| {

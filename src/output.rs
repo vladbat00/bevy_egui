@@ -125,6 +125,6 @@ pub fn process_output_system(
     }
 
     if should_request_redraw {
-        event.send(RequestRedraw);
+        event.write(RequestRedraw);
     }
 }

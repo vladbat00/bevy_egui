@@ -147,7 +147,6 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
     query::{QueryData, QueryEntityError},
-    schedule::apply_deferred,
     system::SystemParam,
 };
 #[cfg(feature = "render")]
@@ -159,6 +158,7 @@ use bevy_picking::{
     backend::{HitData, PointerHits},
     pointer::{PointerId, PointerLocation},
 };
+use bevy_platform_support::collections::HashMap;
 use bevy_reflect::Reflect;
 #[cfg(feature = "picking")]
 use bevy_render::camera::NormalizedRenderTarget;
@@ -326,7 +326,7 @@ pub struct EguiFullOutput(pub Option<egui::FullOutput>);
 ///
 /// The resource is available only if `manage_clipboard` feature is enabled.
 #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
-#[derive(Default, bevy_ecs::system::Resource)]
+#[derive(Default, Resource)]
 pub struct EguiClipboard {
     #[cfg(not(target_arch = "wasm32"))]
     clipboard: thread_local::ThreadLocal<Option<RefCell<Clipboard>>>,
@@ -633,10 +633,10 @@ impl EguiRenderToImage {
 }
 
 /// A resource for storing `bevy_egui` user textures.
-#[derive(Clone, bevy_ecs::system::Resource, ExtractResource)]
+#[derive(Clone, Resource, ExtractResource)]
 #[cfg(feature = "render")]
 pub struct EguiUserTextures {
-    textures: bevy_utils::HashMap<Handle<Image>, u64>,
+    textures: HashMap<Handle<Image>, u64>,
     free_list: Vec<u64>,
 }
 
@@ -644,7 +644,7 @@ pub struct EguiUserTextures {
 impl Default for EguiUserTextures {
     fn default() -> Self {
         Self {
-            textures: bevy_utils::HashMap::new(),
+            textures: HashMap::default(),
             free_list: vec![0],
         }
     }
@@ -847,7 +847,7 @@ impl Plugin for EguiPlugin {
             PreStartup,
             (
                 setup_new_windows_system,
-                apply_deferred,
+                ApplyDeferred,
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -859,7 +859,7 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 setup_new_windows_system,
-                apply_deferred,
+                ApplyDeferred,
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -1062,8 +1062,8 @@ fn input_system_is_enabled(
 
 /// Contains textures allocated and painted by Egui.
 #[cfg(feature = "render")]
-#[derive(bevy_ecs::system::Resource, Deref, DerefMut, Default)]
-pub struct EguiManagedTextures(pub bevy_utils::HashMap<(Entity, u64), EguiManagedTexture>);
+#[derive(Resource, Deref, DerefMut, Default)]
+pub struct EguiManagedTextures(pub HashMap<(Entity, u64), EguiManagedTexture>);
 
 /// Represents a texture allocated and painted by Egui.
 #[cfg(feature = "render")]
@@ -1204,7 +1204,7 @@ pub fn capture_pointer_input_system(
             if let Some((entity, mut ctx, settings)) = egui_context.get_some_mut(id.entity()) {
                 if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
                     let entry = (entity, HitData::new(entity, 0.0, None, None));
-                    output.send(PointerHits::new(
+                    output.write(PointerHits::new(
                         *pointer,
                         Vec::from([entry]),
                         PICKING_ORDER,

@@ -256,7 +256,7 @@ impl<'w, D: QueryData, F: QueryFilter> QueryHelper<'w> for Query<'w, '_, D, F> {
     fn get_some(&self, entity: Entity) -> Option<ROQueryItem<'_, Self::QueryData>> {
         match self.get(entity) {
             Ok(item) => Some(item),
-            Err(QueryEntityError::NoSuchEntity(_)) => None,
+            Err(QueryEntityError::EntityDoesNotExist(_)) => None,
             err => {
                 err.unwrap();
                 unreachable!()
@@ -267,7 +267,7 @@ impl<'w, D: QueryData, F: QueryFilter> QueryHelper<'w> for Query<'w, '_, D, F> {
     fn get_some_mut(&mut self, entity: Entity) -> Option<QueryItem<'_, Self::QueryData>> {
         match self.get_mut(entity) {
             Ok(item) => Some(item),
-            Err(QueryEntityError::NoSuchEntity(_)) => None,
+            Err(QueryEntityError::EntityDoesNotExist(_)) => None,
             err => {
                 err.unwrap();
                 unreachable!()

@@ -197,7 +197,7 @@ fn setup_worldspace(
         };
         let mut output_texture = Image {
             // You should use `0` so that the pixels are transparent.
-            data: vec![0; (size.width * size.height * 4) as usize],
+            data: Some(vec![0; (size.width * size.height * 4) as usize]),
             ..default()
         };
         output_texture.texture_descriptor.usage |= TextureUsages::RENDER_ATTACHMENT;

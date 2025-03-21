@@ -199,7 +199,7 @@ pub fn write_window_pointer_moved_events_system(
         let scale_factor = context_settings.scale_factor;
         let pointer_position = vec2_into_egui_pos2(event.position / scale_factor);
         context_pointer_position.position = pointer_position;
-        egui_input_event_writer.send(EguiInputEvent {
+        egui_input_event_writer.write(EguiInputEvent {
             context: event.window,
             event: egui::Event::PointerMoved(pointer_position),
         });
@@ -251,7 +251,7 @@ pub fn write_pointer_button_events_system(
             ButtonState::Pressed => true,
             ButtonState::Released => false,
         };
-        egui_input_event_writer.send(EguiInputEvent {
+        egui_input_event_writer.write(EguiInputEvent {
             context: hovered_context,
             event: egui::Event::PointerButton {
                 pos: context_pointer_position.position,
@@ -305,7 +305,7 @@ pub fn write_non_window_pointer_moved_events_system(
         return;
     }
 
-    egui_input_event_writer.send(EguiInputEvent {
+    egui_input_event_writer.write(EguiInputEvent {
         context: *hovered_non_window_egui_context,
         event: egui::Event::PointerMoved(context_pointer_position.position),
     });
@@ -342,7 +342,7 @@ pub fn write_mouse_wheel_events_system(
             continue;
         }
 
-        egui_input_event_writer.send(EguiInputEvent {
+        egui_input_event_writer.write(EguiInputEvent {
             context,
             event: egui::Event::MouseWheel {
                 unit,
@@ -387,13 +387,13 @@ pub fn write_keyboard_input_events_system(
         if modifier_keys_state.text_input_is_allowed() && event.state.is_pressed() {
             match &event.logical_key {
                 Key::Character(char) if char.matches(char::is_control).count() == 0 => {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Text(char.to_string()),
                     });
                 }
                 Key::Space => {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Text(" ".to_string()),
                     });
@@ -416,7 +416,7 @@ pub fn write_keyboard_input_events_system(
             modifiers,
             physical_key,
         };
-        egui_input_event_writer.send(EguiInputEvent {
+        egui_input_event_writer.write(EguiInputEvent {
             context,
             event: egui_event,
         });
@@ -431,20 +431,20 @@ pub fn write_keyboard_input_events_system(
         if modifiers.command && event.state.is_pressed() {
             match key {
                 egui::Key::C => {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Copy,
                     });
                 }
                 egui::Key::X => {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Cut,
                     });
                 }
                 egui::Key::V => {
                     if let Some(contents) = egui_clipboard.get_text() {
-                        egui_input_event_writer.send(EguiInputEvent {
+                        egui_input_event_writer.write(EguiInputEvent {
                             context,
                             event: egui::Event::Text(contents),
                         });
@@ -499,7 +499,7 @@ pub fn write_ime_events_system(
             |ime_state: &mut EguiContextImeState,
              egui_input_event_writer: &mut EventWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Ime(egui::ImeEvent::Enabled),
                     });
@@ -511,7 +511,7 @@ pub fn write_ime_events_system(
             |ime_state: &mut EguiContextImeState,
              egui_input_event_writer: &mut EventWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
-                    egui_input_event_writer.send(EguiInputEvent {
+                    egui_input_event_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Ime(egui::ImeEvent::Disabled),
                     });
@@ -530,13 +530,13 @@ pub fn write_ime_events_system(
                 cursor: _,
             } => {
                 ime_event_enable(&mut ime_state, &mut egui_input_event_writer);
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Preedit(value.clone())),
                 });
             }
             Ime::Commit { value, window: _ } => {
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Commit(value.clone())),
                 });
@@ -684,7 +684,7 @@ fn write_touch_event(
     let touch_id = egui::TouchId::from(event.id);
 
     // Emit touch event
-    egui_input_event_writer.send(EguiInputEvent {
+    egui_input_event_writer.write(EguiInputEvent {
         context,
         event: egui::Event::Touch {
             device_id: egui::TouchDeviceId(event.window.to_bits()),
@@ -718,12 +718,12 @@ fn write_touch_event(
             bevy_input::touch::TouchPhase::Started => {
                 context_pointer_touch_id.pointer_touch_id = Some(event.id);
                 // First move the pointer to the right location.
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerMoved(pointer_position),
                 });
                 // Then do mouse button input.
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerButton {
                         pos: pointer_position,
@@ -734,14 +734,14 @@ fn write_touch_event(
                 });
             }
             bevy_input::touch::TouchPhase::Moved => {
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerMoved(pointer_position),
                 });
             }
             bevy_input::touch::TouchPhase::Ended => {
                 context_pointer_touch_id.pointer_touch_id = None;
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerButton {
                         pos: pointer_position,
@@ -750,7 +750,7 @@ fn write_touch_event(
                         modifiers,
                     },
                 });
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerGone,
                 });
@@ -765,7 +765,7 @@ fn write_touch_event(
             }
             bevy_input::touch::TouchPhase::Canceled => {
                 context_pointer_touch_id.pointer_touch_id = None;
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerGone,
                 });

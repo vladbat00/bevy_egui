@@ -120,7 +120,7 @@ fn update_camera_transform_system(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera_query: Query<(&Projection, &mut Transform)>,
 ) {
-    let (camera_projection, mut transform) = match camera_query.get_single_mut() {
+    let (camera_projection, mut transform) = match camera_query.single_mut() {
         Ok((Projection::Perspective(projection), transform)) => (projection, transform),
         _ => unreachable!(),
     };
@@ -129,7 +129,7 @@ fn update_camera_transform_system(
     let frustum_height = 2.0 * distance_to_target * (camera_projection.fov * 0.5).tan();
     let frustum_width = frustum_height * camera_projection.aspect_ratio;
 
-    let window = windows.single();
+    let window = windows.single().unwrap();
 
     let left_taken = occupied_screen_space.left / window.width();
     let right_taken = occupied_screen_space.right / window.width();
