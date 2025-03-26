@@ -36,6 +36,9 @@ serde = ["egui/serde"]
 log_input_events = []
 
 [[example]]
+name = "absorb_input"
+required-features = ["render"]
+[[example]]
 name = "color_test"
 required-features = ["render"]
 [[example]]

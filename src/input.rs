@@ -6,10 +6,10 @@ use crate::{
 };
 use bevy_ecs::prelude::*;
 use bevy_input::{
-    keyboard::{Key, KeyboardFocusLost, KeyboardInput},
+    keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
-    ButtonState,
+    ButtonInput, ButtonState,
 };
 use bevy_log as log;
 use bevy_time::{Real, Time};
@@ -807,4 +807,61 @@ pub fn write_egui_input_system(
         egui_input.modifiers = modifier_keys_state.to_egui_modifiers();
         egui_input.time = Some(time.elapsed_secs_f64());
     }
+}
+
+/// Clears Bevy input event buffers and resets [`ButtonInput`] resources if Egui requires is
+/// using pointer or keyboard (see the [`write_egui_wants_input_system`] run condition).
+///
+/// This system isn't run by default, see [`EguiGlobalSettings::enable_absorb_bevy_input_system`].
+pub fn absorb_bevy_input_system(
+    mut mouse_input: ResMut<ButtonInput<MouseButton>>,
+    mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
+    mut keyboard_input_events: ResMut<Events<KeyboardInput>>,
+    mut mouse_wheel_events: ResMut<Events<MouseWheel>>,
+    mut mouse_button_input_events: ResMut<Events<MouseButtonInput>>,
+) {
+    let modifiers = [
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::AltLeft,
+        KeyCode::AltRight,
+        KeyCode::ShiftLeft,
+        KeyCode::ShiftRight,
+    ];
+
+    let pressed = modifiers.map(|key| keyboard_input.pressed(key).then_some(key));
+
+    mouse_input.reset_all();
+    keyboard_input.reset_all();
+    keyboard_input_events.clear();
+    mouse_wheel_events.clear();
+    mouse_button_input_events.clear();
+
+    for key in pressed.into_iter().flatten() {
+        keyboard_input.press(key);
+    }
+}
+
+/// Stores whether there's an Egui context using pointer or keyboard.
+#[derive(Resource, Clone, Debug, Default)]
+pub struct EguiWantsInput(bool);
+
+/// Updates the [`EguiWantsInput`] resource.
+pub fn write_egui_wants_input_system(
+    mut egui_context_query: Query<&mut EguiContext>,
+    mut egui_wants_input: ResMut<EguiWantsInput>,
+) {
+    egui_wants_input.0 = egui_context_query.iter_mut().any(|mut ctx| {
+        let egui_ctx = ctx.get_mut();
+        egui_ctx.wants_pointer_input()
+            || egui_ctx.wants_keyboard_input()
+            || egui_ctx.is_pointer_over_area()
+    });
+}
+
+/// Returns `true` if any Egui context is using pointer or keyboard.
+pub fn egui_wants_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
+    egui_wants_input_resource.0
 }
