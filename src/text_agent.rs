@@ -100,10 +100,10 @@ pub fn write_text_agent_channel_events_system(
         .map_or(primary_context, |context| context.0);
     while let Ok(event) = channel.receiver.try_recv() {
         redraw = true;
-        egui_input_event_writer.send(EguiInputEvent { context, event });
+        egui_input_event_writer.write(EguiInputEvent { context, event });
     }
     if redraw {
-        redraw_event.send(RequestRedraw);
+        redraw_event.write(RequestRedraw);
     }
 }
 

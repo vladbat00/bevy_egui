@@ -44,20 +44,20 @@ pub fn write_web_clipboard_events_system(
     while let Some(event) = egui_clipboard.try_receive_clipboard_event() {
         match event {
             crate::web_clipboard::WebClipboardEvent::Copy => {
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Copy,
                 });
             }
             crate::web_clipboard::WebClipboardEvent::Cut => {
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Cut,
                 });
             }
             crate::web_clipboard::WebClipboardEvent::Paste(text) => {
                 egui_clipboard.set_text_internal(&text);
-                egui_input_event_writer.send(EguiInputEvent {
+                egui_input_event_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Paste(text),
                 });

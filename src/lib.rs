@@ -158,6 +158,7 @@ use bevy_picking::{
     backend::{HitData, PointerHits},
     pointer::{PointerId, PointerLocation},
 };
+#[cfg(feature = "render")]
 use bevy_platform_support::collections::HashMap;
 use bevy_reflect::Reflect;
 #[cfg(feature = "picking")]
