@@ -809,10 +809,23 @@ pub fn write_egui_input_system(
     }
 }
 
-/// Clears Bevy input event buffers and resets [`ButtonInput`] resources if Egui requires is
-/// using pointer or keyboard (see the [`write_egui_wants_input_system`] run condition).
+/// Clears Bevy input event buffers and resets [`ButtonInput`] resources if Egui
+/// is using pointer or keyboard (see the [`write_egui_wants_input_system`] run condition).
 ///
-/// This system isn't run by default, see [`EguiGlobalSettings::enable_absorb_bevy_input_system`].
+/// This system isn't run by default, set [`EguiGlobalSettings::enable_absorb_bevy_input_system`]
+/// to `true` to enable it.
+///
+/// ## Considerations
+///
+/// Enabling this system makes an assumption that `bevy_egui` takes priority in input handling
+/// over other plugins and systems. This should work ok as long as there's no other system
+/// clearing events the same way that might be in conflict with `bevy_egui`, and there's
+/// no other system that needs a non-interrupted flow of events.
+///
+/// ## Alternative
+///
+/// A safer alternative is to apply `run_if(not(egui_wants_input))` to your systems
+/// that need to be disabled while Egui is using input (see the [`egui_wants_input`] run condition).
 pub fn absorb_bevy_input_system(
     mut mouse_input: ResMut<ButtonInput<MouseButton>>,
     mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
@@ -833,6 +846,8 @@ pub fn absorb_bevy_input_system(
 
     let pressed = modifiers.map(|key| keyboard_input.pressed(key).then_some(key));
 
+    // TODO: the list of events is definitely not comprehensive, but it should at least cover
+    //  the most popular use-cases. We can add more on request.
     mouse_input.reset_all();
     keyboard_input.reset_all();
     keyboard_input_events.clear();

@@ -14,6 +14,11 @@ fn main() {
         .add_plugins(EguiPlugin)
         .add_systems(Startup, setup_scene_system)
         .add_systems(Update, ui_system)
+        // You can wrap your systems with the `egui_wants_input` run condition if you
+        // want to disable them while Egui is using input.
+        //
+        // As an alternative (a less safe one), you can set `EguiGlobalSettings::enable_absorb_bevy_input_system`
+        // to true to let Egui absorb all input events (see `ui_system` for the usage example).
         .add_systems(Update, input_system.run_if(not(egui_wants_input)))
         .run();
 }

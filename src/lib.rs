@@ -195,6 +195,18 @@ pub struct EguiGlobalSettings {
     /// Controls running of the input systems.
     pub input_system_settings: EguiInputSystemSettings,
     /// Controls running of the [`absorb_bevy_input_system`] system, disabled by default.
+    ///
+    /// ## Considerations
+    ///
+    /// Enabling this system makes an assumption that `bevy_egui` takes priority in input handling
+    /// over other plugins and systems. This should work ok as long as there's no other system
+    /// clearing events the same way that might be in conflict with `bevy_egui`, and there's
+    /// no other system that needs a non-interrupted flow of events.
+    ///
+    /// ## Alternative
+    ///
+    /// Apply `run_if(not(egui_wants_input))` to your systems that need to be disabled while
+    /// Egui is using input.
     pub enable_absorb_bevy_input_system: bool,
 }
 
