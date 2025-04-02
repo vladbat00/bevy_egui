@@ -2,13 +2,16 @@ use std::num::NonZero;
 
 use bevy::prelude::*;
 use bevy_egui::{
-    EguiContext, EguiContextSettings, EguiFullOutput, EguiInput, EguiPlugin, EguiStartupSet,
+    EguiContext, EguiContextRunMode, EguiContextSettings, EguiFullOutput, EguiInput, EguiPlugin,
+    EguiStartupSet,
 };
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            default_to_multipass: true,
+        })
         .add_systems(
             PreStartup,
             configure_context.after(EguiStartupSet::InitContexts),
@@ -18,7 +21,7 @@ fn main() {
 }
 
 fn configure_context(mut egui_settings: Query<&mut EguiContextSettings>) {
-    egui_settings.single_mut().run_manually = true;
+    egui_settings.single_mut().run_mode = EguiContextRunMode::Manual;
 }
 
 fn ui_example_system(mut contexts: Query<(&mut EguiContext, &mut EguiInput, &mut EguiFullOutput)>) {

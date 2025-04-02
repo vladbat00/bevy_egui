@@ -2,7 +2,7 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
 };
-use bevy_egui::{EguiContextSettings, EguiContexts, EguiPlugin};
+use bevy_egui::{BevyEguiApp, EguiContextSettings, EguiContexts, EguiPlugin, OnEguiPass};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -43,11 +43,13 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            default_to_multipass: true,
+        })
         .add_systems(Startup, configure_visuals_system)
         .add_systems(Startup, configure_ui_state_system)
-        .add_systems(Update, update_ui_scale_factor_system)
-        .add_systems(Update, ui_example_system)
+        .add_egui_system(update_ui_scale_factor_system)
+        .add_egui_system(ui_example_system)
         .run();
 }
 #[derive(Default, Resource)]
@@ -72,6 +74,7 @@ fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
 }
 
 fn update_ui_scale_factor_system(
+    trigger: Trigger<OnEguiPass>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut toggle_scale_factor: Local<Option<bool>>,
     mut contexts: Query<(&mut EguiContextSettings, &Window)>,
@@ -79,7 +82,7 @@ fn update_ui_scale_factor_system(
     if keyboard_input.just_pressed(KeyCode::Slash) || toggle_scale_factor.is_none() {
         *toggle_scale_factor = Some(!toggle_scale_factor.unwrap_or(true));
 
-        if let Ok((mut egui_settings, window)) = contexts.get_single_mut() {
+        if let Ok((mut egui_settings, window)) = contexts.get_mut(trigger.entity()) {
             let scale_factor = if toggle_scale_factor.unwrap() {
                 1.0
             } else {
@@ -91,6 +94,7 @@ fn update_ui_scale_factor_system(
 }
 
 fn ui_example_system(
+    _trigger: Trigger<OnEguiPass>,
     mut ui_state: ResMut<UiState>,
     // You are not required to store Egui texture ids in systems. We store this one here just to
     // demonstrate that rendering by using a texture id of a removed image is handled without

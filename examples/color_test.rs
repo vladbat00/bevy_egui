@@ -6,21 +6,25 @@ use bevy::{
 use bevy_egui::{
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext, EguiContextSettings, EguiContexts, EguiInputSet, EguiPlugin, EguiRenderToImage,
+    BevyEguiApp, EguiContext, EguiContextSettings, EguiContexts, EguiInputSet, EguiPlugin,
+    EguiRenderToImage, OnEguiPass,
 };
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::WHITE))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            default_to_multipass: true,
+        })
         .init_resource::<AppState>()
         .add_systems(Startup, setup_system)
         .add_systems(
             PreUpdate,
             update_egui_hovered_context.in_set(EguiInputSet::InitReading),
         )
-        .add_systems(Update, (ui_system, update_image_size.after(ui_system)))
+        .add_systems(Update, update_image_size_system)
+        .add_egui_system(ui_system)
         .run();
 }
 
@@ -89,6 +93,7 @@ fn setup_system(
                 load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
             },
         ))
+        .observe(mesh_ui_system)
         .id();
 
     app_state.egui_texture_image_entity = commands
@@ -104,7 +109,7 @@ fn setup_system(
     commands.spawn(Camera2d);
 }
 
-fn update_image_size(
+fn update_image_size_system(
     mut prev_top_panel_height: Local<u32>,
     mut prev_window_size: Local<UVec2>,
     window: Single<&Window, With<PrimaryWindow>>,
@@ -188,6 +193,7 @@ fn update_egui_hovered_context(
 }
 
 fn ui_system(
+    _trigger: Trigger<OnEguiPass>,
     mut app_state: ResMut<AppState>,
     mut contexts: EguiContexts,
     images: Res<Assets<bevy::image::Image>>,
@@ -225,14 +231,7 @@ fn ui_system(
                 });
             });
         }
-        DisplayedUi::MeshImage => {
-            let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
-            egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    app_state.color_test.ui(ui);
-                });
-            });
-        }
+        DisplayedUi::MeshImage => {}
         DisplayedUi::EguiTextureImage => {
             let egui_texture_image = images
                 .get(&app_state.egui_texture_image_handle)
@@ -258,6 +257,19 @@ fn ui_system(
             });
         }
     }
+}
+
+fn mesh_ui_system(
+    _trigger: Trigger<OnEguiPass>,
+    mut app_state: ResMut<AppState>,
+    mut contexts: EguiContexts,
+) {
+    let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
+    egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            app_state.color_test.ui(ui);
+        });
+    });
 }
 
 //

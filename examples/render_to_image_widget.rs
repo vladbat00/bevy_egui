@@ -8,15 +8,19 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{
+    egui::Widget, BevyEguiApp, EguiContexts, EguiPlugin, EguiUserTextures, OnEguiPass,
+};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            default_to_multipass: true,
+        })
         .add_systems(Startup, setup)
-        .add_systems(Update, rotator_system)
-        .add_systems(Update, render_to_image_example_system)
+        .add_egui_system(rotator_system)
+        .add_egui_system(render_to_image_example_system)
         .run();
 }
 
@@ -140,6 +144,7 @@ fn setup(
 }
 
 fn render_to_image_example_system(
+    _trigger: Trigger<OnEguiPass>,
     cube_preview_image: Res<CubePreviewImage>,
     preview_cube_query: Query<&MeshMaterial3d<StandardMaterial>, With<PreviewPassCube>>,
     main_cube_query: Query<&MeshMaterial3d<StandardMaterial>, With<MainPassCube>>,
@@ -218,6 +223,7 @@ fn color_picker_widget(ui: &mut egui::Ui, color: &mut Color) -> egui::Response {
 // Rotates the cubes.
 #[allow(clippy::type_complexity)]
 fn rotator_system(
+    _trigger: Trigger<OnEguiPass>,
     time: Res<Time>,
     mut query: Query<&mut Transform, Or<(With<PreviewPassCube>, With<MainPassCube>)>>,
 ) {

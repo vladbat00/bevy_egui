@@ -1,20 +1,16 @@
 use bevy::{prelude::*, render::render_resource::LoadOp, window::PrimaryWindow};
-use bevy_egui::{EguiContexts, EguiPlugin, EguiRenderToImage};
+use bevy_egui::{BevyEguiApp, EguiContexts, EguiPlugin, EguiRenderToImage, OnEguiPass};
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
     let mut app = App::new();
     app.add_plugins((DefaultPlugins, MeshPickingPlugin));
-    app.add_plugins(EguiPlugin);
+    app.add_plugins(EguiPlugin {
+        default_to_multipass: true,
+    });
     app.add_systems(Startup, setup_worldspace_system);
-    app.add_systems(
-        Update,
-        (
-            update_screenspace_system,
-            update_worldspace_system,
-            draw_gizmos_system,
-        ),
-    );
+    app.add_systems(Update, draw_gizmos_system);
+    app.add_egui_system(update_screenspace_system);
     app.run();
 }
 
@@ -26,7 +22,11 @@ impl Default for Name {
     }
 }
 
-fn update_screenspace_system(mut name: Local<Name>, mut contexts: EguiContexts) {
+fn update_screenspace_system(
+    _trigger: Trigger<OnEguiPass>,
+    mut name: Local<Name>,
+    mut contexts: EguiContexts,
+) {
     egui::Window::new("Screenspace UI").show(contexts.ctx_mut(), |ui| {
         ui.horizontal(|ui| {
             ui.label("Your name:");
@@ -40,10 +40,11 @@ fn update_screenspace_system(mut name: Local<Name>, mut contexts: EguiContexts) 
 }
 
 fn update_worldspace_system(
+    trigger: Trigger<OnEguiPass>,
     mut name: Local<Name>,
-    mut ctx: Single<&mut bevy_egui::EguiContext, With<EguiRenderToImage>>,
+    mut contexts: EguiContexts,
 ) {
-    egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
+    egui::Window::new("Worldspace UI").show(contexts.ctx_for_entity_mut(trigger.entity()), |ui| {
         ui.horizontal(|ui| {
             ui.label("Your name:");
             ui.text_edit_singleline(&mut name.0);
@@ -120,6 +121,7 @@ fn setup_worldspace_system(
                 is_hoverable: true,
             },
         ))
+        .observe(update_worldspace_system)
         .with_children(|commands| {
             // The "tablet" mesh, on top of which Egui is rendered.
             commands

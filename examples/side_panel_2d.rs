@@ -1,13 +1,15 @@
 use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, BevyEguiApp, EguiContexts, EguiPlugin, OnEguiPass};
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.25, 0.25, 0.25)))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            default_to_multipass: true,
+        })
         .add_systems(Startup, setup_system)
-        .add_systems(Update, ui_example_system)
+        .add_egui_system(ui_example_system)
         .run();
 }
 
@@ -15,6 +17,7 @@ fn main() {
 // With a resource which stores the dimensions of the panels, the update of the Viewport can
 // be done in another system.
 fn ui_example_system(
+    _trigger: Trigger<OnEguiPass>,
     mut contexts: EguiContexts,
     mut camera: Single<&mut Camera>,
     window: Single<&mut Window, With<PrimaryWindow>>,

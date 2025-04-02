@@ -42,6 +42,9 @@ required-features = ["render"]
 name = "color_test"
 required-features = ["render"]
 [[example]]
+name = "manual_run_mode"
+required-features = ["render"]
+[[example]]
 name = "paint_callback"
 required-features = ["render"]
 [[example]]
@@ -55,9 +58,6 @@ name = "side_panel_3d"
 required-features = ["render"]
 [[example]]
 name = "simple"
-required-features = ["render"]
-[[example]]
-name = "simple_multipass"
 required-features = ["render"]
 [[example]]
 name = "two_windows"

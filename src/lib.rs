@@ -29,19 +29,19 @@
 //!
 //! ```no_run,rust
 //! use bevy::prelude::*;
-//! use bevy_egui::{egui, EguiContexts, EguiPlugin};
+//! use bevy_egui::{egui, EguiContexts, EguiPlugin, BevyEguiApp, OnEguiPass};
 //!
 //! fn main() {
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(EguiPlugin)
+//!         .add_plugins(EguiPlugin { default_to_multipass: true })
 //!         // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
 //!         // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
-//!         .add_systems(Update, ui_example_system)
+//!         .add_egui_system(ui_example_system)
 //!         .run();
 //! }
 //!
-//! fn ui_example_system(mut contexts: EguiContexts) {
+//! fn ui_example_system(_trigger: Trigger<OnEguiPass>, mut contexts: EguiContexts) {
 //!     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
 //!         ui.label("world");
 //!     });
@@ -148,7 +148,7 @@ use bevy_ecs::{
     prelude::*,
     query::{QueryData, QueryEntityError},
     schedule::apply_deferred,
-    system::SystemParam,
+    system::{IntoObserverSystem, SystemParam},
 };
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
@@ -182,7 +182,85 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 /// Adds all Egui resources and render graph nodes.
-pub struct EguiPlugin;
+pub struct EguiPlugin {
+    /// ## About Egui multi-pass mode
+    ///
+    /// _From the [Egui documentation](https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode):_
+    ///
+    /// By default, egui usually only does one pass for each rendered frame.
+    /// However, egui supports multi-pass immediate mode.
+    /// Another pass can be requested with [`Context::request_discard`].
+    ///
+    /// This is used by some widgets to cover up "first-frame jitters".
+    /// For instance, the [`Grid`] needs to know the width of all columns before it can properly place the widgets.
+    /// But it cannot know the width of widgets to come.
+    /// So it stores the max widths of previous frames and uses that.
+    /// This means the first time a `Grid` is shown it will _guess_ the widths of the columns, and will usually guess wrong.
+    /// This means the contents of the grid will be wrong for one frame, before settling to the correct places.
+    /// Therefore `Grid` calls [`Context::request_discard`] when it is first shown, so the wrong placement is never
+    /// visible to the end user.
+    ///
+    /// ## Usage
+    ///
+    /// Set this to `true` to enable an experimental support for the Egui multi-pass mode.
+    /// If you are updating from an older `bevy_egui` version, you can just set this to `false` for the ease of migration.
+    /// This will let you avoid modifying existing UI systems.
+    ///
+    /// Enabling the multi-pass mode will require your app to use the new [`EguiApp::add_egui_system`] API:
+    ///
+    /// ```no_run,rust
+    /// # use bevy::prelude::*;
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, BevyEguiApp, OnEguiPass};
+    /// fn main() {
+    ///     App::new()
+    ///         .add_plugins(DefaultPlugins)
+    ///         .add_plugins(EguiPlugin { default_to_multipass: true })
+    ///         .add_egui_system(ui_example_system)
+    /// }
+    /// fn ui_example_system(_trigger: Trigger<OnEguiPass>, contexts: EguiContexts) {
+    ///     // ...
+    /// }
+    /// ```
+    ///
+    /// Under the hood, [`BevyEguiApp::add_egui_system`] adds an observer to an [`EguiContext`] entity.
+    ///
+    /// If you create multiple contexts (for example, when using multiple windows or rendering to an image),
+    /// you need to add observers to respective entities on creating new contexts manually:
+    ///
+    /// ```no_run,rust
+    /// # use bevy::prelude::*;
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, BevyEguiApp, OnEguiPass};
+    /// fn main() {
+    ///     App::new()
+    ///         .add_plugins(DefaultPlugins)
+    ///         .add_plugins(EguiPlugin { default_to_multipass: true })
+    ///         .add_systep(Startup, create_new_window_system)
+    /// }
+    ///
+    /// fn create_new_window_system(mut commands: Commands) {
+    ///     commands
+    ///         .spawn(Window::default())
+    ///         .observe(ui_example_system);
+    /// }
+    ///
+    /// fn ui_example_system(_trigger: Trigger<OnEguiPass>, contexts: EguiContexts) {
+    ///     // ...
+    /// }
+    /// ```
+    ///
+    /// In the future, the multi-pass mode will likely phase the single-pass one out.
+    ///
+    /// ## Note to developers of public plugins
+    ///
+    /// The introduction of this setting might break things if your plugin depends on `bevy_egui`.
+    ///
+    /// Here are some hints on how to update your plugin with respect to the `default_to_multipass` flag:
+    /// - Don't initialize `EguiPlugin` for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
+    ///   users should be able to configure a default mode themselves.
+    /// - If you expose UI systems, you'll want to expose two flavours of each system: one with `Trigger<OnEguiPass>` and one without.
+    /// - If you add UI systems, check if world contains the [`DefaultToMultipass`] resource to add a system with a respective flavour.
+    pub default_to_multipass: bool,
+}
 
 /// A resource for storing global plugin settings.
 #[derive(Clone, Debug, Resource, Reflect)]
@@ -220,14 +298,33 @@ impl Default for EguiGlobalSettings {
     }
 }
 
+/// This resource is created if [`EguiPlugin`] is initialized with [`EguiPlugin::default_to_multipass`] set to `true`.
+#[derive(Resource)]
+pub struct DefaultToMultipass;
+
+/// Controls how Egui is run (single-pass/multi-pass/manually by a user).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Reflect)]
+pub enum EguiContextRunMode {
+    #[default]
+    /// By default, `bevy_egui` checks for existence of the [`DefaultToMultipass`] resource:
+    /// if it exists, the multi-pass mode is assumed.
+    ///
+    /// This resource is created if [`EguiPlugin`] is initialized with [`EguiPlugin::default_to_multipass`] set to `true`.
+    Default,
+    /// Makes an Egui context run in the single-pass mode.
+    SinglePass,
+    /// Makes an Egui context run in the multi-pass mode.
+    MultiPass,
+    /// The `bevy_egui` plugin won't call pass methods automatically, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
+    Manual,
+}
+
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
 #[cfg_attr(feature = "render", derive(ExtractComponent))]
 pub struct EguiContextSettings {
-    /// Controls if Egui is run manually.
-    ///
-    /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
-    pub run_manually: bool,
+    /// Controls how Egui is run, the default mode depends on the value of [`EguiPlugin::default_to_multipass`].
+    pub run_mode: EguiContextRunMode,
     /// Global scale factor for Egui widgets (`1.0` by default).
     ///
     /// This setting can be used to force the UI to render in physical pixels regardless of DPI as follows:
@@ -267,7 +364,7 @@ impl PartialEq for EguiContextSettings {
 impl Default for EguiContextSettings {
     fn default() -> Self {
         Self {
-            run_manually: false,
+            run_mode: EguiContextRunMode::default(),
             scale_factor: 1.0,
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
@@ -806,6 +903,10 @@ impl Plugin for EguiPlugin {
         app.init_resource::<EguiWantsInput>();
         app.add_event::<EguiInputEvent>();
 
+        if self.default_to_multipass {
+            app.insert_resource(DefaultToMultipass);
+        }
+
         #[cfg(feature = "render")]
         {
             app.init_resource::<EguiManagedTextures>();
@@ -863,6 +964,7 @@ impl Plugin for EguiPlugin {
             PreStartup,
             (
                 setup_new_windows_system,
+                setup_egui_observers_system,
                 apply_deferred,
                 update_ui_size_and_scale_system,
             )
@@ -1003,7 +1105,7 @@ impl Plugin for EguiPlugin {
         // PostUpdate systems.
         app.add_systems(
             PostUpdate,
-            end_pass_system.in_set(EguiPostUpdateSet::EndPass),
+            (end_pass_system, multipass_system).in_set(EguiPostUpdateSet::EndPass),
         );
         app.add_systems(
             PostUpdate,
@@ -1079,6 +1181,39 @@ impl Plugin for EguiPlugin {
     }
 }
 
+/// Extension trait for [`App`] declaring helper methods for adding Egui systems.
+pub trait BevyEguiApp {
+    /// Adds a system for an Egui context working in the multi-pass mode
+    /// (see [`EguiPlugin::default_to_multipass`], [`EguiContextRunMode`]).
+    ///
+    /// Under the hood, this adds an observer for a main Egui context entity, which is triggered
+    /// by the [`OnEguiPass`] event.
+    fn add_egui_system<B: Bundle, M, S: IntoObserverSystem<OnEguiPass, B, M>>(
+        &mut self,
+        system: S,
+    ) -> &mut Self;
+}
+
+#[derive(Resource, Default)]
+struct EguiSetupObservers {
+    observers: Vec<Observer>,
+}
+
+impl BevyEguiApp for App {
+    fn add_egui_system<B: Bundle, M, S: IntoObserverSystem<OnEguiPass, B, M>>(
+        &mut self,
+        system: S,
+    ) -> &mut Self {
+        self.world_mut()
+            .get_resource_or_init::<EguiSetupObservers>()
+            .observers
+            .push(Observer::new(
+                <S as IntoObserverSystem<OnEguiPass, B, M>>::into_system(system),
+            ));
+        self
+    }
+}
+
 fn input_system_is_enabled(
     test: impl Fn(&EguiInputSystemSettings) -> bool,
 ) -> impl Fn(Res<EguiGlobalSettings>) -> bool {
@@ -1107,6 +1242,29 @@ pub fn setup_new_windows_system(
     for window in new_windows.iter() {
         // See the list of required components to check the full list of components we add.
         commands.entity(window).insert(EguiContext::default());
+    }
+}
+
+/// Initializes multi-pass systems added with [`BevyEguiApp::add_egui_system`]
+/// (adds them as observers to the main Egui context).
+pub fn setup_egui_observers_system(world: &mut World) {
+    let Some(EguiSetupObservers { observers }) = world.remove_resource::<EguiSetupObservers>()
+    else {
+        return;
+    };
+    let mut egui_query =
+        world.query_filtered::<(Entity, &EguiContextSettings), With<PrimaryWindow>>();
+    let Ok((entity, settings)) = egui_query.get_single(world) else {
+        return;
+    };
+    let default_to_multipass = world.contains_resource::<DefaultToMultipass>();
+    if settings.run_mode != EguiContextRunMode::MultiPass
+        && !(default_to_multipass && settings.run_mode == EguiContextRunMode::Default)
+    {
+        panic!("The `add_egui_system` helper can only be used in the multipass mode");
+    }
+    for observer in observers {
+        world.spawn(observer.with_entity(entity));
     }
 }
 
@@ -1459,10 +1617,14 @@ pub fn update_ui_size_and_scale_system(
 
 /// Marks a pass start for Egui.
 pub fn begin_pass_system(
+    default_to_multipass: Option<Res<DefaultToMultipass>>,
     mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiInput)>,
 ) {
     for (mut ctx, egui_settings, mut egui_input) in contexts.iter_mut() {
-        if !egui_settings.run_manually {
+        if egui_settings.run_mode == EguiContextRunMode::SinglePass
+            || egui_settings.run_mode == EguiContextRunMode::Default
+                && default_to_multipass.is_none()
+        {
             ctx.get_mut().begin_pass(egui_input.take());
         }
     }
@@ -1470,12 +1632,65 @@ pub fn begin_pass_system(
 
 /// Marks a pass end for Egui.
 pub fn end_pass_system(
+    default_to_multipass: Option<Res<DefaultToMultipass>>,
     mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiFullOutput)>,
 ) {
     for (mut ctx, egui_settings, mut full_output) in contexts.iter_mut() {
-        if !egui_settings.run_manually {
+        if egui_settings.run_mode == EguiContextRunMode::SinglePass
+            || egui_settings.run_mode == EguiContextRunMode::Default
+                && default_to_multipass.is_none()
+        {
             **full_output = Some(ctx.get_mut().end_pass());
         }
+    }
+}
+
+/// Triggers Egui context observers (happens during [`multipass_system`], [`EguiPostUpdateSet::EndPass`] set of the [`PostUpdate`] schedule).
+#[derive(Event)]
+pub struct OnEguiPass;
+
+#[derive(QueryData)]
+#[query_data(mutable)]
+#[allow(missing_docs)]
+pub struct MultiPassEguiQuery {
+    entity: Entity,
+    context: &'static mut EguiContext,
+    input: &'static mut EguiInput,
+    output: &'static mut EguiFullOutput,
+    settings: &'static EguiContextSettings,
+}
+
+/// Triggers [`OnEguiPass`] event for multi-pass contexts, running registered observer systems.
+pub fn multipass_system(world: &mut World) {
+    let mut contexts_query = world.query::<MultiPassEguiQuery>();
+    let default_to_multipass = world.contains_resource::<DefaultToMultipass>();
+
+    let mut multipass_contexts: Vec<_> = contexts_query
+        .iter_mut(world)
+        .filter_map(|mut egui_context| {
+            if egui_context.settings.run_mode != EguiContextRunMode::MultiPass
+                && !(default_to_multipass
+                    && egui_context.settings.run_mode == EguiContextRunMode::Default)
+            {
+                return None;
+            }
+            Some((
+                egui_context.entity,
+                egui_context.context.get_mut().clone(),
+                egui_context.input.take(),
+            ))
+        })
+        .collect();
+
+    for (entity, ctx, ref mut input) in &mut multipass_contexts {
+        let output = ctx.run(input.take(), |_| {
+            world.trigger_targets(OnEguiPass, *entity);
+        });
+
+        **contexts_query
+            .get_mut(world, *entity)
+            .expect("previously queried context")
+            .output = Some(output);
     }
 }
 
