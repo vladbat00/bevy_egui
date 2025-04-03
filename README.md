@@ -48,14 +48,35 @@ bevy_egui = "0.33"
 
 ```rust
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, EguiContexts, EguiPlugin, BevyEguiApp, OnEguiPass};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
-        // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
-        // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
+        .add_plugins(EguiPlugin { default_to_multipass: true })
+        .add_egui_system(ui_example_system)
+        .run();
+}
+
+fn ui_example_system(_trigger: Trigger<OnEguiPass>, mut contexts: EguiContexts) {
+    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+        ui.label("world");
+    });
+}
+
+```
+
+Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
+Here's an example using the older single-pass API (which might be removed in the future):
+
+```rust
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin, OnEguiPass};
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(EguiPlugin { default_to_multipass: false })
         .add_systems(Update, ui_example_system)
         .run();
 }
@@ -65,10 +86,49 @@ fn ui_example_system(mut contexts: EguiContexts) {
         ui.label("world");
     });
 }
-
 ```
 
-For more advanced examples, see the section below.
+For more advanced examples, see the [examples](#Examples) section below.
+
+### Note to developers of public plugins
+
+If your plugin depends on `bevy_egui`, here are some hints on how to implement the support of both single-pass and multi-pass modes
+(with respect to the `EguiPlugin::default_to_multipass` flag):
+- Don't initialize `EguiPlugin` for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
+  users should be able to configure a default mode themselves.
+- If you expose UI systems, you'll want to expose two flavours of each system: one with `Trigger<OnEguiPass>` and one without.
+- If you add UI systems, check if world contains the [`DefaultToMultipass`] resource to add a system with a respective flavour.
+
+Your plugin code might look like this:
+
+```rust
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin, BevyEguiApp, OnEguiPass, DefaultToMultipass};
+
+pub struct MyPlugin;
+
+impl Plugin for MyPlugin {
+    fn build(&self, app: &mut App) {
+        // Don't add the plugin for users, let them chose the default mode themselves
+        // and just make sure they initialize EguiPlugin before yours.
+        assert!(app.is_plugin_added::<EguiPlugin>());
+
+        if app.world().contains_resource::<DefaultToMultipass>() {
+            app.add_egui_system(ui_system_multipass);
+        } else {
+            app.add_systems(Update, ui_system);
+        }
+    }
+}
+
+fn ui_system_multipass(_trigger: Trigger<OnEguiPass>, contexts: EguiContexts) {
+    ui_system(contexts);
+}
+
+fn ui_system(contexts: EguiContexts) {
+    // ...
+}
+```
 
 ## Examples
 
