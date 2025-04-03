@@ -1,4 +1,6 @@
-use crate::{helpers, EguiContext, EguiContextSettings, EguiFullOutput, EguiRenderOutput};
+use crate::{
+    helpers, EguiContext, EguiContextSettings, EguiFullOutput, EguiOutput, EguiRenderOutput,
+};
 #[cfg(windows)]
 use bevy_ecs::system::Local;
 use bevy_ecs::{
@@ -17,6 +19,7 @@ pub fn process_output_system(
         &mut EguiContext,
         &mut EguiFullOutput,
         &mut EguiRenderOutput,
+        &mut EguiOutput,
         Option<&mut CursorIcon>,
         &EguiContextSettings,
     )>,
@@ -28,8 +31,15 @@ pub fn process_output_system(
 ) {
     let mut should_request_redraw = false;
 
-    for (_entity, mut context, mut full_output, mut render_output, cursor_icon, _settings) in
-        contexts.iter_mut()
+    for (
+        _entity,
+        mut context,
+        mut full_output,
+        mut render_output,
+        mut egui_output,
+        cursor_icon,
+        _settings,
+    ) in contexts.iter_mut()
     {
         let ctx = context.get_mut();
         let Some(full_output) = full_output.0.take() else {
@@ -47,25 +57,26 @@ pub fn process_output_system(
 
         render_output.paint_jobs = Arc::new(paint_jobs);
         render_output.textures_delta = Arc::new(textures_delta);
+        egui_output.platform_output = platform_output;
 
-        for command in platform_output.commands {
+        for command in &egui_output.platform_output.commands {
             match command {
                 egui::OutputCommand::CopyText(_text) =>
                 {
                     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
                     if !_text.is_empty() {
-                        egui_clipboard.set_text(&_text);
+                        egui_clipboard.set_text(_text);
                     }
                 }
                 egui::OutputCommand::CopyImage(_image) => {
                     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
-                    egui_clipboard.set_image(&_image);
+                    egui_clipboard.set_image(_image);
                 }
                 egui::OutputCommand::OpenUrl(_url) => {
                     #[cfg(feature = "open_url")]
                     {
                         let egui::output::OpenUrl { url, new_tab } = _url;
-                        let target = if new_tab {
+                        let target = if *new_tab {
                             "_blank"
                         } else {
                             _settings
@@ -75,7 +86,7 @@ pub fn process_output_system(
                         };
                         if let Err(err) = webbrowser::open_browser_with_options(
                             webbrowser::Browser::Default,
-                            &url,
+                            url,
                             webbrowser::BrowserOptions::new().with_target_hint(target),
                         ) {
                             bevy_log::error!("Failed to open '{}': {:?}", url, err);
@@ -88,7 +99,7 @@ pub fn process_output_system(
         if let Some(mut cursor) = cursor_icon {
             let mut set_icon = || {
                 *cursor = CursorIcon::System(
-                    helpers::egui_to_winit_cursor_icon(platform_output.cursor_icon)
+                    helpers::egui_to_winit_cursor_icon(egui_output.platform_output.cursor_icon)
                         .unwrap_or(bevy_window::SystemCursorIcon::Default),
                 );
             };
@@ -96,9 +107,9 @@ pub fn process_output_system(
             #[cfg(windows)]
             {
                 let last_cursor_icon = last_cursor_icon.entry(_entity).or_default();
-                if *last_cursor_icon != platform_output.cursor_icon {
+                if *last_cursor_icon != egui_output.platform_output.cursor_icon {
                     set_icon();
-                    *last_cursor_icon = platform_output.cursor_icon;
+                    *last_cursor_icon = egui_output.platform_output.cursor_icon;
                 }
             }
             #[cfg(not(windows))]

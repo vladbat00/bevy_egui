@@ -377,7 +377,7 @@ impl EguiRenderOutput {
 /// Stores last Egui output.
 #[derive(Component, Clone, Default)]
 pub struct EguiOutput {
-    /// The field gets updated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to [`PostUpdate`]).
+    /// The field gets updated during [`process_output_system`] (in the [`EguiPostUpdateSet::ProcessOutput`] set, belonging to [`PostUpdate`]).
     pub platform_output: egui::PlatformOutput,
 }
 
