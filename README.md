@@ -48,15 +48,13 @@ bevy_egui = "0.33"
 
 ```rust
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
-        // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
-        // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
-        .add_systems(Update, ui_example_system)
+        .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+        .add_systems(EguiContextPass, ui_example_system)
         .run();
 }
 
@@ -68,7 +66,42 @@ fn ui_example_system(mut contexts: EguiContexts) {
 
 ```
 
-For more advanced examples, see the section below.
+Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
+If you don't want to be limited to the `EguiContextPass` schedule, you can use the single-pass mode,
+but it may get deprecated in the future.
+
+For more advanced examples, see the [examples](#Examples) section below.
+
+### Note to developers of public plugins
+
+If your plugin depends on `bevy_egui`, here are some hints on how to implement the support of both single-pass and multi-pass modes
+(with respect to the `EguiPlugin::enable_multipass_for_primary_context` flag):
+- Don't initialize `EguiPlugin` for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
+  users should be able to opt in or opt out of the multi-pass mode on their own.
+- If you add UI systems, make sure they go into the `EguiContextPass` schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
+
+Your plugin code might look like this:
+
+```rust
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+
+pub struct MyPlugin;
+
+impl Plugin for MyPlugin {
+    fn build(&self, app: &mut App) {
+        // Don't add the plugin for users, let them chose the default mode themselves
+        // and just make sure they initialize EguiPlugin before yours.
+        assert!(app.is_plugin_added::<EguiPlugin>());
+
+        app.add_systems(EguiContextPass, ui_system);
+    }
+}
+
+fn ui_system(contexts: EguiContexts) {
+    // ...
+}
+```
 
 ## Examples
 

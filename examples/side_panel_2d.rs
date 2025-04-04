@@ -1,13 +1,15 @@
 use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.25, 0.25, 0.25)))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .add_systems(Startup, setup_system)
-        .add_systems(Update, ui_example_system)
+        .add_systems(EguiContextPass, ui_example_system)
         .run();
 }
 

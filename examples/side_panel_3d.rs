@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitSettings};
-use bevy_egui::{EguiContexts, EguiPlugin};
+use bevy_egui::{EguiContextPass, EguiContexts, EguiPlugin};
 
 #[derive(Default, Resource)]
 struct OccupiedScreenSpace {
@@ -18,11 +18,15 @@ fn main() {
     App::new()
         .insert_resource(WinitSettings::desktop_app())
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .init_resource::<OccupiedScreenSpace>()
         .add_systems(Startup, setup_system)
-        .add_systems(Update, ui_example_system)
-        .add_systems(Update, update_camera_transform_system)
+        .add_systems(
+            EguiContextPass,
+            (ui_example_system, update_camera_transform_system),
+        )
         .run();
 }
 

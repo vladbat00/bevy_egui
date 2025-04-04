@@ -1,19 +1,23 @@
 use bevy::{
     color::palettes::{basic::PURPLE, css::YELLOW},
+    input::{
+        keyboard::KeyboardInput,
+        mouse::{MouseButtonInput, MouseWheel},
+    },
     prelude::*,
 };
-use bevy_egui::{egui, input::egui_wants_input, EguiContexts, EguiGlobalSettings, EguiPlugin};
-use bevy_input::{
-    keyboard::KeyboardInput,
-    mouse::{MouseButtonInput, MouseWheel},
+use bevy_egui::{
+    egui, input::egui_wants_input, EguiContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
 };
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .add_systems(Startup, setup_scene_system)
-        .add_systems(Update, ui_system)
+        .add_systems(EguiContextPass, ui_system)
         // You can wrap your systems with the `egui_wants_input` run condition if you
         // want to disable them while Egui is using input.
         //
@@ -63,6 +67,7 @@ struct LastEvents {
     mouse_wheel: Option<MouseWheel>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ui_system(
     mut contexts: EguiContexts,
     mut egui_global_settings: ResMut<EguiGlobalSettings>,

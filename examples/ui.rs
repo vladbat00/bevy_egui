@@ -2,7 +2,7 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
 };
-use bevy_egui::{EguiContextSettings, EguiContexts, EguiPlugin};
+use bevy_egui::{EguiContextPass, EguiContextSettings, EguiContexts, EguiPlugin};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -43,11 +43,15 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .add_systems(Startup, configure_visuals_system)
         .add_systems(Startup, configure_ui_state_system)
-        .add_systems(Update, update_ui_scale_factor_system)
-        .add_systems(Update, ui_example_system)
+        .add_systems(
+            EguiContextPass,
+            (ui_example_system, update_ui_scale_factor_system),
+        )
         .run();
 }
 #[derive(Default, Resource)]
