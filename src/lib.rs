@@ -1043,9 +1043,12 @@ impl Plugin for EguiPlugin {
 
         app.add_systems(
             PostUpdate,
-            update_accessibility
-                .after(EguiPostUpdateSet::ProcessOutput)
-                .before(AccessibilitySystem::Update),
+            update_accessibility.in_set(EguiPostUpdateSet::PostProcessOutput),
+        );
+
+        app.configure_sets(
+            PostUpdate,
+            EguiPostUpdateSet::PostProcessOutput.before(AccessibilitySystem::Update),
         );
     }
 
@@ -1117,15 +1120,13 @@ pub fn setup_new_windows_system(
     for window in new_windows.iter() {
         let context = EguiContext::default();
         if let Some(adapters) = &adapters {
-            println!("Got adapters");
-            if  adapters.get(&window).is_some() {
-                println!("Got a window");
+            if adapters.get(&window).is_some() {
                 context.ctx.enable_accesskit();
                 **manage_accessibility_updates = false;
             }
         }
         // See the list of required components to check the full list of components we add.
-        commands.entity(window).insert(EguiContext::default());
+        commands.entity(window).insert(context);
     }
 }
 
@@ -1494,9 +1495,6 @@ pub fn end_pass_system(
     for (mut ctx, egui_settings, mut full_output) in contexts.iter_mut() {
         if !egui_settings.run_manually {
             **full_output = Some(ctx.get_mut().end_pass());
-            if full_output.0.as_ref().unwrap().platform_output.accesskit_update.is_some() {
-                println!("Got one!");
-            }
         }
     }
 }
@@ -1508,11 +1506,8 @@ fn update_accessibility(
     mut adapters: NonSendMut<AccessKitAdapters>,
 ) {
     if requested.get() {
-        println!("Accessibility requested");
         for (entity, output) in &outputs {
-            println!("Got an output");
             if let Some(adapter) = adapters.get_mut(&entity) {
-                println!("Got  an adapter");
                 if let Some(update) = &output.platform_output.accesskit_update {
                     **manage_accessibility_updates = false;
                     adapter.update_if_active(|| update.clone());
