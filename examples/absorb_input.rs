@@ -7,7 +7,9 @@ use bevy::{
     prelude::*,
 };
 use bevy_egui::{
-    egui, input::egui_wants_input, EguiContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
+    egui,
+    input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input},
+    EguiContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
 };
 
 fn main() {
@@ -23,7 +25,14 @@ fn main() {
         //
         // As an alternative (a less safe one), you can set `EguiGlobalSettings::enable_absorb_bevy_input_system`
         // to true to let Egui absorb all input events (see `ui_system` for the usage example).
-        .add_systems(Update, input_system.run_if(not(egui_wants_input)))
+        .add_systems(
+            Update,
+            keyboard_input_system.run_if(not(egui_wants_any_keyboard_input)),
+        )
+        .add_systems(
+            Update,
+            pointer_input_system.run_if(not(egui_wants_any_pointer_input)),
+        )
         .run();
 }
 
@@ -118,22 +127,11 @@ fn ui_system(
         });
 }
 
-fn input_system(
-    materials: Res<Materials>,
-    mesh: Single<(&mut Transform, &mut MeshMaterial2d<ColorMaterial>), Without<Camera2d>>,
-    mouse_button_input: Res<ButtonInput<MouseButton>>,
+fn keyboard_input_system(
+    mesh: Single<&mut Transform, Without<Camera2d>>,
     keyboard_button_input: Res<ButtonInput<KeyCode>>,
-    mut mouse_wheel_event_reader: EventReader<MouseWheel>,
 ) {
-    let (mut transform, mut material) = mesh.into_inner();
-
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        *material = if materials.yellow.0 == material.0 {
-            materials.purple.clone()
-        } else {
-            materials.yellow.clone()
-        }
-    }
+    let mut transform = mesh.into_inner();
 
     if keyboard_button_input.pressed(KeyCode::KeyA) {
         transform.translation.x -= 5.0;
@@ -146,6 +144,23 @@ fn input_system(
     }
     if keyboard_button_input.pressed(KeyCode::KeyW) {
         transform.translation.y += 5.0;
+    }
+}
+
+fn pointer_input_system(
+    materials: Res<Materials>,
+    mesh: Single<(&mut Transform, &mut MeshMaterial2d<ColorMaterial>), Without<Camera2d>>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
+    mut mouse_wheel_event_reader: EventReader<MouseWheel>,
+) {
+    let (mut transform, mut material) = mesh.into_inner();
+
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        *material = if materials.yellow.0 == material.0 {
+            materials.purple.clone()
+        } else {
+            materials.yellow.clone()
+        }
     }
 
     for ev in mouse_wheel_event_reader.read() {

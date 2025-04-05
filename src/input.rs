@@ -824,9 +824,10 @@ pub fn write_egui_input_system(
 ///
 /// ## Alternative
 ///
-/// A safer alternative is to apply `run_if(not(egui_wants_input))` to your systems
-/// that need to be disabled while Egui is using input (see the [`egui_wants_input`] run condition).
+/// A safer alternative is to apply `run_if(not(egui_wants_any_pointer_input))` or `run_if(not(egui_wants_any_keyboard_input))` to your systems
+/// that need to be disabled while Egui is using input (see the [`egui_wants_any_pointer_input`], [`egui_wants_any_keyboard_input`] run conditions).
 pub fn absorb_bevy_input_system(
+    egui_wants_input: Res<EguiWantsInput>,
     mut mouse_input: ResMut<ButtonInput<MouseButton>>,
     mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
     mut keyboard_input_events: ResMut<Events<KeyboardInput>>,
@@ -848,11 +849,15 @@ pub fn absorb_bevy_input_system(
 
     // TODO: the list of events is definitely not comprehensive, but it should at least cover
     //  the most popular use-cases. We can add more on request.
-    mouse_input.reset_all();
-    keyboard_input.reset_all();
-    keyboard_input_events.clear();
-    mouse_wheel_events.clear();
-    mouse_button_input_events.clear();
+    if egui_wants_input.wants_any_keyboard_input() {
+        keyboard_input.reset_all();
+        keyboard_input_events.clear();
+    }
+    if egui_wants_input.wants_any_pointer_input() {
+        mouse_input.reset_all();
+        mouse_wheel_events.clear();
+        mouse_button_input_events.clear();
+    }
 
     for key in pressed.into_iter().flatten() {
         keyboard_input.press(key);
@@ -861,22 +866,113 @@ pub fn absorb_bevy_input_system(
 
 /// Stores whether there's an Egui context using pointer or keyboard.
 #[derive(Resource, Clone, Debug, Default)]
-pub struct EguiWantsInput(bool);
+pub struct EguiWantsInput {
+    is_pointer_over_area: bool,
+    wants_pointer_input: bool,
+    is_using_pointer: bool,
+    wants_keyboard_input: bool,
+    is_context_menu_open: bool,
+}
+
+impl EguiWantsInput {
+    /// Is the pointer (mouse/touch) over any egui area?
+    pub fn is_pointer_over_area(&self) -> bool {
+        self.is_pointer_over_area
+    }
+
+    /// True if egui is currently interested in the pointer (mouse or touch).
+    ///
+    /// Could be the pointer is hovering over a [`egui::Window`] or the user is dragging a widget.
+    /// If `false`, the pointer is outside of any egui area and so
+    /// you may be interested in what it is doing (e.g. controlling your game).
+    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
+    pub fn wants_pointer_input(&self) -> bool {
+        self.wants_pointer_input
+    }
+
+    /// Is egui currently using the pointer position (e.g. dragging a slider)?
+    ///
+    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
+    pub fn is_using_pointer(&self) -> bool {
+        self.is_using_pointer
+    }
+
+    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`egui::TextEdit`]).
+    pub fn wants_keyboard_input(&self) -> bool {
+        self.wants_keyboard_input
+    }
+
+    /// Is an egui context menu open?
+    pub fn is_context_menu_open(&self) -> bool {
+        self.is_context_menu_open
+    }
+
+    /// Returns `true` if any of the following is true:
+    /// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_context_menu_open`].
+    pub fn wants_any_pointer_input(&self) -> bool {
+        self.is_pointer_over_area
+            || self.wants_pointer_input
+            || self.is_using_pointer
+            || self.is_context_menu_open
+    }
+
+    /// Returns `true` if any of the following is true:
+    /// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_context_menu_open`].
+    pub fn wants_any_keyboard_input(&self) -> bool {
+        self.wants_keyboard_input || self.is_context_menu_open
+    }
+
+    /// Returns `true` if any of the following is true:
+    /// [`EguiWantsInput::wants_any_pointer_input`], [`EguiWantsInput::wants_any_keyboard_input`].
+    pub fn wants_any_input(&self) -> bool {
+        self.wants_any_pointer_input() || self.wants_any_keyboard_input()
+    }
+
+    fn reset(&mut self) {
+        self.is_pointer_over_area = false;
+        self.wants_pointer_input = false;
+        self.is_using_pointer = false;
+        self.wants_keyboard_input = false;
+        self.is_context_menu_open = false;
+    }
+}
 
 /// Updates the [`EguiWantsInput`] resource.
 pub fn write_egui_wants_input_system(
     mut egui_context_query: Query<&mut EguiContext>,
     mut egui_wants_input: ResMut<EguiWantsInput>,
 ) {
-    egui_wants_input.0 = egui_context_query.iter_mut().any(|mut ctx| {
+    egui_wants_input.reset();
+
+    for mut ctx in egui_context_query.iter_mut() {
         let egui_ctx = ctx.get_mut();
-        egui_ctx.wants_pointer_input()
-            || egui_ctx.wants_keyboard_input()
-            || egui_ctx.is_pointer_over_area()
-    });
+        egui_wants_input.is_pointer_over_area =
+            egui_wants_input.is_pointer_over_area || egui_ctx.is_pointer_over_area();
+        egui_wants_input.wants_pointer_input =
+            egui_wants_input.wants_pointer_input || egui_ctx.wants_pointer_input();
+        egui_wants_input.is_using_pointer =
+            egui_wants_input.is_using_pointer || egui_ctx.is_using_pointer();
+        egui_wants_input.wants_keyboard_input =
+            egui_wants_input.wants_keyboard_input || egui_ctx.wants_keyboard_input();
+        egui_wants_input.is_context_menu_open =
+            egui_wants_input.is_context_menu_open || egui_ctx.is_context_menu_open();
+    }
 }
 
-/// Returns `true` if any Egui context is using pointer or keyboard.
-pub fn egui_wants_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
-    egui_wants_input_resource.0
+/// Returns `true` if any of the following is true:
+/// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_context_menu_open`].
+pub fn egui_wants_any_pointer_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
+    egui_wants_input_resource.wants_any_pointer_input()
+}
+
+/// Returns `true` if any of the following is true:
+/// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_context_menu_open`].
+pub fn egui_wants_any_keyboard_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
+    egui_wants_input_resource.wants_any_keyboard_input()
+}
+
+/// Returns `true` if any of the following is true:
+/// [`EguiWantsInput::wants_any_pointer_input`], [`EguiWantsInput::wants_any_keyboard_input`].
+pub fn egui_wants_any_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
+    egui_wants_input_resource.wants_any_input()
 }
