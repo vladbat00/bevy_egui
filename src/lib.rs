@@ -29,15 +29,13 @@
 //!
 //! ```no_run,rust
 //! use bevy::prelude::*;
-//! use bevy_egui::{egui, EguiContexts, EguiPlugin};
+//! use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
 //!
 //! fn main() {
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(EguiPlugin)
-//!         // Systems that create Egui widgets should be run during the `Update` Bevy schedule,
-//!         // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `PreUpdate` Bevy schedule).
-//!         .add_systems(Update, ui_example_system)
+//!         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+//!         .add_systems(EguiContextPass, ui_example_system)
 //!         .run();
 //! }
 //!
@@ -48,7 +46,42 @@
 //! }
 //! ```
 //!
-//! For more advanced examples, see the section below.
+//! Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
+//! If you don't want to be limited to the [`EguiContextPass`] schedule, you can use the single-pass mode,
+//! but it may get deprecated in the future.
+//!
+//! For more advanced examples, see the [examples](#examples) section below.
+//!
+//! ### Note to developers of public plugins
+//!
+//! If your plugin depends on `bevy_egui`, here are some hints on how to implement the support of both single-pass and multi-pass modes
+//! (with respect to the [`EguiPlugin::enable_multipass_for_primary_context`] flag):
+//! - Don't initialize [`EguiPlugin`] for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
+//!   users should be able to opt in or opt out of the multi-pass mode on their own.
+//! - If you add UI systems, make sure they go into the [`EguiContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
+//!
+//! Your plugin code might look like this:
+//!
+//! ```no_run,rust
+//! # use bevy::prelude::*;
+//! # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+//!
+//! pub struct MyPlugin;
+//!
+//! impl Plugin for MyPlugin {
+//!     fn build(&self, app: &mut App) {
+//!         // Don't add the plugin for users, let them chose the default mode themselves
+//!         // and just make sure they initialize EguiPlugin before yours.
+//!         assert!(app.is_plugin_added::<EguiPlugin>());
+//!
+//!         app.add_systems(EguiContextPass, ui_system);
+//!     }
+//! }
+//!
+//! fn ui_system(contexts: EguiContexts) {
+//!     // ...
+//! }
+//! ```
 //!
 //! ## Examples
 //!
@@ -148,7 +181,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
     query::{QueryData, QueryEntityError},
-    schedule::apply_deferred,
+    schedule::{apply_deferred, InternedScheduleLabel, ScheduleLabel},
     system::SystemParam,
 };
 #[cfg(feature = "render")]
@@ -170,6 +203,7 @@ use bevy_render::{
     render_resource::{LoadOp, SpecializedRenderPipelines},
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
+use bevy_utils::HashSet;
 use bevy_window::{PrimaryWindow, Window};
 use bevy_winit::{accessibility::AccessKitAdapters, cursor::CursorIcon};
 use output::process_output_system;
@@ -183,7 +217,108 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 /// Adds all Egui resources and render graph nodes.
-pub struct EguiPlugin;
+pub struct EguiPlugin {
+    /// ## About Egui multi-pass mode
+    ///
+    /// _From the [Egui documentation](https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode):_
+    ///
+    /// By default, egui usually only does one pass for each rendered frame.
+    /// However, egui supports multi-pass immediate mode.
+    /// Another pass can be requested with [`egui::Context::request_discard`].
+    ///
+    /// This is used by some widgets to cover up "first-frame jitters".
+    /// For instance, the [`egui::Grid`] needs to know the width of all columns before it can properly place the widgets.
+    /// But it cannot know the width of widgets to come.
+    /// So it stores the max widths of previous frames and uses that.
+    /// This means the first time a `Grid` is shown it will _guess_ the widths of the columns, and will usually guess wrong.
+    /// This means the contents of the grid will be wrong for one frame, before settling to the correct places.
+    /// Therefore `Grid` calls [`egui::Context::request_discard`] when it is first shown, so the wrong placement is never
+    /// visible to the end user.
+    ///
+    /// ## Usage
+    ///
+    /// Set this to `true` to enable an experimental support for the Egui multi-pass mode.
+    ///
+    /// Enabling the multi-pass mode will require your app to use the new [`EguiContextPass`] schedule:
+    ///
+    /// ```no_run,rust
+    /// # use bevy::prelude::*;
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+    /// fn main() {
+    ///     App::new()
+    ///         .add_plugins(DefaultPlugins)
+    ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+    ///         .add_systems(EguiContextPass, ui_example_system)
+    ///         .run();
+    /// }
+    /// fn ui_example_system(contexts: EguiContexts) {
+    ///     // ...
+    /// }
+    /// ```
+    ///
+    /// If you create multiple contexts (for example, when using multiple windows or rendering to an image),
+    /// you need to define a custom schedule and assign it to additional contexts manually:
+    ///
+    /// ```no_run,rust
+    /// # use bevy::prelude::*;
+    /// # use bevy::ecs::schedule::ScheduleLabel;
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass, EguiMultipassSchedule};
+    /// #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+    /// pub struct SecondWindowContextPass;
+    ///
+    /// fn main() {
+    ///     App::new()
+    ///         .add_plugins(DefaultPlugins)
+    ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+    ///         .add_systems(Startup, create_new_window_system)
+    ///         .add_systems(EguiContextPass, ui_example_system)
+    ///         .add_systems(SecondWindowContextPass, ui_example_system)
+    ///         .run();
+    /// }
+    ///
+    /// fn create_new_window_system(mut commands: Commands) {
+    ///     commands.spawn((Window::default(), EguiMultipassSchedule::new(SecondWindowContextPass)));
+    /// }
+    ///
+    /// fn ui_example_system(contexts: EguiContexts) {
+    ///     // ...
+    /// }
+    /// ```
+    ///
+    /// In the future, the multi-pass mode will likely phase the single-pass one out.
+    ///
+    /// ## Note to developers of public plugins
+    ///
+    /// If your plugin depends on `bevy_egui`, here are some hints on how to implement the support of both single-pass and multi-pass modes
+    /// (with respect to the [`EguiPlugin::enable_multipass_for_primary_context`] flag):
+    /// - Don't initialize [`EguiPlugin`] for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
+    ///   users should be able to opt in or opt out of the multi-pass mode on their own.
+    /// - If you add UI systems, make sure they go into the [`EguiContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
+    ///
+    /// Your plugin code might look like this:
+    ///
+    /// ```no_run,rust
+    /// # use bevy::prelude::*;
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+    ///
+    /// pub struct MyPlugin;
+    ///
+    /// impl Plugin for MyPlugin {
+    ///     fn build(&self, app: &mut App) {
+    ///         // Don't add the plugin for users, let them chose the default mode themselves
+    ///         // and just make sure they initialize EguiPlugin before yours.
+    ///         assert!(app.is_plugin_added::<EguiPlugin>());
+    ///
+    ///         app.add_systems(EguiContextPass, ui_system);
+    ///     }
+    /// }
+    ///
+    /// fn ui_system(contexts: EguiContexts) {
+    ///     // ...
+    /// }
+    /// ```
+    pub enable_multipass_for_primary_context: bool,
+}
 
 /// A resource for storing global plugin settings.
 #[derive(Clone, Debug, Resource, Reflect)]
@@ -221,12 +356,14 @@ impl Default for EguiGlobalSettings {
     }
 }
 
+/// This resource is created if [`EguiPlugin`] is initialized with [`EguiPlugin::enable_multipass_for_primary_context`] set to `true`.
+#[derive(Resource)]
+pub struct EnableMultipassForPrimaryContext;
+
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
 #[cfg_attr(feature = "render", derive(ExtractComponent))]
 pub struct EguiContextSettings {
-    /// Controls if Egui is run manually.
-    ///
     /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
     pub run_manually: bool,
     /// Global scale factor for Egui widgets (`1.0` by default).
@@ -325,6 +462,23 @@ impl Default for EguiInputSystemSettings {
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
             run_write_web_clipboard_events_system: true,
         }
+    }
+}
+
+/// Use this schedule to run your UI systems with the primary Egui context.
+/// (Mandatory if the context is running in the multi-pass mode.)
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EguiContextPass;
+
+/// Add this component to your additional Egui contexts (e.g. when rendering to a new window or an image),
+/// to enable multi-pass support. Note that each Egui context running in the multi-pass mode must use a unique schedule.
+#[derive(Component, Clone)]
+pub struct EguiMultipassSchedule(pub InternedScheduleLabel);
+
+impl EguiMultipassSchedule {
+    /// Constructs the component from a schedule label.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self(schedule.intern())
     }
 }
 
@@ -807,6 +961,10 @@ impl Plugin for EguiPlugin {
         app.init_resource::<EguiWantsInput>();
         app.add_event::<EguiInputEvent>();
 
+        if self.enable_multipass_for_primary_context {
+            app.insert_resource(EnableMultipassForPrimaryContext);
+        }
+
         #[cfg(feature = "render")]
         {
             app.init_resource::<EguiManagedTextures>();
@@ -850,7 +1008,7 @@ impl Plugin for EguiPlugin {
             (
                 EguiPostUpdateSet::EndPass,
                 EguiPostUpdateSet::ProcessOutput,
-                EguiPostUpdateSet::PostProcessOutput,
+                EguiPostUpdateSet::PostProcessOutput.before(AccessibilitySystem::Update),
             )
                 .chain(),
         );
@@ -922,11 +1080,9 @@ impl Plugin for EguiPlugin {
                     .in_set(EguiInputSet::ReadBevyEvents),
                 (
                     write_egui_input_system,
-                    absorb_bevy_input_system
-                        .run_if(|settings: Res<EguiGlobalSettings>| {
-                            settings.enable_absorb_bevy_input_system
-                        })
-                        .run_if(egui_wants_input),
+                    absorb_bevy_input_system.run_if(|settings: Res<EguiGlobalSettings>| {
+                        settings.enable_absorb_bevy_input_system
+                    }),
                 )
                     .in_set(EguiInputSet::WriteEguiEvents),
             )
@@ -1004,7 +1160,9 @@ impl Plugin for EguiPlugin {
         // PostUpdate systems.
         app.add_systems(
             PostUpdate,
-            end_pass_system.in_set(EguiPostUpdateSet::EndPass),
+            (run_egui_context_pass_loop_system, end_pass_system)
+                .chain()
+                .in_set(EguiPostUpdateSet::EndPass),
         );
         app.add_systems(
             PostUpdate,
@@ -1043,12 +1201,7 @@ impl Plugin for EguiPlugin {
 
         app.add_systems(
             PostUpdate,
-            update_accessibility.in_set(EguiPostUpdateSet::PostProcessOutput),
-        );
-
-        app.configure_sets(
-            PostUpdate,
-            EguiPostUpdateSet::PostProcessOutput.before(AccessibilitySystem::Update),
+            update_accessibility_system.in_set(EguiPostUpdateSet::PostProcessOutput),
         );
     }
 
@@ -1113,11 +1266,12 @@ pub struct EguiManagedTexture {
 /// Adds bevy_egui components to newly created windows.
 pub fn setup_new_windows_system(
     mut commands: Commands,
-    new_windows: Query<Entity, (Added<Window>, Without<EguiContext>)>,
+    new_windows: Query<(Entity, Option<&PrimaryWindow>), (Added<Window>, Without<EguiContext>)>,
     adapters: Option<NonSend<AccessKitAdapters>>,
     mut manage_accessibility_updates: ResMut<ManageAccessibilityUpdates>,
+    enable_multipass_for_primary_context: Option<Res<EnableMultipassForPrimaryContext>>,
 ) {
-    for window in new_windows.iter() {
+    for (window, primary) in new_windows.iter() {
         let context = EguiContext::default();
         if let Some(adapters) = &adapters {
             if adapters.get(&window).is_some() {
@@ -1126,7 +1280,11 @@ pub fn setup_new_windows_system(
             }
         }
         // See the list of required components to check the full list of components we add.
-        commands.entity(window).insert(context);
+        let mut window_commands = commands.entity(window);
+        window_commands.insert(context);
+        if enable_multipass_for_primary_context.is_some() && primary.is_some() {
+            window_commands.insert(EguiMultipassSchedule::new(EguiContextPass));
+        }
     }
 }
 
@@ -1479,7 +1637,10 @@ pub fn update_ui_size_and_scale_system(
 
 /// Marks a pass start for Egui.
 pub fn begin_pass_system(
-    mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiInput)>,
+    mut contexts: Query<
+        (&mut EguiContext, &EguiContextSettings, &mut EguiInput),
+        Without<EguiMultipassSchedule>,
+    >,
 ) {
     for (mut ctx, egui_settings, mut egui_input) in contexts.iter_mut() {
         if !egui_settings.run_manually {
@@ -1490,7 +1651,10 @@ pub fn begin_pass_system(
 
 /// Marks a pass end for Egui.
 pub fn end_pass_system(
-    mut contexts: Query<(&mut EguiContext, &EguiContextSettings, &mut EguiFullOutput)>,
+    mut contexts: Query<
+        (&mut EguiContext, &EguiContextSettings, &mut EguiFullOutput),
+        Without<EguiMultipassSchedule>,
+    >,
 ) {
     for (mut ctx, egui_settings, mut full_output) in contexts.iter_mut() {
         if !egui_settings.run_manually {
@@ -1499,7 +1663,8 @@ pub fn end_pass_system(
     }
 }
 
-fn update_accessibility(
+/// Updates the states of [`ManageAccessibilityUpdates`] and [`AccessKitAdapters`].
+pub fn update_accessibility_system(
     requested: Res<AccessibilityRequested>,
     mut manage_accessibility_updates: ResMut<ManageAccessibilityUpdates>,
     outputs: Query<(Entity, &EguiOutput)>,
@@ -1516,6 +1681,62 @@ fn update_accessibility(
                 }
             }
         }
+    }
+}
+
+#[derive(QueryData)]
+#[query_data(mutable)]
+#[allow(missing_docs)]
+pub struct MultiPassEguiQuery {
+    entity: Entity,
+    context: &'static mut EguiContext,
+    input: &'static mut EguiInput,
+    output: &'static mut EguiFullOutput,
+    multipass_schedule: &'static EguiMultipassSchedule,
+    settings: &'static EguiContextSettings,
+}
+
+/// Runs Egui contexts with the [`EguiMultipassSchedule`] component. If there are no contexts with
+/// this component, runs the [`EguiContextPass`] schedule once independently.
+pub fn run_egui_context_pass_loop_system(world: &mut World) {
+    let mut contexts_query = world.query::<MultiPassEguiQuery>();
+    let mut used_schedules = HashSet::new();
+
+    let mut multipass_contexts: Vec<_> = contexts_query
+        .iter_mut(world)
+        .filter_map(|mut egui_context| {
+            if egui_context.settings.run_manually {
+                return None;
+            }
+
+            Some((
+                egui_context.entity,
+                egui_context.context.get_mut().clone(),
+                egui_context.input.take(),
+                egui_context.multipass_schedule.clone(),
+            ))
+        })
+        .collect();
+
+    for (entity, ctx, ref mut input, EguiMultipassSchedule(multipass_schedule)) in
+        &mut multipass_contexts
+    {
+        if !used_schedules.insert(*multipass_schedule) {
+            panic!("Each Egui context running in the multi-pass mode must have a unique schedule (attempted to reuse schedule {multipass_schedule:?})");
+        }
+
+        let output = ctx.run(input.take(), |_| {
+            let _ = world.try_run_schedule(*multipass_schedule);
+        });
+
+        **contexts_query
+            .get_mut(world, *entity)
+            .expect("previously queried context")
+            .output = Some(output);
+    }
+
+    if !used_schedules.contains(&ScheduleLabel::intern(&EguiContextPass)) {
+        let _ = world.try_run_schedule(EguiContextPass);
     }
 }
 

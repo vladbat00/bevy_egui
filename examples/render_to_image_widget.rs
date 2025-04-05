@@ -8,15 +8,19 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{egui::Widget, EguiContextPass, EguiContexts, EguiPlugin, EguiUserTextures};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .add_systems(Startup, setup)
-        .add_systems(Update, rotator_system)
-        .add_systems(Update, render_to_image_example_system)
+        .add_systems(
+            EguiContextPass,
+            (rotator_system, render_to_image_example_system),
+        )
         .run();
 }
 
