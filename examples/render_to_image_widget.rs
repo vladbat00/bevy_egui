@@ -8,15 +8,19 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{egui::Widget, EguiContextPass, EguiContexts, EguiPlugin, EguiUserTextures};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .add_systems(Startup, setup)
-        .add_systems(Update, rotator_system)
-        .add_systems(Update, render_to_image_example_system)
+        .add_systems(
+            EguiContextPass,
+            (rotator_system, render_to_image_example_system),
+        )
         .run();
 }
 
@@ -82,37 +86,36 @@ fn setup(
 
     // The cube that will be rendered to the texture.
     commands
-        .spawn(PbrBundle {
-            mesh: cube_handle,
-            material: preview_material_handle,
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            ..default()
-        })
+        .spawn((
+            Mesh3d(cube_handle),
+            MeshMaterial3d(preview_material_handle),
+            Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+        ))
         .insert(PreviewPassCube)
         .insert(preview_pass_layer.clone());
 
     // The same light is reused for both passes,
     // you can specify different lights for preview and main pass by setting appropriate RenderLayers.
     commands
-        .spawn(PointLightBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
-            ..default()
-        })
+        .spawn((
+            PointLight::default(),
+            Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
+        ))
         .insert(RenderLayers::default().with(1));
 
     commands
-        .spawn(Camera3dBundle {
-            camera: Camera {
+        .spawn((
+            Camera3d::default(),
+            Camera {
                 // render before the "main pass" camera
                 order: -1,
                 target: RenderTarget::Image(image_handle),
                 clear_color: ClearColorConfig::Custom(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                 ..default()
             },
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 15.0))
+            Transform::from_translation(Vec3::new(0.0, 0.0, 15.0))
                 .looking_at(Vec3::default(), Vec3::Y),
-            ..default()
-        })
+        ))
         .insert(preview_pass_layer);
 
     let cube_size = 4.0;
@@ -122,30 +125,28 @@ fn setup(
 
     // Main pass cube.
     commands
-        .spawn(PbrBundle {
-            mesh: cube_handle,
-            material: main_material_handle,
-            transform: Transform {
+        .spawn((
+            Mesh3d(cube_handle),
+            MeshMaterial3d(main_material_handle),
+            Transform {
                 translation: Vec3::new(0.0, 0.0, 1.5),
                 rotation: Quat::from_rotation_x(-std::f32::consts::PI / 5.0),
                 ..default()
             },
-            ..default()
-        })
+        ))
         .insert(MainPassCube);
 
     // The main pass camera.
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 15.0))
-            .looking_at(Vec3::default(), Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::new(0.0, 0.0, 15.0)).looking_at(Vec3::default(), Vec3::Y),
+    ));
 }
 
 fn render_to_image_example_system(
     cube_preview_image: Res<CubePreviewImage>,
-    preview_cube_query: Query<&Handle<StandardMaterial>, With<PreviewPassCube>>,
-    main_cube_query: Query<&Handle<StandardMaterial>, With<MainPassCube>>,
+    preview_cube_query: Query<&MeshMaterial3d<StandardMaterial>, With<PreviewPassCube>>,
+    main_cube_query: Query<&MeshMaterial3d<StandardMaterial>, With<MainPassCube>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut contexts: EguiContexts,
 ) {
@@ -225,7 +226,7 @@ fn rotator_system(
     mut query: Query<&mut Transform, Or<(With<PreviewPassCube>, With<MainPassCube>)>>,
 ) {
     for mut transform in &mut query {
-        transform.rotate_x(1.5 * time.delta_seconds());
-        transform.rotate_z(1.3 * time.delta_seconds());
+        transform.rotate_x(1.5 * time.delta_secs());
+        transform.rotate_z(1.3 * time.delta_secs());
     }
 }

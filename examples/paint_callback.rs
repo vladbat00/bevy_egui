@@ -1,5 +1,6 @@
 use bevy::{
     asset::{embedded_asset, AssetPath},
+    ecs::schedule::ScheduleLabel,
     prelude::*,
     render::{
         mesh::PrimitiveTopology,
@@ -8,26 +9,34 @@ use bevy::{
             MultisampleState, PipelineCache, PolygonMode, PrimitiveState, RenderPipelineDescriptor,
             SpecializedRenderPipeline, SpecializedRenderPipelines,
         },
+        sync_world::RenderEntity,
         RenderApp,
     },
 };
 use bevy_egui::{
     egui_node::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
-    EguiContexts, EguiPlugin, EguiRenderToTextureHandle,
+    EguiContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, EguiPlugin, CustomPipelinePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            EguiPlugin {
+                enable_multipass_for_primary_context: true,
+            },
+            CustomPipelinePlugin,
+        ))
         .add_systems(Startup, setup_worldspace)
-        .add_systems(
-            Update,
-            (ui_example_system, ui_render_to_texture_example_system),
-        )
+        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(WorldspaceContextPass, ui_render_to_image_example_system)
         .run();
 }
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorldspaceContextPass;
 
 struct CustomPipelinePlugin;
 
@@ -52,7 +61,7 @@ impl EguiBevyPaintCallbackImpl for CustomPaintCallback {
     fn update(
         &self,
         _info: egui::PaintCallbackInfo,
-        window_entity: Entity,
+        window_entity: RenderEntity,
         key: EguiPipelineKey,
         world: &mut World,
     ) {
@@ -72,7 +81,7 @@ impl EguiBevyPaintCallbackImpl for CustomPaintCallback {
                     );
 
                     world
-                        .entity_mut(window_entity)
+                        .entity_mut(window_entity.id())
                         .insert(CustomPaintPipelineIdComp { pipeline_id });
                     pipeline_id
                 },
@@ -86,12 +95,13 @@ impl EguiBevyPaintCallbackImpl for CustomPaintCallback {
         &self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut bevy::render::render_phase::TrackedRenderPass<'pass>,
-        window_entity: Entity,
+        window_entity: RenderEntity,
         _key: EguiPipelineKey,
         world: &'pass World,
     ) {
         let Some(pipeline) = world
-            .get_entity(window_entity)
+            .get_entity(window_entity.id())
+            .ok()
             .and_then(|entity| entity.get::<CustomPaintPipelineIdComp>())
             .and_then(|comp| {
                 world
@@ -158,6 +168,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
+            zero_initialize_workgroup_memory: false,
         }
     }
 }
@@ -202,37 +213,37 @@ fn setup_worldspace(
         output_texture
     });
 
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0).mesh()),
-        material: materials.add(StandardMaterial {
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0).mesh())),
+        MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::WHITE,
-            base_color_texture: Some(Handle::clone(&output_texture)),
+            base_color_texture: Some(output_texture.clone()),
             alpha_mode: AlphaMode::Blend,
             // Remove this if you want it to use the world's lighting.
             unlit: true,
             ..default()
-        }),
-        ..default()
-    });
-    commands.spawn(EguiRenderToTextureHandle(output_texture));
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(1.5, 1.5, 1.5).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
-        ..default()
-    });
+        })),
+    ));
+    commands
+        .spawn(EguiRenderToImage::new(output_texture.clone_weak()))
+        .insert(EguiMultipassSchedule::new(WorldspaceContextPass));
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(1.5, 1.5, 1.5).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
+    ));
 }
 
-fn ui_render_to_texture_example_system(
-    mut contexts: Query<&mut bevy_egui::EguiContext, With<EguiRenderToTextureHandle>>,
+fn ui_render_to_image_example_system(
+    contexts: Single<&mut bevy_egui::EguiContext, With<EguiRenderToImage>>,
 ) {
-    for mut ctx in contexts.iter_mut() {
-        egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
-            let (resp, painter) =
-                ui.allocate_painter(egui::Vec2 { x: 200., y: 200. }, egui::Sense::hover());
+    let mut ctx = contexts.into_inner();
+    egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
+        let (resp, painter) =
+            ui.allocate_painter(egui::Vec2 { x: 200., y: 200. }, egui::Sense::hover());
 
-            painter.add(EguiBevyPaintCallback::new_paint_callback(
-                resp.rect,
-                CustomPaintCallback,
-            ));
-        });
-    }
+        painter.add(EguiBevyPaintCallback::new_paint_callback(
+            resp.rect,
+            CustomPaintCallback,
+        ));
+    });
 }
