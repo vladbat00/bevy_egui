@@ -1,22 +1,27 @@
-use bevy::{prelude::*, render::render_resource::LoadOp, window::PrimaryWindow};
-use bevy_egui::{EguiContexts, EguiPlugin, EguiRenderToImage};
+use bevy::{
+    ecs::schedule::ScheduleLabel, prelude::*, render::render_resource::LoadOp,
+    window::PrimaryWindow,
+};
+use bevy_egui::{
+    EguiContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
+};
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
     let mut app = App::new();
     app.add_plugins((DefaultPlugins, MeshPickingPlugin));
-    app.add_plugins(EguiPlugin);
+    app.add_plugins(EguiPlugin {
+        enable_multipass_for_primary_context: true,
+    });
     app.add_systems(Startup, setup_worldspace_system);
-    app.add_systems(
-        Update,
-        (
-            update_screenspace_system,
-            update_worldspace_system,
-            draw_gizmos_system,
-        ),
-    );
+    app.add_systems(Update, draw_gizmos_system);
+    app.add_systems(EguiContextPass, update_screenspace_system);
+    app.add_systems(WorldspaceContextPass, update_worldspace_system);
     app.run();
 }
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorldspaceContextPass;
 
 struct Name(String);
 
@@ -119,6 +124,7 @@ fn setup_worldspace_system(
                 should_block_lower: false,
                 is_hoverable: true,
             },
+            EguiMultipassSchedule::new(WorldspaceContextPass),
         ))
         .with_children(|commands| {
             // The "tablet" mesh, on top of which Egui is rendered.

@@ -17,6 +17,7 @@ all-features = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["manage_clipboard", "open_url", "default_fonts", "render", "picking"]
+accesskit_placeholder = ["egui/accesskit", "bevy_a11y"] # the feature won't compile until Egui updates its accesskit version, hence disabled by default
 immutable_ctx = []
 manage_clipboard = ["arboard", "thread_local", "bytemuck"]
 open_url = ["webbrowser"]
@@ -36,6 +37,9 @@ serde = ["egui/serde"]
 log_input_events = []
 
 [[example]]
+name = "absorb_input"
+required-features = ["render"]
+[[example]]
 name = "color_test"
 required-features = ["render"]
 [[example]]
@@ -45,6 +49,9 @@ required-features = ["render"]
 name = "render_to_image_widget"
 required-features = ["render"]
 [[example]]
+name = "run_manually"
+required-features = ["render"]
+[[example]]
 name = "side_panel_2d"
 required-features = ["render"]
 [[example]]
@@ -52,9 +59,6 @@ name = "side_panel_3d"
 required-features = ["render"]
 [[example]]
 name = "simple"
-required-features = ["render"]
-[[example]]
-name = "simple_multipass"
 required-features = ["render"]
 [[example]]
 name = "two_windows"
@@ -67,7 +71,8 @@ name = "render_egui_to_image"
 required-features = ["picking", "render", "bevy/bevy_gizmos"]
 
 [dependencies]
-egui = { version = "0.31", default-features = false }
+egui = { version = "0.31", default-features = false, features = ["accesskit"] }
+bevy_a11y = { version = "0.16.0-rc", optional = true }
 bevy_app = "0.16.0-rc"
 bevy_derive = "0.16.0-rc"
 bevy_ecs = "0.16.0-rc"
@@ -76,7 +81,6 @@ bevy_log = "0.16.0-rc"
 bevy_math = "0.16.0-rc"
 bevy_reflect = "0.16.0-rc"
 bevy_time = "0.16.0-rc"
-bevy_utils = "0.16.0-rc"
 bevy_winit = "0.16.0-rc"
 bevy_window = "0.16.0-rc"
 bevy_platform_support = "0.16.0-rc"
@@ -103,7 +107,7 @@ thread_local = { version = "1.1.0", optional = true }
 [dev-dependencies]
 version-sync = "0.9.4"
 bevy = { version = "0.16.0-rc", default-features = false, features = [
-    "std",
+    "accesskit_unix",
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",
@@ -114,6 +118,7 @@ bevy = { version = "0.16.0-rc", default-features = false, features = [
     "bevy_winit",
     "android-game-activity",
     "png",
+    "std",
     "tonemapping_luts",
     "webgl2",
     "x11",
@@ -139,6 +144,6 @@ web-sys = { version = "0.3.74", features = [
 ] }
 image = { version = "0.25.5", features = ["png"] } # For copying images
 js-sys = "0.3.63"
-wasm-bindgen = "0.2.84"
+wasm-bindgen = "0.2.93"
 wasm-bindgen-futures = "0.4.36"
 crossbeam-channel = "0.5.8"

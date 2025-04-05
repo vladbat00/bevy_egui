@@ -1,5 +1,6 @@
 use bevy::{
     asset::{embedded_asset, AssetPath},
+    ecs::schedule::ScheduleLabel,
     prelude::*,
     render::{
         mesh::PrimitiveTopology,
@@ -14,21 +15,28 @@ use bevy::{
 };
 use bevy_egui::{
     egui_node::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
-    EguiContexts, EguiPlugin, EguiRenderToImage,
+    EguiContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, EguiPlugin, CustomPipelinePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            EguiPlugin {
+                enable_multipass_for_primary_context: true,
+            },
+            CustomPipelinePlugin,
+        ))
         .add_systems(Startup, setup_worldspace)
-        .add_systems(
-            Update,
-            (ui_example_system, ui_render_to_image_example_system),
-        )
+        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(WorldspaceContextPass, ui_render_to_image_example_system)
         .run();
 }
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorldspaceContextPass;
 
 struct CustomPipelinePlugin;
 
@@ -216,7 +224,9 @@ fn setup_worldspace(
             ..default()
         })),
     ));
-    commands.spawn(EguiRenderToImage::new(output_texture.clone_weak()));
+    commands
+        .spawn(EguiRenderToImage::new(output_texture.clone_weak()))
+        .insert(EguiMultipassSchedule::new(WorldspaceContextPass));
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(1.5, 1.5, 1.5).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
@@ -224,17 +234,16 @@ fn setup_worldspace(
 }
 
 fn ui_render_to_image_example_system(
-    mut contexts: Query<&mut bevy_egui::EguiContext, With<EguiRenderToImage>>,
+    contexts: Single<&mut bevy_egui::EguiContext, With<EguiRenderToImage>>,
 ) {
-    for mut ctx in contexts.iter_mut() {
-        egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
-            let (resp, painter) =
-                ui.allocate_painter(egui::Vec2 { x: 200., y: 200. }, egui::Sense::hover());
+    let mut ctx = contexts.into_inner();
+    egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
+        let (resp, painter) =
+            ui.allocate_painter(egui::Vec2 { x: 200., y: 200. }, egui::Sense::hover());
 
-            painter.add(EguiBevyPaintCallback::new_paint_callback(
-                resp.rect,
-                CustomPaintCallback,
-            ));
-        });
-    }
+        painter.add(EguiBevyPaintCallback::new_paint_callback(
+            resp.rect,
+            CustomPaintCallback,
+        ));
+    });
 }

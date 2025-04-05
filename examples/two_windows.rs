@@ -3,22 +3,30 @@ use bevy::{
     render::camera::RenderTarget,
     window::{PresentMode, PrimaryWindow, WindowRef, WindowResolution},
 };
-use bevy_egui::{EguiContext, EguiPlugin, EguiUserTextures};
+use bevy_ecs::schedule::ScheduleLabel;
+use bevy_egui::{
+    EguiContext, EguiContextPass, EguiMultipassSchedule, EguiPlugin, EguiUserTextures,
+};
 
 #[derive(Resource)]
 struct Images {
     bevy_icon: Handle<Image>,
 }
 
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SecondWindowContextPass;
+
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .init_resource::<SharedUiState>()
         .add_systems(Startup, load_assets_system)
         .add_systems(Startup, create_new_window_system)
-        .add_systems(Update, ui_first_window_system)
-        .add_systems(Update, ui_second_window_system);
+        .add_systems(EguiContextPass, ui_first_window_system)
+        .add_systems(SecondWindowContextPass, ui_second_window_system);
 
     app.run();
 }
@@ -26,12 +34,15 @@ fn main() {
 fn create_new_window_system(mut commands: Commands) {
     // Spawn a second window
     let second_window_id = commands
-        .spawn(Window {
-            title: "Second window".to_owned(),
-            resolution: WindowResolution::new(800.0, 600.0),
-            present_mode: PresentMode::AutoVsync,
-            ..Default::default()
-        })
+        .spawn((
+            Window {
+                title: "Second window".to_owned(),
+                resolution: WindowResolution::new(800.0, 600.0),
+                present_mode: PresentMode::AutoVsync,
+                ..Default::default()
+            },
+            EguiMultipassSchedule::new(SecondWindowContextPass),
+        ))
         .id();
 
     // second window camera

@@ -7,21 +7,29 @@ use bevy::{
 use bevy_egui::{
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext, EguiContextSettings, EguiContexts, EguiInputSet, EguiPlugin, EguiRenderToImage,
+    EguiContext, EguiContextPass, EguiContextSettings, EguiContexts, EguiInputSet,
+    EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RenderToImageContextPass;
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::WHITE))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: true,
+        })
         .init_resource::<AppState>()
         .add_systems(Startup, setup_system)
         .add_systems(
             PreUpdate,
             update_egui_hovered_context.in_set(EguiInputSet::InitReading),
         )
-        .add_systems(Update, (ui_system, update_image_size.after(ui_system)))
+        .add_systems(Update, update_image_size_system)
+        .add_systems(EguiContextPass, ui_system)
+        .add_systems(RenderToImageContextPass, mesh_ui_system)
         .run();
 }
 
@@ -89,6 +97,7 @@ fn setup_system(
                 handle: mesh_image_handle,
                 load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
             },
+            EguiMultipassSchedule::new(RenderToImageContextPass),
         ))
         .id();
 
@@ -105,7 +114,7 @@ fn setup_system(
     commands.spawn(Camera2d);
 }
 
-fn update_image_size(
+fn update_image_size_system(
     mut prev_top_panel_height: Local<u32>,
     mut prev_window_size: Local<UVec2>,
     window: Single<&Window, With<PrimaryWindow>>,
@@ -225,14 +234,7 @@ fn ui_system(
                 });
             });
         }
-        DisplayedUi::MeshImage => {
-            let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
-            egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    app_state.color_test.ui(ui);
-                });
-            });
-        }
+        DisplayedUi::MeshImage => {}
         DisplayedUi::EguiTextureImage => {
             let egui_texture_image = images
                 .get(&app_state.egui_texture_image_handle)
@@ -260,10 +262,20 @@ fn ui_system(
     }
 }
 
+fn mesh_ui_system(mut app_state: ResMut<AppState>, mut contexts: EguiContexts) {
+    let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
+    egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            app_state.color_test.ui(ui);
+        });
+    });
+}
+
 //
 // Copy-pasted from https://github.com/emilk/egui/blob/0.30.0/crates/egui_demo_lib/src/rendering_test.rs.
 //
 
+use bevy_ecs::schedule::ScheduleLabel;
 use egui::{
     epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2, Color32, FontId, Image,
     Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke, TextureHandle,
