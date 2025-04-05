@@ -1720,7 +1720,7 @@ pub struct MultiPassEguiQuery {
 /// this component, runs the [`EguiContextPass`] schedule once independently.
 pub fn run_egui_context_pass_loop_system(world: &mut World) {
     let mut contexts_query = world.query::<MultiPassEguiQuery>();
-    let mut used_schedules = HashSet::new();
+    let mut used_schedules = HashSet::<InternedScheduleLabel>::default();
 
     let mut multipass_contexts: Vec<_> = contexts_query
         .iter_mut(world)
