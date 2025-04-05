@@ -147,7 +147,7 @@ Using Egui paint callbacks.
 
 The minimal usage example from this readme.
 
-### simple_multipass ([live page](https://vladbat00.github.io/bevy_egui/simple_multipass), source: [examples/simple_multipass.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/simple_multipass.rs))
+### run_manually ([live page](https://vladbat00.github.io/bevy_egui/run_manually), source: [examples/run_manually.rs](https://github.com/vladbat00/bevy_egui/blob/v0.33.0/examples/run_manually.rs))
 
 The same minimal example demonstrating running Egui passes manually.
 

@@ -153,9 +153,11 @@ fn setup_worldspace_system(
 fn draw_gizmos_system(
     mut gizmos: Gizmos,
     egui_mesh_query: Query<&Transform, With<EguiRenderToImage>>,
-) {
-    let egui_mesh_transform = egui_mesh_query.single().unwrap();
+) -> Result {
+    let egui_mesh_transform = egui_mesh_query.single()?;
     gizmos.axes(*egui_mesh_transform, 0.1);
+
+    Ok(())
 }
 
 fn handle_over_system(
