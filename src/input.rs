@@ -13,7 +13,7 @@ use bevy_input::{
 };
 use bevy_log as log;
 use bevy_time::{Real, Time};
-use bevy_window::{CursorMoved, Ime, Window};
+use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window};
 use egui::Modifiers;
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] events.
@@ -44,6 +44,15 @@ pub struct EguiInputEvent {
     pub context: Entity,
     /// Wrapped event.
     pub event: egui::Event,
+}
+
+#[derive(Event)]
+/// Wraps [`bevy::FileDragAndDrop`](bevy_window::FileDragAndDrop) events emitted by [`crate::EguiInputSet`] systems.
+pub struct EguiFileDragAndDropEvent {
+    /// Context to pass an event to.
+    pub context: Entity,
+    /// Wrapped event.
+    pub event: FileDragAndDrop,
 }
 
 #[derive(Resource)]
@@ -551,6 +560,63 @@ pub fn write_ime_events_system(
     }
 }
 
+/// Reads [`FileDragAndDrop`] events and wraps them into [`EguiFileDragAndDropEvent`], can redirect events to [`FocusedNonWindowEguiContext`].
+pub fn write_file_dnd_events_system(
+    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
+    mut dnd_reader: EventReader<FileDragAndDrop>,
+    mut egui_file_dnd_event_writer: EventWriter<EguiFileDragAndDropEvent>,
+    egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
+) {
+    for event in dnd_reader.read() {
+        let window = match &event {
+            FileDragAndDrop::DroppedFile { window, .. }
+            | FileDragAndDrop::HoveredFile { window, .. }
+            | FileDragAndDrop::HoveredFileCanceled { window } => *window,
+        };
+        let context = focused_non_window_egui_context
+            .as_deref()
+            .map_or(window, |context| context.0);
+
+        let Some(context_settings) = egui_contexts.get_some(context) else {
+            continue;
+        };
+
+        if !context_settings
+            .input_system_settings
+            .run_write_file_dnd_events_system
+        {
+            continue;
+        }
+
+        match event {
+            FileDragAndDrop::DroppedFile { window, path_buf } => {
+                egui_file_dnd_event_writer.write(EguiFileDragAndDropEvent {
+                    context,
+                    event: FileDragAndDrop::DroppedFile {
+                        window: *window,
+                        path_buf: path_buf.clone(),
+                    },
+                });
+            }
+            FileDragAndDrop::HoveredFile { window, path_buf } => {
+                egui_file_dnd_event_writer.write(EguiFileDragAndDropEvent {
+                    context,
+                    event: FileDragAndDrop::HoveredFile {
+                        window: *window,
+                        path_buf: path_buf.clone(),
+                    },
+                });
+            }
+            FileDragAndDrop::HoveredFileCanceled { window } => {
+                egui_file_dnd_event_writer.write(EguiFileDragAndDropEvent {
+                    context,
+                    event: FileDragAndDrop::HoveredFileCanceled { window: *window },
+                });
+            }
+        }
+    }
+}
+
 /// Reads [`TouchInput`] events and wraps them into [`EguiInputEvent`].
 pub fn write_window_touch_events_system(
     mut commands: Commands,
@@ -807,6 +873,62 @@ pub fn write_egui_input_system(
             |context| context.0 == entity,
         );
         egui_input.modifiers = modifier_keys_state.to_egui_modifiers();
+        egui_input.time = Some(time.elapsed_secs_f64());
+    }
+}
+
+/// Reads [`EguiFileDragAndDropEvent`] events and feeds them to Egui.
+pub fn write_egui_file_dnd_system(
+    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
+    mut egui_file_dnd_event_reader: EventReader<EguiFileDragAndDropEvent>,
+    mut egui_contexts: Query<(Entity, &mut EguiInput, Option<&Window>)>,
+    time: Res<Time<Real>>,
+) {
+    for EguiFileDragAndDropEvent { context, event } in egui_file_dnd_event_reader.read() {
+        #[cfg(feature = "log_file_dnd_events")]
+        log::warn!("{context:?}: {event:?}");
+
+        let (_, mut egui_input, _) = match egui_contexts.get_mut(*context) {
+            Ok(egui_input) => egui_input,
+            Err(err) => {
+                log::error!(
+                    "Failed to get an Egui context ({context:?}) for an event ({event:?}): {err:?}"
+                );
+                continue;
+            }
+        };
+
+        match event {
+            FileDragAndDrop::DroppedFile {
+                window: _,
+                path_buf,
+            } => {
+                egui_input.hovered_files.clear();
+                egui_input.dropped_files.push(egui::DroppedFile {
+                    path: Some(path_buf.clone()),
+                    ..Default::default()
+                });
+            }
+            FileDragAndDrop::HoveredFile {
+                window: _,
+                path_buf,
+            } => {
+                egui_input.hovered_files.push(egui::HoveredFile {
+                    path: Some(path_buf.clone()),
+                    ..Default::default()
+                });
+            }
+            FileDragAndDrop::HoveredFileCanceled { window: _ } => {
+                egui_input.hovered_files.clear();
+            }
+        }
+    }
+
+    for (entity, mut egui_input, window) in egui_contexts.iter_mut() {
+        egui_input.focused = focused_non_window_egui_context.as_deref().map_or_else(
+            || window.is_some_and(|window| window.focused),
+            |context| context.0 == entity,
+        );
         egui_input.time = Some(time.elapsed_secs_f64());
     }
 }

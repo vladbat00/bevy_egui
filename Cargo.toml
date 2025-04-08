@@ -34,6 +34,8 @@ picking = ["bevy_picking"]
 serde = ["egui/serde"]
 # The enabled logs will print with the info log level, to make it less cumbersome to debug in browsers.
 log_input_events = []
+# The enabled logs will print with the info log level, to make it less cumbersome to debug in browsers.
+log_file_dnd_events = []
 
 [[example]]
 name = "absorb_input"
@@ -123,6 +125,7 @@ bevy = { version = "0.16.0-rc", default-features = false, features = [
     "x11",
 ] }
 egui = { version = "0.31", default-features = false, features = ["bytemuck"] }
+rfd = "0.15.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 winit = "0.30"

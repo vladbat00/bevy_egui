@@ -442,6 +442,8 @@ pub struct EguiInputSystemSettings {
     pub run_write_keyboard_input_events_system: bool,
     /// Controls running of the [`write_ime_events_system`] system.
     pub run_write_ime_events_system: bool,
+    /// Controls running of the [`write_file_dnd_events_system`] system.
+    pub run_write_file_dnd_events_system: bool,
     /// Controls running of the [`write_text_agent_channel_events_system`] system.
     #[cfg(target_arch = "wasm32")]
     pub run_write_text_agent_channel_events_system: bool,
@@ -462,6 +464,7 @@ impl Default for EguiInputSystemSettings {
             run_write_non_window_touch_events_system: true,
             run_write_keyboard_input_events_system: true,
             run_write_ime_events_system: true,
+            run_write_file_dnd_events_system: true,
             #[cfg(target_arch = "wasm32")]
             run_write_text_agent_channel_events_system: true,
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
@@ -965,6 +968,7 @@ impl Plugin for EguiPlugin {
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
         app.add_event::<EguiInputEvent>();
+        app.add_event::<EguiFileDragAndDropEvent>();
 
         if self.enable_multipass_for_primary_context {
             app.insert_resource(EnableMultipassForPrimaryContext);
@@ -1092,10 +1096,14 @@ impl Plugin for EguiPlugin {
                     })),
                     write_ime_events_system
                         .run_if(input_system_is_enabled(|s| s.run_write_ime_events_system)),
+                    write_file_dnd_events_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_file_dnd_events_system
+                    })),
                 )
                     .in_set(EguiInputSet::ReadBevyEvents),
                 (
                     write_egui_input_system,
+                    write_egui_file_dnd_system,
                     absorb_bevy_input_system.run_if(|settings: Res<EguiGlobalSettings>| {
                         settings.enable_absorb_bevy_input_system
                     }),
