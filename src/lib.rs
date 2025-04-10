@@ -1103,7 +1103,6 @@ impl Plugin for EguiPlugin {
                     .in_set(EguiInputSet::ReadBevyEvents),
                 (
                     write_egui_input_system,
-                    write_egui_file_dnd_system,
                     absorb_bevy_input_system.run_if(|settings: Res<EguiGlobalSettings>| {
                         settings.enable_absorb_bevy_input_system
                     }),

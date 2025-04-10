@@ -842,11 +842,12 @@ fn write_touch_event(
     }
 }
 
-/// Reads [`EguiInputEvent`] events and feeds them to Egui.
+/// Reads both [`EguiFileDragAndDropEvent`] and [`EguiInputEvent`] events and feeds them to Egui.
 pub fn write_egui_input_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut egui_input_event_reader: EventReader<EguiInputEvent>,
+    mut egui_file_dnd_event_reader: EventReader<EguiFileDragAndDropEvent>,
     mut egui_contexts: Query<(Entity, &mut EguiInput, Option<&Window>)>,
     time: Res<Time<Real>>,
 ) {
@@ -867,23 +868,6 @@ pub fn write_egui_input_system(
         egui_input.events.push(event.clone());
     }
 
-    for (entity, mut egui_input, window) in egui_contexts.iter_mut() {
-        egui_input.focused = focused_non_window_egui_context.as_deref().map_or_else(
-            || window.is_some_and(|window| window.focused),
-            |context| context.0 == entity,
-        );
-        egui_input.modifiers = modifier_keys_state.to_egui_modifiers();
-        egui_input.time = Some(time.elapsed_secs_f64());
-    }
-}
-
-/// Reads [`EguiFileDragAndDropEvent`] events and feeds them to Egui.
-pub fn write_egui_file_dnd_system(
-    focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
-    mut egui_file_dnd_event_reader: EventReader<EguiFileDragAndDropEvent>,
-    mut egui_contexts: Query<(Entity, &mut EguiInput, Option<&Window>)>,
-    time: Res<Time<Real>>,
-) {
     for EguiFileDragAndDropEvent { context, event } in egui_file_dnd_event_reader.read() {
         #[cfg(feature = "log_file_dnd_events")]
         log::warn!("{context:?}: {event:?}");
@@ -929,6 +913,7 @@ pub fn write_egui_file_dnd_system(
             || window.is_some_and(|window| window.focused),
             |context| context.0 == entity,
         );
+        egui_input.modifiers = modifier_keys_state.to_egui_modifiers();
         egui_input.time = Some(time.elapsed_secs_f64());
     }
 }
