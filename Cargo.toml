@@ -70,6 +70,9 @@ required-features = ["render"]
 [[example]]
 name = "render_egui_to_image"
 required-features = ["picking", "render", "bevy/bevy_gizmos"]
+[[example]]
+name = "file_browse"
+required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.31", default-features = false }
