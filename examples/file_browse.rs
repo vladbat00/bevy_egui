@@ -134,3 +134,7 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
         );
     }
 }
+
+// do nothing for ios / android / wasm :(
+#[cfg(any(target_os = "ios", target_os = "android", target_arch = "wasm32"))]
+fn main() {}
