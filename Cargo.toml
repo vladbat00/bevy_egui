@@ -37,9 +37,6 @@ log_input_events = []
 # The enabled logs will print with the info log level, to make it less cumbersome to debug in browsers.
 log_file_dnd_events = []
 
-# specifically for feature gating `rfd` from tests
-file_browse = ["rfd"]
-
 [[example]]
 name = "absorb_input"
 required-features = ["render"]
@@ -75,7 +72,7 @@ name = "render_egui_to_image"
 required-features = ["picking", "render", "bevy/bevy_gizmos"]
 [[example]]
 name = "file_browse"
-required-features = ["render", "file_browse"]
+required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.31", default-features = false }
@@ -110,10 +107,6 @@ bevy_picking = { version = "0.16.0-rc", optional = true }
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 arboard = { version = "3.2.0", optional = true }
 thread_local = { version = "1.1.0", optional = true }
-
-# `file_browse` feature only, workaround dev-dependency
-[target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dependencies]
-rfd = { version = "0.13", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
