@@ -11,9 +11,10 @@ use bevy_input::{
     touch::TouchInput,
     ButtonInput, ButtonState,
 };
-use bevy_log as log;
+use bevy_log::{self as log, warn};
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window};
+use bevy_winit::WinitWindows;
 use egui::Modifiers;
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] events.
@@ -35,6 +36,8 @@ pub struct EguiContextPointerTouchId {
 pub struct EguiContextImeState {
     /// Indicates whether IME is enabled.
     pub has_sent_ime_enabled: bool,
+    /// Indicates whether IME is currently allowed, i.e. if the virtual keyboard is shown.
+    pub is_ime_allowed: bool,
 }
 
 #[derive(Event)]
@@ -557,6 +560,38 @@ pub fn write_ime_events_system(
                 ime_event_disable(&mut ime_state, &mut egui_input_event_writer);
             }
         }
+    }
+}
+
+/// Show the virtual keyboard when a text input is focused.
+/// Works by reading [`EguiOutput`] and calling `Window::set_ime_allowed` if the `ime` field is set.
+pub fn set_ime_allowed_system(
+    mut egui_context: Query<(&EguiOutput, &mut EguiContextImeState)>,
+    windows: Query<Entity, With<Window>>,
+    winit_windows: NonSendMut<WinitWindows>,
+) {
+    // we are on mobile, so we expect a single window
+    let Ok(window) = windows.single() else {
+        return;
+    };
+
+    let Some(winit_window) = winit_windows.get_window(window) else {
+        warn!(
+            "cannot access underlying winit window for window entity {}",
+            window
+        );
+
+        return;
+    };
+
+    let Ok((egui_output, mut egui_ime_state)) = egui_context.single_mut() else {
+        return;
+    };
+
+    let ime_allowed = egui_output.platform_output.ime.is_some();
+    if ime_allowed != egui_ime_state.is_ime_allowed {
+        winit_window.set_ime_allowed(ime_allowed);
+        egui_ime_state.is_ime_allowed = ime_allowed;
     }
 }
 

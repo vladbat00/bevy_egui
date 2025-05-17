@@ -1189,7 +1189,13 @@ impl Plugin for EguiPlugin {
         );
         app.add_systems(
             PostUpdate,
-            (process_output_system, write_egui_wants_input_system)
+            (
+                process_output_system,
+                write_egui_wants_input_system,
+                #[cfg(any(target_os = "ios", target_os = "android"))]
+                // show the virtual keyboard on mobile devices
+                set_ime_allowed_system,
+            )
                 .in_set(EguiPostUpdateSet::ProcessOutput),
         );
         #[cfg(feature = "picking")]
