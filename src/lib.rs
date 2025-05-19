@@ -325,6 +325,24 @@ pub struct EguiPlugin {
     pub enable_multipass_for_primary_context: bool,
 }
 
+impl EguiPlugin {
+    /// Creates a new [`EguiPlugin`] with multipass disabled for the primary context. See
+    /// [`EguiPlugin::enable_multipass_for_primary_context`] for more details.
+    pub fn single_pass() -> Self {
+        Self {
+            enable_multipass_for_primary_context: false,
+        }
+    }
+
+    /// Creates a new [`EguiPlugin`] with multipass enabled for the primary context. See
+    /// [`EguiPlugin::enable_multipass_for_primary_context`] for more details.
+    pub fn multipass() -> Self {
+        Self {
+            enable_multipass_for_primary_context: true,
+        }
+    }
+}
+
 /// A resource for storing global plugin settings.
 #[derive(Clone, Debug, Resource, Reflect)]
 pub struct EguiGlobalSettings {
