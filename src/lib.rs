@@ -379,7 +379,7 @@ pub struct EguiContextSettings {
     /// use bevy_egui::EguiContextSettings;
     ///
     /// fn update_ui_scale_factor(mut windows: Query<(&mut EguiContextSettings, &Window), With<PrimaryWindow>>) {
-    ///     if let Ok((mut egui_settings, window)) = windows.get_single_mut() {
+    ///     if let Ok((mut egui_settings, window)) = windows.single_mut() {
     ///         egui_settings.scale_factor = 1.0 / window.scale_factor();
     ///     }
     /// }
@@ -1769,6 +1769,19 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
             .output = Some(output);
     }
 
+    // If Egui's running in the single-pass mode and a user placed all the UI systems in `EguiContextPass`,
+    // we want to run the schedule just once.
+    // (And since the code above runs only for multi-pass contexts, it's not run yet in the case of single-pass.)
+    if world
+        .query_filtered::<Entity, (With<EguiContext>, With<PrimaryWindow>)>()
+        .iter(world)
+        .next()
+        .is_none()
+    {
+        // Silly control flow to test that we still have a context. Attempting to run the schedule
+        // when a user has closed a window will result in a panic.
+        return;
+    }
     if !used_schedules.contains(&ScheduleLabel::intern(&EguiContextPass)) {
         let _ = world.try_run_schedule(EguiContextPass);
     }
