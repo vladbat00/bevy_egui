@@ -7,9 +7,7 @@ use std::num::NonZero;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin {
-            enable_multipass_for_primary_context: false,
-        })
+        .add_plugins(EguiPlugin::default())
         .add_systems(
             PreStartup,
             configure_context.after(EguiStartupSet::InitContexts),

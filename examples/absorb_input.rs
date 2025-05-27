@@ -15,9 +15,7 @@ use bevy_egui::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin {
-            enable_multipass_for_primary_context: true,
-        })
+        .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_scene_system)
         .add_systems(EguiContextPass, ui_system)
         // You can wrap your systems with the `egui_wants_any_pointer_input`, `egui_wants_any_keyboard_input` run conditions if you

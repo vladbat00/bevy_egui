@@ -10,9 +10,7 @@ use wgpu_types::{Extent3d, TextureUsages};
 fn main() {
     let mut app = App::new();
     app.add_plugins((DefaultPlugins, MeshPickingPlugin));
-    app.add_plugins(EguiPlugin {
-        enable_multipass_for_primary_context: true,
-    });
+    app.add_plugins(EguiPlugin::default());
     app.add_systems(Startup, setup_worldspace_system);
     app.add_systems(Update, draw_gizmos_system);
     app.add_systems(EguiContextPass, update_screenspace_system);

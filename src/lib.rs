@@ -322,7 +322,19 @@ pub struct EguiPlugin {
     ///     // ...
     /// }
     /// ```
+    #[deprecated(
+        note = "The option to disable the multi-pass mode is now deprecated, use `EguiPlugin::default` instead"
+    )]
     pub enable_multipass_for_primary_context: bool,
+}
+
+impl Default for EguiPlugin {
+    fn default() -> Self {
+        Self {
+            #[allow(deprecated)]
+            enable_multipass_for_primary_context: true,
+        }
+    }
 }
 
 /// A resource for storing global plugin settings.
@@ -970,6 +982,7 @@ impl Plugin for EguiPlugin {
         app.add_event::<EguiInputEvent>();
         app.add_event::<EguiFileDragAndDropEvent>();
 
+        #[allow(deprecated)]
         if self.enable_multipass_for_primary_context {
             app.insert_resource(EnableMultipassForPrimaryContext);
         }

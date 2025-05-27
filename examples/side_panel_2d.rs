@@ -5,9 +5,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.25, 0.25, 0.25)))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin {
-            enable_multipass_for_primary_context: true,
-        })
+        .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_system)
         .add_systems(EguiContextPass, ui_example_system)
         .run();

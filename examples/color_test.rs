@@ -18,9 +18,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::WHITE))
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin {
-            enable_multipass_for_primary_context: true,
-        })
+        .add_plugins(EguiPlugin::default())
         .init_resource::<AppState>()
         .add_systems(Startup, setup_system)
         .add_systems(
