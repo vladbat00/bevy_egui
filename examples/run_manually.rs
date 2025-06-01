@@ -32,7 +32,7 @@ fn ui_example_system(
                 .ctx()
                 .viewport(|viewport| viewport.output.num_completed_passes)
                 + 1;
-            ui.label(format!("Passes: {}", passes));
+            ui.label(format!("Passes: {passes}"));
             ui.ctx().request_discard("Trying to reach max limit");
         });
     };

@@ -1,14 +1,12 @@
 use crate::{
-    helpers, EguiContext, EguiContextSettings, EguiFullOutput, EguiOutput, EguiRenderOutput,
+    helpers, EguiContext, EguiContextSettings, EguiFullOutput, EguiGlobalSettings, EguiOutput,
+    EguiRenderOutput,
 };
-#[cfg(windows)]
-use bevy_ecs::system::Local;
 use bevy_ecs::{
     entity::Entity,
     event::EventWriter,
-    system::{NonSend, Query},
+    system::{Local, NonSend, Query, Res},
 };
-#[cfg(windows)]
 use bevy_platform::collections::HashMap;
 use bevy_window::RequestRedraw;
 use bevy_winit::{cursor::CursorIcon, EventLoopProxy, WakeUp};
@@ -28,19 +26,20 @@ pub fn process_output_system(
     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
     mut egui_clipboard: bevy_ecs::system::ResMut<crate::EguiClipboard>,
     mut event: EventWriter<RequestRedraw>,
-    #[cfg(windows)] mut last_cursor_icon: Local<HashMap<Entity, egui::CursorIcon>>,
+    mut last_cursor_icon: Local<HashMap<Entity, egui::CursorIcon>>,
     event_loop_proxy: Option<NonSend<EventLoopProxy<WakeUp>>>,
+    egui_global_settings: Res<EguiGlobalSettings>,
 ) {
     let mut should_request_redraw = false;
 
     for (
-        _entity,
+        entity,
         mut context,
         mut full_output,
         mut render_output,
         mut egui_output,
         cursor_icon,
-        _settings,
+        settings,
     ) in contexts.iter_mut()
     {
         let ctx = context.get_mut();
@@ -81,7 +80,7 @@ pub fn process_output_system(
                         let target = if *new_tab {
                             "_blank"
                         } else {
-                            _settings
+                            settings
                                 .default_open_url_target
                                 .as_deref()
                                 .unwrap_or("_self")
@@ -98,24 +97,17 @@ pub fn process_output_system(
             }
         }
 
-        if let Some(mut cursor) = cursor_icon {
-            let mut set_icon = || {
-                *cursor = CursorIcon::System(
-                    helpers::egui_to_winit_cursor_icon(egui_output.platform_output.cursor_icon)
-                        .unwrap_or(bevy_window::SystemCursorIcon::Default),
-                );
-            };
-
-            #[cfg(windows)]
-            {
-                let last_cursor_icon = last_cursor_icon.entry(_entity).or_default();
+        if egui_global_settings.enable_cursor_icon_updates && settings.enable_cursor_icon_updates {
+            if let Some(mut cursor) = cursor_icon {
+                let last_cursor_icon = last_cursor_icon.entry(entity).or_default();
                 if *last_cursor_icon != egui_output.platform_output.cursor_icon {
-                    set_icon();
+                    *cursor = CursorIcon::System(
+                        helpers::egui_to_winit_cursor_icon(egui_output.platform_output.cursor_icon)
+                            .unwrap_or(bevy_window::SystemCursorIcon::Default),
+                    );
                     *last_cursor_icon = egui_output.platform_output.cursor_icon;
                 }
             }
-            #[cfg(not(windows))]
-            set_icon();
         }
 
         let needs_repaint = !render_output.is_empty();

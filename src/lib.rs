@@ -361,6 +361,11 @@ pub struct EguiGlobalSettings {
     /// Apply `run_if(not(egui_wants_any_pointer_input))` or `run_if(not(egui_wants_any_keyboard_input))` to your systems
     /// that need to be disabled while Egui is using input (see the [`egui_wants_any_pointer_input`], [`egui_wants_any_keyboard_input`] run conditions).
     pub enable_absorb_bevy_input_system: bool,
+    /// Controls whether `bevy_egui` updates [`CursorIcon`], enabled by default.
+    ///
+    /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
+    /// overriding the icons.
+    pub enable_cursor_icon_updates: bool,
 }
 
 impl Default for EguiGlobalSettings {
@@ -369,6 +374,7 @@ impl Default for EguiGlobalSettings {
             enable_focused_non_window_context_updates: true,
             input_system_settings: EguiInputSystemSettings::default(),
             enable_absorb_bevy_input_system: false,
+            enable_cursor_icon_updates: true,
         }
     }
 }
@@ -406,6 +412,11 @@ pub struct EguiContextSettings {
     pub capture_pointer_input: bool,
     /// Controls running of the input systems.
     pub input_system_settings: EguiInputSystemSettings,
+    /// Controls whether `bevy_egui` updates [`CursorIcon`], enabled by default.
+    ///
+    /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
+    /// overriding the icons.
+    pub enable_cursor_icon_updates: bool,
 }
 
 // Just to keep the PartialEq
@@ -429,6 +440,7 @@ impl Default for EguiContextSettings {
             #[cfg(feature = "picking")]
             capture_pointer_input: true,
             input_system_settings: EguiInputSystemSettings::default(),
+            enable_cursor_icon_updates: true,
         }
     }
 }
