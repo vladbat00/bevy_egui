@@ -9,7 +9,7 @@ use bevy::{
 use bevy_egui::{
     egui,
     input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input},
-    EguiContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
+    EguiPrimaryContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
 };
 
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_scene_system)
-        .add_systems(EguiContextPass, ui_system)
+        .add_systems(EguiPrimaryContextPass, ui_system)
         // You can wrap your systems with the `egui_wants_any_pointer_input`, `egui_wants_any_keyboard_input` run conditions if you
         // want to disable them while Egui is using input.
         //

@@ -5,7 +5,7 @@ use bevy::{
 };
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_egui::{
-    EguiContext, EguiContextPass, EguiMultipassSchedule, EguiPlugin, EguiUserTextures,
+    EguiContext, EguiPrimaryContextPass, EguiMultipassSchedule, EguiPlugin, EguiUserTextures,
 };
 
 #[derive(Resource)]
@@ -23,7 +23,7 @@ fn main() {
         .init_resource::<SharedUiState>()
         .add_systems(Startup, load_assets_system)
         .add_systems(Startup, create_new_window_system)
-        .add_systems(EguiContextPass, ui_first_window_system)
+        .add_systems(EguiPrimaryContextPass, ui_first_window_system)
         .add_systems(SecondWindowContextPass, ui_second_window_system);
 
     app.run();

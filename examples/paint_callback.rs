@@ -15,7 +15,7 @@ use bevy::{
 };
 use bevy_egui::{
     egui_node::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
-    EguiContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
+    EguiPrimaryContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureUsages};
@@ -24,7 +24,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, EguiPlugin::default(), CustomPipelinePlugin))
         .add_systems(Startup, setup_worldspace)
-        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(EguiPrimaryContextPass, ui_example_system)
         .add_systems(WorldspaceContextPass, ui_render_to_image_example_system)
         .run();
 }

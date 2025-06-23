@@ -29,13 +29,13 @@
 //!
 //! ```no_run,rust
 //! use bevy::prelude::*;
-//! use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+//! use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 //!
 //! fn main() {
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
 //!         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
-//!         .add_systems(EguiContextPass, ui_example_system)
+//!         .add_systems(EguiPrimaryContextPass, ui_example_system)
 //!         .run();
 //! }
 //!
@@ -47,7 +47,7 @@
 //! ```
 //!
 //! Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
-//! If you don't want to be limited to the [`EguiContextPass`] schedule, you can use the single-pass mode,
+//! If you don't want to be limited to the [`EguiPrimaryContextPass`] schedule, you can use the single-pass mode,
 //! but it may get deprecated in the future.
 //!
 //! For more advanced examples, see the [examples](#examples) section below.
@@ -58,13 +58,13 @@
 //! (with respect to the [`EguiPlugin::enable_multipass_for_primary_context`] flag):
 //! - Don't initialize [`EguiPlugin`] for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
 //!   users should be able to opt in or opt out of the multi-pass mode on their own.
-//! - If you add UI systems, make sure they go into the [`EguiContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
+//! - If you add UI systems, make sure they go into the [`EguiPrimaryContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
 //!
 //! Your plugin code might look like this:
 //!
 //! ```no_run,rust
 //! # use bevy::prelude::*;
-//! # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+//! # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 //!
 //! pub struct MyPlugin;
 //!
@@ -74,7 +74,7 @@
 //!         // and just make sure they initialize EguiPlugin before yours.
 //!         assert!(app.is_plugin_added::<EguiPlugin>());
 //!
-//!         app.add_systems(EguiContextPass, ui_system);
+//!         app.add_systems(EguiPrimaryContextPass, ui_system);
 //!     }
 //! }
 //!
@@ -148,6 +148,7 @@ pub mod helpers;
 pub mod input;
 /// Systems for handling Egui output.
 pub mod output;
+pub mod render;
 /// Plugin systems for the render app.
 #[cfg(feature = "render")]
 pub mod render_systems;
@@ -202,6 +203,7 @@ use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
 #[cfg(feature = "picking")]
 use bevy_render::camera::NormalizedRenderTarget;
+use bevy_render::camera::{Camera, RenderTarget};
 #[cfg(feature = "render")]
 use bevy_render::{
     extract_component::{ExtractComponent, ExtractComponentPlugin},
@@ -209,7 +211,7 @@ use bevy_render::{
     render_resource::{LoadOp, SpecializedRenderPipelines},
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
-use bevy_window::{PrimaryWindow, Window};
+use bevy_window::{PrimaryWindow, Window, WindowRef};
 use bevy_winit::cursor::CursorIcon;
 use output::process_output_system;
 #[cfg(all(
@@ -244,16 +246,16 @@ pub struct EguiPlugin {
     ///
     /// Set this to `true` to enable an experimental support for the Egui multi-pass mode.
     ///
-    /// Enabling the multi-pass mode will require your app to use the new [`EguiContextPass`] schedule:
+    /// Enabling the multi-pass mode will require your app to use the new [`EguiPrimaryContextPass`] schedule:
     ///
     /// ```no_run,rust
     /// # use bevy::prelude::*;
-    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
     /// fn main() {
     ///     App::new()
     ///         .add_plugins(DefaultPlugins)
     ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
-    ///         .add_systems(EguiContextPass, ui_example_system)
+    ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .run();
     /// }
     /// fn ui_example_system(contexts: EguiContexts) {
@@ -267,7 +269,7 @@ pub struct EguiPlugin {
     /// ```no_run,rust
     /// # use bevy::prelude::*;
     /// # use bevy::ecs::schedule::ScheduleLabel;
-    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass, EguiMultipassSchedule};
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiMultipassSchedule};
     /// #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     /// pub struct SecondWindowContextPass;
     ///
@@ -276,7 +278,7 @@ pub struct EguiPlugin {
     ///         .add_plugins(DefaultPlugins)
     ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
     ///         .add_systems(Startup, create_new_window_system)
-    ///         .add_systems(EguiContextPass, ui_example_system)
+    ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .add_systems(SecondWindowContextPass, ui_example_system)
     ///         .run();
     /// }
@@ -298,13 +300,13 @@ pub struct EguiPlugin {
     /// (with respect to the [`EguiPlugin::enable_multipass_for_primary_context`] flag):
     /// - Don't initialize [`EguiPlugin`] for the user, i.e. DO NOT use `add_plugins(EguiPlugin { ... })` in your code,
     ///   users should be able to opt in or opt out of the multi-pass mode on their own.
-    /// - If you add UI systems, make sure they go into the [`EguiContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
+    /// - If you add UI systems, make sure they go into the [`EguiPrimaryContextPass`] schedule - this will guarantee your plugin supports both the single-pass and multi-pass modes.
     ///
     /// Your plugin code might look like this:
     ///
     /// ```no_run,rust
     /// # use bevy::prelude::*;
-    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
     ///
     /// pub struct MyPlugin;
     ///
@@ -314,7 +316,7 @@ pub struct EguiPlugin {
     ///         // and just make sure they initialize EguiPlugin before yours.
     ///         assert!(app.is_plugin_added::<EguiPlugin>());
     ///
-    ///         app.add_systems(EguiContextPass, ui_system);
+    ///         app.add_systems(EguiPrimaryContextPass, ui_system);
     ///     }
     /// }
     ///
@@ -340,6 +342,10 @@ impl Default for EguiPlugin {
 /// A resource for storing global plugin settings.
 #[derive(Clone, Debug, Resource, Reflect)]
 pub struct EguiGlobalSettings {
+    /// Set this to `false` if you want to control the creation of [`EguiContext`] instances manually.
+    ///
+    /// By default, `bevy_egui` will create a context for the first camera an application creates.
+    pub auto_create_primary_context: bool,
     /// Set this to `false` if you want to disable updating focused contexts by the plugin's systems
     /// (enabled by default).
     ///
@@ -371,6 +377,7 @@ pub struct EguiGlobalSettings {
 impl Default for EguiGlobalSettings {
     fn default() -> Self {
         Self {
+            auto_create_primary_context: true,
             enable_focused_non_window_context_updates: true,
             input_system_settings: EguiInputSystemSettings::default(),
             enable_absorb_bevy_input_system: false,
@@ -500,11 +507,16 @@ impl Default for EguiInputSystemSettings {
 /// Use this schedule to run your UI systems with the primary Egui context.
 /// (Mandatory if the context is running in the multi-pass mode.)
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EguiContextPass;
+pub struct EguiPrimaryContextPass;
+
+/// A marker component for a primary Egui context.
+#[derive(Component, Clone)]
+pub struct PrimaryEguiContext;
 
 /// Add this component to your additional Egui contexts (e.g. when rendering to a new window or an image),
 /// to enable multi-pass support. Note that each Egui context running in the multi-pass mode must use a unique schedule.
 #[derive(Component, Clone)]
+#[require(EguiContext)]
 pub struct EguiMultipassSchedule(pub InternedScheduleLabel);
 
 impl EguiMultipassSchedule {
@@ -619,10 +631,10 @@ impl EguiContext {
 }
 
 #[cfg(not(feature = "render"))]
-type EguiContextsFilter = With<Window>;
+type EguiContextsFilter = With<Camera>;
 
 #[cfg(feature = "render")]
-type EguiContextsFilter = Or<(With<Window>, With<EguiRenderToImage>)>;
+type EguiContextsFilter = Or<(With<Camera>, With<EguiRenderToImage>)>;
 
 #[derive(SystemParam)]
 /// A helper SystemParam that provides a way to get [`EguiContext`] with less boilerplate and
@@ -634,7 +646,7 @@ pub struct EguiContexts<'w, 's> {
         (
             Entity,
             &'static mut EguiContext,
-            Option<&'static PrimaryWindow>,
+            Option<&'static PrimaryEguiContext>,
         ),
         EguiContextsFilter,
     >,
@@ -642,12 +654,13 @@ pub struct EguiContexts<'w, 's> {
     user_textures: ResMut<'w, EguiUserTextures>,
 }
 
+// TODO! replace mentions of windows.
 impl EguiContexts<'_, '_> {
     /// Egui context of the primary window.
     #[must_use]
     pub fn ctx_mut(&mut self) -> &mut egui::Context {
         self.try_ctx_mut()
-            .expect("`EguiContexts::ctx_mut` was called for an uninitialized context (primary window), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
+            .expect("`EguiContexts::ctx_mut` was called for an uninitialized context (primary camera), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (for startup systems, make sure you set up a camera at [`PreStartup`] before [`EguiStartupSet::InitContexts`])")
     }
 
     /// Fallible variant of [`EguiContexts::ctx_mut`].
@@ -655,8 +668,8 @@ impl EguiContexts<'_, '_> {
     pub fn try_ctx_mut(&mut self) -> Option<&mut egui::Context> {
         self.q
             .iter_mut()
-            .find_map(|(_window_entity, ctx, primary_window)| {
-                if primary_window.is_some() {
+            .find_map(|(_window_entity, ctx, primary)| {
+                if primary.is_some() {
                     Some(ctx.into_inner().get_mut())
                 } else {
                     None
@@ -668,7 +681,7 @@ impl EguiContexts<'_, '_> {
     #[must_use]
     pub fn ctx_for_entity_mut(&mut self, entity: Entity) -> &mut egui::Context {
         self.try_ctx_for_entity_mut(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?})"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity_mut`].
@@ -677,7 +690,7 @@ impl EguiContexts<'_, '_> {
     pub fn try_ctx_for_entity_mut(&mut self, entity: Entity) -> Option<&mut egui::Context> {
         self.q
             .iter_mut()
-            .find_map(|(window_entity, ctx, _primary_window)| {
+            .find_map(|(window_entity, ctx, _primary)| {
                 if window_entity == entity {
                     Some(ctx.into_inner().get_mut())
                 } else {
@@ -711,7 +724,7 @@ impl EguiContexts<'_, '_> {
     #[must_use]
     pub fn ctx(&self) -> &egui::Context {
         self.try_ctx()
-            .expect("`EguiContexts::ctx` was called for an uninitialized context (primary window), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)")
+            .expect("`EguiContexts::ctx` was called for an uninitialized context (primary camera), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (for startup systems, make sure you set up a camera at [`PreStartup`] before [`EguiStartupSet::InitContexts`])")
     }
 
     /// Fallible variant of [`EguiContexts::ctx`].
@@ -750,7 +763,7 @@ impl EguiContexts<'_, '_> {
     #[cfg(feature = "immutable_ctx")]
     pub fn ctx_for_entity(&self, entity: Entity) -> &egui::Context {
         self.try_ctx_for_entity(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_entity` was called for an uninitialized context (entity {entity:?}), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (or [`EguiStartupSet::InitContexts`] for startup systems)"))
+            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_entity` was called for an uninitialized context (entity {entity:?})"))
     }
 
     /// Fallible variant of [`EguiContexts::ctx_for_entity`].
@@ -991,6 +1004,7 @@ impl Plugin for EguiPlugin {
         app.init_resource::<EguiGlobalSettings>();
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
+        app.init_resource::<WindowToEguiContextMap>();
         app.add_event::<EguiInputEvent>();
         app.add_event::<EguiFileDragAndDropEvent>();
 
@@ -1066,7 +1080,7 @@ impl Plugin for EguiPlugin {
         app.add_systems(
             PreStartup,
             (
-                setup_new_windows_system,
+                setup_primary_egui_context_system,
                 ApplyDeferred,
                 update_ui_size_and_scale_system,
             )
@@ -1078,7 +1092,9 @@ impl Plugin for EguiPlugin {
         app.add_systems(
             PreUpdate,
             (
-                setup_new_windows_system,
+                setup_primary_egui_context_system,
+                WindowToEguiContextMap::on_egui_context_added_system,
+                WindowToEguiContextMap::on_egui_context_removed_system,
                 ApplyDeferred,
                 update_ui_size_and_scale_system,
             )
@@ -1250,12 +1266,68 @@ impl Plugin for EguiPlugin {
         .add_systems(Last, free_egui_textures_system);
 
         #[cfg(feature = "render")]
-        load_internal_asset!(
-            app,
-            EGUI_SHADER_HANDLE,
-            "egui.wgsl",
-            bevy_render::render_resource::Shader::from_wgsl
-        );
+        {
+            load_internal_asset!(
+                app,
+                EGUI_SHADER_HANDLE,
+                "render/egui.wgsl",
+                bevy_render::render_resource::Shader::from_wgsl
+            );
+
+            let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
+                return;
+            };
+
+            let ui_graph_2d = render::get_egui_graph(render_app);
+            let ui_graph_3d = render::get_egui_graph(render_app);
+            let mut graph = render_app
+                .world_mut()
+                .resource_mut::<bevy_render::render_graph::RenderGraph>();
+
+            if let Some(graph_2d) =
+                graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
+            {
+                graph_2d.add_sub_graph(render::graph::SubGraphEgui, ui_graph_2d);
+                graph_2d.add_node(
+                    render::graph::NodeEgui::EguiPass,
+                    render::RunEguiSubgraphOnEguiViewNode,
+                );
+                graph_2d.add_node_edge(
+                    bevy_core_pipeline::core_2d::graph::Node2d::EndMainPass,
+                    render::graph::NodeEgui::EguiPass,
+                );
+                graph_2d.add_node_edge(
+                    bevy_core_pipeline::core_2d::graph::Node2d::EndMainPassPostProcessing,
+                    render::graph::NodeEgui::EguiPass,
+                );
+                graph_2d.add_node_edge(
+                    render::graph::NodeEgui::EguiPass,
+                    bevy_core_pipeline::core_2d::graph::Node2d::Upscaling,
+                );
+            }
+
+            if let Some(graph_3d) =
+                graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
+            {
+                graph_3d.add_sub_graph(render::graph::SubGraphEgui, ui_graph_3d);
+                graph_3d.add_node(
+                    render::graph::NodeEgui::EguiPass,
+                    render::RunEguiSubgraphOnEguiViewNode,
+                );
+                graph_3d.add_node_edge(
+                    bevy_core_pipeline::core_3d::graph::Node3d::EndMainPass,
+                    render::graph::NodeEgui::EguiPass,
+                );
+                graph_3d.add_node_edge(
+                    bevy_core_pipeline::core_3d::graph::Node3d::EndMainPassPostProcessing,
+                    render::graph::NodeEgui::EguiPass,
+                );
+                graph_3d.add_node_edge(
+                    render::graph::NodeEgui::EguiPass,
+                    bevy_core_pipeline::core_3d::graph::Node3d::Upscaling,
+                );
+            }
+        }
 
         #[cfg(feature = "accesskit_placeholder")]
         app.add_systems(
@@ -1277,9 +1349,11 @@ impl Plugin for EguiPlugin {
                     // `RenderSet::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
                     (
+                        render::extract_egui_camera_view,
                         render_systems::setup_new_egui_nodes_system,
-                        render_systems::teardown_window_nodes_system,
-                        render_systems::teardown_render_to_image_nodes_system,
+                        // TODO!
+                        // render_systems::teardown_window_nodes_system,
+                        // render_systems::teardown_render_to_image_nodes_system,
                     ),
                 )
                 .add_systems(
@@ -1323,9 +1397,10 @@ pub struct EguiManagedTexture {
 }
 
 /// Adds bevy_egui components to newly created windows.
-pub fn setup_new_windows_system(
+pub fn setup_primary_egui_context_system(
     mut commands: Commands,
-    new_windows: Query<(Entity, Option<&PrimaryWindow>), (Added<Window>, Without<EguiContext>)>,
+    new_cameras: Query<(Entity, Option<&EguiContext>), Added<Camera>>,
+    egui_global_settings: Res<EguiGlobalSettings>,
     #[cfg(feature = "accesskit_placeholder")] adapters: Option<
         NonSend<bevy_winit::accessibility::AccessKitAdapters>,
     >,
@@ -1333,23 +1408,35 @@ pub fn setup_new_windows_system(
         bevy_a11y::ManageAccessibilityUpdates,
     >,
     enable_multipass_for_primary_context: Option<Res<EnableMultipassForPrimaryContext>>,
-) {
-    for (window, primary) in new_windows.iter() {
+    mut egui_context_exists: Local<bool>,
+) -> Result {
+    for (camera_entity, context) in new_cameras {
+        if context.is_some() || *egui_context_exists {
+            *egui_context_exists = true;
+            return Ok(());
+        }
+
         let context = EguiContext::default();
         #[cfg(feature = "accesskit_placeholder")]
         if let Some(adapters) = &adapters {
-            if adapters.get(&window).is_some() {
+            // TODO: before re-enabling accesskit support, move to another system to do this for every context.
+            if adapters.get(&camera_entity).is_some() {
                 context.ctx.enable_accesskit();
                 **manage_accessibility_updates = false;
             }
         }
+
+        log::debug!("Creating a primary Egui context");
         // See the list of required components to check the full list of components we add.
-        let mut window_commands = commands.entity(window);
-        window_commands.insert(context);
-        if enable_multipass_for_primary_context.is_some() && primary.is_some() {
-            window_commands.insert(EguiMultipassSchedule::new(EguiContextPass));
+        let mut camera_commands = commands.get_entity(camera_entity)?;
+        camera_commands.insert(context).insert(PrimaryEguiContext);
+        if enable_multipass_for_primary_context.is_some() {
+            camera_commands.insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
         }
+        *egui_context_exists = true;
     }
+
+    Ok(())
 }
 
 #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
@@ -1458,9 +1545,11 @@ pub const PICKING_ORDER: f32 = 1_000_000.0;
 #[cfg(feature = "picking")]
 pub fn capture_pointer_input_system(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings), With<Window>>,
+    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings), With<Camera>>,
     mut output: EventWriter<PointerHits>,
 ) {
+    return; // TODO!
+
     use helpers::QueryHelper;
 
     for (pointer, location) in pointers
@@ -1487,7 +1576,7 @@ pub fn capture_pointer_input_system(
 pub fn update_egui_textures_system(
     mut egui_render_output: Query<
         (Entity, &EguiRenderOutput),
-        Or<(With<Window>, With<EguiRenderToImage>)>,
+        Or<(With<Camera>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
@@ -1549,7 +1638,7 @@ pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
     egui_render_output: Query<
         (Entity, &EguiRenderOutput),
-        Or<(With<Window>, With<EguiRenderToImage>)>,
+        Or<(With<Camera>, With<EguiRenderToImage>)>,
     >,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
@@ -1638,43 +1727,26 @@ pub struct UpdateUiSizeAndScaleQuery {
     egui_input: &'static mut EguiInput,
     render_target_size: &'static mut RenderTargetSize,
     egui_settings: &'static EguiContextSettings,
-    window: Option<&'static Window>,
-    #[cfg(feature = "render")]
-    render_to_image: Option<&'static EguiRenderToImage>,
+    camera: &'static Camera,
 }
 
 /// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
-pub fn update_ui_size_and_scale_system(
-    mut contexts: Query<UpdateUiSizeAndScaleQuery>,
-    #[cfg(feature = "render")] images: Res<Assets<Image>>,
-) {
+pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
-        let mut render_target_size = None;
-        if let Some(window) = context.window {
-            render_target_size = Some(RenderTargetSize::new(
-                window.physical_width() as f32,
-                window.physical_height() as f32,
-                window.scale_factor(),
-            ));
-        }
-        #[cfg(feature = "render")]
-        if let Some(EguiRenderToImage { handle, .. }) = context.render_to_image {
-            if let Some(image) = images.get(handle) {
-                let size = image.size_f32();
-                render_target_size = Some(RenderTargetSize {
-                    physical_width: size.x,
-                    physical_height: size.y,
-                    scale_factor: 1.0,
-                })
-            } else {
-                log::warn!("Invalid EguiRenderToImage handle: {handle:?}");
-            }
-        }
+        let render_target_size = context
+            .camera
+            .physical_viewport_size()
+            .zip(context.camera.target_scaling_factor())
+            .map(|(size, scale_factor)| RenderTargetSize {
+                physical_width: size.x as f32,
+                physical_height: size.y as f32,
+                scale_factor,
+            });
 
         let Some(new_render_target_size) = render_target_size else {
-            log::error!("bevy_egui context without window or render to texture!");
             continue;
         };
+
         let width = new_render_target_size.physical_width
             / new_render_target_size.scale_factor
             / context.egui_settings.scale_factor;
@@ -1762,7 +1834,7 @@ pub struct MultiPassEguiQuery {
 }
 
 /// Runs Egui contexts with the [`EguiMultipassSchedule`] component. If there are no contexts with
-/// this component, runs the [`EguiContextPass`] schedule once independently.
+/// this component, runs the [`EguiPrimaryContextPass`] schedule once independently.
 pub fn run_egui_context_pass_loop_system(world: &mut World) {
     let mut contexts_query = world.query::<MultiPassEguiQuery>();
     let mut used_schedules = HashSet::<InternedScheduleLabel>::default();
@@ -1804,7 +1876,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
     // we want to run the schedule just once.
     // (And since the code above runs only for multi-pass contexts, it's not run yet in the case of single-pass.)
     if world
-        .query_filtered::<Entity, (With<EguiContext>, With<PrimaryWindow>)>()
+        .query_filtered::<Entity, (With<EguiContext>, With<PrimaryEguiContext>)>()
         .iter(world)
         .next()
         .is_none()
@@ -1813,8 +1885,8 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
         // when a user has closed a window will result in a panic.
         return;
     }
-    if !used_schedules.contains(&ScheduleLabel::intern(&EguiContextPass)) {
-        let _ = world.try_run_schedule(EguiContextPass);
+    if !used_schedules.contains(&ScheduleLabel::intern(&EguiPrimaryContextPass)) {
+        let _ = world.try_run_schedule(EguiPrimaryContextPass);
     }
 }
 

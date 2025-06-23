@@ -3,7 +3,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{
-    EguiContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
+    EguiPrimaryContextPass, EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
 use wgpu_types::{Extent3d, TextureUsages};
 
@@ -13,7 +13,7 @@ fn main() {
     app.add_plugins(EguiPlugin::default());
     app.add_systems(Startup, setup_worldspace_system);
     app.add_systems(Update, draw_gizmos_system);
-    app.add_systems(EguiContextPass, update_screenspace_system);
+    app.add_systems(EguiPrimaryContextPass, update_screenspace_system);
     app.add_systems(WorldspaceContextPass, update_worldspace_system);
     app.run();
 }

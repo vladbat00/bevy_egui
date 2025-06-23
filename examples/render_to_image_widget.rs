@@ -8,7 +8,7 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiContextPass, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{egui::Widget, EguiPrimaryContextPass, EguiContexts, EguiPlugin, EguiUserTextures};
 
 fn main() {
     App::new()
@@ -16,7 +16,7 @@ fn main() {
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup)
         .add_systems(
-            EguiContextPass,
+            EguiPrimaryContextPass,
             (rotator_system, render_to_image_example_system),
         )
         .run();

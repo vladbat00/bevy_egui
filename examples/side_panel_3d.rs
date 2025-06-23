@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitSettings};
-use bevy_egui::{EguiContextPass, EguiContexts, EguiPlugin};
+use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 
 #[derive(Default, Resource)]
 struct OccupiedScreenSpace {
@@ -22,7 +22,7 @@ fn main() {
         .init_resource::<OccupiedScreenSpace>()
         .add_systems(Startup, setup_system)
         .add_systems(
-            EguiContextPass,
+            EguiPrimaryContextPass,
             (ui_example_system, update_camera_transform_system),
         )
         .run();
@@ -91,24 +91,24 @@ fn setup_system(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(5.0, 5.0))),
-        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
+        Mesh3d(meshes.add(Circle::new(4.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
     ));
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-        MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         Transform::from_xyz(0.0, 0.5, 0.0),
     ));
     commands.spawn((
         PointLight {
-            intensity: 1500.0,
             shadows_enabled: true,
-            ..Default::default()
+            ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0),
     ));
 
-    let camera_pos = Vec3::new(-2.0, 2.5, 5.0);
+    let camera_pos = Vec3::new(-2.5, 4.5, 9.0);
     let camera_transform =
         Transform::from_translation(camera_pos).looking_at(CAMERA_TARGET, Vec3::Y);
     commands.insert_resource(OriginalCameraTransform(camera_transform));

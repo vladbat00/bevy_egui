@@ -1,14 +1,19 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
+        .add_systems(Startup, setup_camera)
         // Systems that create Egui widgets should be run during the `CoreSet::Update` set,
         // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `CoreSet::PreUpdate` set).
-        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(EguiPrimaryContextPass, ui_example_system)
         .run();
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
 
 fn ui_example_system(mut contexts: EguiContexts) {

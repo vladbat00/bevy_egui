@@ -7,7 +7,7 @@ use bevy::{
 use bevy_egui::{
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext, EguiContextPass, EguiContextSettings, EguiContexts, EguiInputSet,
+    EguiContext, EguiPrimaryContextPass, EguiContextSettings, EguiContexts, EguiInputSet,
     EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
 };
 
@@ -26,7 +26,7 @@ fn main() {
             update_egui_hovered_context.in_set(EguiInputSet::InitReading),
         )
         .add_systems(Update, update_image_size_system)
-        .add_systems(EguiContextPass, ui_system)
+        .add_systems(EguiPrimaryContextPass, ui_system)
         .add_systems(RenderToImageContextPass, mesh_ui_system)
         .run();
 }

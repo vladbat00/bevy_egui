@@ -1,5 +1,5 @@
 use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
-use bevy_egui::{egui, EguiContextPass, EguiContexts, EguiPlugin};
+use bevy_egui::{egui, EguiPrimaryContextPass, EguiContexts, EguiPlugin};
 
 fn main() {
     App::new()
@@ -7,7 +7,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_system)
-        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(EguiPrimaryContextPass, ui_example_system)
         .run();
 }
 
@@ -19,7 +19,6 @@ fn ui_example_system(
     mut camera: Single<&mut Camera>,
     window: Single<&mut Window, With<PrimaryWindow>>,
 ) {
-    // egui context
     let ctx = contexts.ctx_mut();
 
     let mut left = egui::SidePanel::left("left_panel")
@@ -61,7 +60,7 @@ fn ui_example_system(
         .rect
         .height(); // width is ignored, as the panel has a width of 100% of the screen
 
-    // Scale from logical units to physical units
+    // Scale from logical units to physical units.
     left *= window.scale_factor();
     right *= window.scale_factor();
     top *= window.scale_factor();
@@ -113,27 +112,26 @@ fn setup_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    // Circle
+    // Circle.
     commands.spawn((
         Mesh2d(meshes.add(Circle::new(50.))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgb(0.2, 0.1, 0.0)))),
         Transform::from_translation(Vec3::new(-150., 0., 0.)),
     ));
 
-    // Rectangles
+    // Rectangles.
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(50., 100.))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgb(0.5, 0.4, 0.3)))),
         Transform::from_translation(Vec3::new(-50., 0., 0.)),
     ));
-
     commands.spawn((
         Mesh2d(meshes.add(Rectangle::new(50., 100.))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgb(0.5, 0.4, 0.3)))),
         Transform::from_translation(Vec3::new(50., 0., 0.)),
     ));
 
-    // Hexagon
+    // Hexagon.
     commands.spawn((
         Mesh2d(meshes.add(RegularPolygon::new(50., 6))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgb(0.8, 0.7, 0.6)))),

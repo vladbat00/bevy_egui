@@ -86,6 +86,7 @@ pub fn write_text_agent_channel_events_system(
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
     mut redraw_event: EventWriter<RequestRedraw>,
 ) {
+    // TODO! remove?
     let (primary_context, context_settings) = *egui_context;
     if !context_settings
         .input_system_settings

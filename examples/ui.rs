@@ -2,7 +2,9 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
 };
-use bevy_egui::{EguiContextPass, EguiContextSettings, EguiContexts, EguiPlugin};
+use bevy_egui::{
+    EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
+};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -44,14 +46,25 @@ fn main() {
                 }),
         )
         .add_plugins(EguiPlugin::default())
-        .add_systems(Startup, configure_visuals_system)
-        .add_systems(Startup, configure_ui_state_system)
         .add_systems(
-            EguiContextPass,
+            PreStartup,
+            setup_camera.before(EguiStartupSet::InitContexts),
+        )
+        .add_systems(
+            Startup,
+            (configure_visuals_system, configure_ui_state_system),
+        )
+        .add_systems(
+            EguiPrimaryContextPass,
             (ui_example_system, update_ui_scale_factor_system),
         )
         .run();
 }
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
 #[derive(Default, Resource)]
 struct UiState {
     label: String,

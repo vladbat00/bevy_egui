@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use bevy_egui::{EguiContextPass, EguiPlugin};
+use bevy_egui::{EguiPrimaryContextPass, EguiPlugin};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
-        .add_systems(EguiContextPass, foo::ui_system)
+        .add_systems(EguiPrimaryContextPass, foo::ui_system)
         .run();
 }
 
