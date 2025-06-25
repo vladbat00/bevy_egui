@@ -192,6 +192,7 @@ use bevy_ecs::{
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
 use bevy_log as log;
+use bevy_math::{Rect, Vec2};
 #[cfg(feature = "picking")]
 use bevy_picking::{
     backend::{HitData, PointerHits},
@@ -203,7 +204,7 @@ use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
 #[cfg(feature = "picking")]
 use bevy_render::camera::NormalizedRenderTarget;
-use bevy_render::camera::{Camera, RenderTarget};
+use bevy_render::camera::{Camera, RenderTarget, Viewport};
 #[cfg(feature = "render")]
 use bevy_render::{
     extract_component::{ExtractComponent, ExtractComponentPlugin},
@@ -392,7 +393,6 @@ pub struct EnableMultipassForPrimaryContext;
 
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
-#[cfg_attr(feature = "render", derive(ExtractComponent))]
 pub struct EguiContextSettings {
     /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
     pub run_manually: bool,
@@ -511,6 +511,7 @@ pub struct EguiPrimaryContextPass;
 
 /// A marker component for a primary Egui context.
 #[derive(Component, Clone)]
+#[require(EguiMultipassSchedule::new(EguiPrimaryContextPass))]
 pub struct PrimaryEguiContext;
 
 /// Add this component to your additional Egui contexts (e.g. when rendering to a new window or an image),
@@ -550,20 +551,14 @@ pub struct EguiClipboard {
 
 /// Is used for storing Egui shapes and textures delta.
 #[derive(Component, Clone, Default, Debug)]
-#[cfg_attr(feature = "render", derive(ExtractComponent))]
 pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
     /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`])
     /// and processed during [`egui_node::EguiNode`]'s `update`.
-    ///
-    /// Value is wrapped in [`Arc`] to improve [`ExtractComponent`] performance.
-    pub paint_jobs: Arc<Vec<egui::ClippedPrimitive>>,
-
+    pub paint_jobs: Vec<egui::ClippedPrimitive>,
     /// The change in egui textures since last frame.
-    ///
-    /// Value is wrapped in [`Arc`] to improve [`ExtractComponent`] performance.
-    pub textures_delta: Arc<egui::TexturesDelta>,
+    pub textures_delta: egui::TexturesDelta,
 }
 
 impl EguiRenderOutput {
@@ -582,7 +577,6 @@ pub struct EguiOutput {
 
 /// A component for storing `bevy_egui` context.
 #[derive(Clone, Component, Default)]
-#[cfg_attr(feature = "render", derive(ExtractComponent))]
 #[require(
     EguiContextSettings,
     EguiInput,
@@ -592,7 +586,7 @@ pub struct EguiOutput {
     EguiFullOutput,
     EguiRenderOutput,
     EguiOutput,
-    RenderTargetSize,
+    RenderTargetViewport,
     CursorIcon
 )]
 pub struct EguiContext {
@@ -824,7 +818,7 @@ impl EguiContexts<'_, '_> {
 /// You can create an entity just with this component, `bevy_egui` will initialize an [`EguiContext`]
 /// automatically.
 #[cfg(feature = "render")]
-#[derive(Component, Clone, Debug, ExtractComponent)]
+#[derive(Component, Clone, Debug)]
 #[require(EguiContext)]
 pub struct EguiRenderToImage {
     /// A handle of an image to render to.
@@ -911,35 +905,21 @@ impl EguiUserTextures {
 
 /// Stores physical size and scale factor, is used as a helper to calculate logical size.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "render", derive(ExtractComponent))]
-pub struct RenderTargetSize {
-    /// Physical width
-    pub physical_width: f32,
-    /// Physical height
-    pub physical_height: f32,
+pub struct RenderTargetViewport {
+    pub viewport_size: Rect,
+    pub target_size: Vec2,
     /// Scale factor
     pub scale_factor: f32,
 }
 
-impl RenderTargetSize {
-    fn new(physical_width: f32, physical_height: f32, scale_factor: f32) -> Self {
-        Self {
-            physical_width,
-            physical_height,
-            scale_factor,
+impl RenderTargetViewport {
+    pub fn viewport_to_egui_rect(&self) -> egui::Rect {
+        let min = self.viewport_size.min / self.scale_factor;
+        let max = self.viewport_size.max / self.scale_factor;
+        egui::Rect {
+            min: helpers::vec2_into_egui_pos2(min),
+            max: helpers::vec2_into_egui_pos2(max),
         }
-    }
-
-    /// Returns the width of the render target.
-    #[inline]
-    pub fn width(&self) -> f32 {
-        self.physical_width / self.scale_factor
-    }
-
-    /// Returns the height of the render target.
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.physical_height / self.scale_factor
     }
 }
 
@@ -1019,11 +999,6 @@ impl Plugin for EguiPlugin {
             app.init_resource::<EguiUserTextures>();
             app.add_plugins(ExtractResourcePlugin::<EguiUserTextures>::default());
             app.add_plugins(ExtractResourcePlugin::<ExtractedEguiManagedTextures>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiContext>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiContextSettings>::default());
-            app.add_plugins(ExtractComponentPlugin::<RenderTargetSize>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiRenderOutput>::default());
-            app.add_plugins(ExtractComponentPlugin::<EguiRenderToImage>::default());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -1080,8 +1055,8 @@ impl Plugin for EguiPlugin {
         app.add_systems(
             PreStartup,
             (
-                setup_primary_egui_context_system,
-                ApplyDeferred,
+                (setup_primary_egui_context_system, ApplyDeferred)
+                    .run_if(|s: Res<EguiGlobalSettings>| s.auto_create_primary_context),
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -1092,10 +1067,12 @@ impl Plugin for EguiPlugin {
         app.add_systems(
             PreUpdate,
             (
-                setup_primary_egui_context_system,
+                setup_primary_egui_context_system
+                    .run_if(|s: Res<EguiGlobalSettings>| s.auto_create_primary_context),
                 WindowToEguiContextMap::on_egui_context_added_system,
                 WindowToEguiContextMap::on_egui_context_removed_system,
                 ApplyDeferred,
+                #[cfg(feature = "render")]
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -1400,7 +1377,6 @@ pub struct EguiManagedTexture {
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<Camera>>,
-    egui_global_settings: Res<EguiGlobalSettings>,
     #[cfg(feature = "accesskit_placeholder")] adapters: Option<
         NonSend<bevy_winit::accessibility::AccessKitAdapters>,
     >,
@@ -1722,51 +1698,43 @@ impl SubscribedEvents {
 #[derive(QueryData)]
 #[query_data(mutable)]
 #[allow(missing_docs)]
+#[cfg(feature = "render")]
 pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
-    render_target_size: &'static mut RenderTargetSize,
+    render_target_size: &'static mut RenderTargetViewport,
     egui_settings: &'static EguiContextSettings,
     camera: &'static Camera,
 }
 
+#[cfg(feature = "render")]
 /// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
 pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
         let render_target_size = context
             .camera
-            .physical_viewport_size()
+            .physical_viewport_rect()
+            .zip(context.camera.physical_target_size())
             .zip(context.camera.target_scaling_factor())
-            .map(|(size, scale_factor)| RenderTargetSize {
-                physical_width: size.x as f32,
-                physical_height: size.y as f32,
-                scale_factor,
+            .map(|((viewport, target), scale_factor)| RenderTargetViewport {
+                viewport_size: viewport.as_rect(),
+                target_size: target.as_vec2(),
+                scale_factor: scale_factor * context.egui_settings.scale_factor,
             });
 
         let Some(new_render_target_size) = render_target_size else {
             continue;
         };
 
-        let width = new_render_target_size.physical_width
-            / new_render_target_size.scale_factor
-            / context.egui_settings.scale_factor;
-        let height = new_render_target_size.physical_height
-            / new_render_target_size.scale_factor
-            / context.egui_settings.scale_factor;
-
-        if width < 1.0 || height < 1.0 {
+        let viewport_rect = new_render_target_size.viewport_to_egui_rect();
+        if viewport_rect.width() < 1.0 || viewport_rect.height() < 1.0 {
             continue;
         }
-
-        context.egui_input.screen_rect = Some(egui::Rect::from_min_max(
-            egui::pos2(0.0, 0.0),
-            egui::pos2(width, height),
-        ));
-
-        context.ctx.get_mut().set_pixels_per_point(
-            new_render_target_size.scale_factor * context.egui_settings.scale_factor,
-        );
-
+        context.egui_input.screen_rect = Some(viewport_rect);
+        context
+            .ctx
+            .get_mut()
+            .set_pixels_per_point(new_render_target_size.scale_factor);
         *context.render_target_size = new_render_target_size;
     }
 }

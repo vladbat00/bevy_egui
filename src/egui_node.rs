@@ -166,32 +166,32 @@ impl Node for EguiNode {
     fn update(&mut self, world: &mut World) {
         return;
 
-        world.resource_scope(|world, mut render_data: Mut<EguiRenderData>| {
-            let Some(data) = render_data.0.get_mut(&self.render_target_main_entity) else {
-                return;
-            };
-
-            let (Some(render_target_size), Some(key)) = (data.render_target_size, data.key) else {
-                bevy_log::warn!("Failed to retrieve egui node data!");
-                return;
-            };
-
-            for (clip_rect, command) in data.postponed_updates.drain(..) {
-                let info = egui::PaintCallbackInfo {
-                    viewport: command.rect,
-                    clip_rect,
-                    pixels_per_point: data.pixels_per_point,
-                    screen_size_px: [
-                        render_target_size.physical_width as u32,
-                        render_target_size.physical_height as u32,
-                    ],
-                };
-                command
-                    .callback
-                    .cb()
-                    .update(info, self.render_target_render_entity, key, world);
-            }
-        });
+        // world.resource_scope(|world, mut render_data: Mut<EguiRenderData>| {
+        //     let Some(data) = render_data.0.get_mut(&self.render_target_main_entity) else {
+        //         return;
+        //     };
+        //
+        //     let (Some(render_target_size), Some(key)) = (data.render_target_size, data.key) else {
+        //         bevy_log::warn!("Failed to retrieve egui node data!");
+        //         return;
+        //     };
+        //
+        //     for (clip_rect, command) in data.postponed_updates.drain(..) {
+        //         let info = egui::PaintCallbackInfo {
+        //             viewport: command.rect,
+        //             clip_rect,
+        //             pixels_per_point: data.pixels_per_point,
+        //             screen_size_px: [
+        //                 render_target_size.physical_width as u32,
+        //                 render_target_size.physical_height as u32,
+        //             ],
+        //         };
+        //         command
+        //             .callback
+        //             .cb()
+        //             .update(info, self.render_target_render_entity, key, world);
+        //     }
+        // });
     }
 
     fn run<'w>(

@@ -4,8 +4,9 @@ use crate::{
     render_systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
 };
 use bevy_ecs::{entity::Entity, query::QueryState, world::World};
+use bevy_math::UVec2;
 use bevy_render::{
-    camera::ExtractedCamera,
+    camera::{ExtractedCamera, Viewport},
     render_graph::{Node, NodeRunError, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
@@ -20,7 +21,6 @@ use wgpu_types::{IndexFormat, Operations, StoreOp};
 pub struct EguiPassNode {
     egui_view_query: QueryState<(&'static ExtractedView, &'static EguiViewTarget)>,
     egui_view_target_query: QueryState<(&'static ViewTarget, &'static ExtractedCamera)>,
-    egui_camera_view_query: QueryState<&'static EguiCameraView>,
 }
 
 impl EguiPassNode {
@@ -28,7 +28,6 @@ impl EguiPassNode {
         Self {
             egui_view_query: world.query_filtered(),
             egui_view_target_query: world.query(),
-            egui_camera_view_query: world.query(),
         }
     }
 }
@@ -37,7 +36,6 @@ impl Node for EguiPassNode {
     fn update(&mut self, world: &mut World) {
         self.egui_view_query.update_archetypes(world);
         self.egui_view_target_query.update_archetypes(world);
-        self.egui_camera_view_query.update_archetypes(world);
     }
 
     fn run<'w>(
@@ -64,16 +62,6 @@ impl Node for EguiPassNode {
             return Ok(());
         };
 
-        // use the UI view entity if it is defined
-        let view_entity = if let Ok(camera_view) = self
-            .egui_camera_view_query
-            .get_manual(world, input_view_entity)
-        {
-            camera_view.0
-        } else {
-            input_view_entity
-        };
-
         let Some(data) = render_data.0.get(&view.retained_view_entity.main_entity) else {
             bevy_log::warn!("Failed to retrieve render data for egui node rendering!");
             return Ok(());
@@ -86,13 +74,21 @@ impl Node for EguiPassNode {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        if let Some(viewport) = camera.viewport.as_ref() {
-            render_pass.set_camera_viewport(viewport);
-        }
-
-        let Some((physical_viewport_size)) = camera.physical_viewport_size else {
+        let Some(viewport) = camera.viewport.clone().or_else(|| {
+            camera.physical_viewport_size.map(|size| Viewport {
+                physical_position: UVec2::ZERO,
+                physical_size: size,
+                ..Default::default()
+            })
+        }) else {
             return Ok(());
         };
+        render_pass.set_camera_viewport(&viewport);
+        render_pass.set_camera_viewport(&Viewport {
+            physical_position: UVec2::ZERO,
+            physical_size: camera.physical_target_size.unwrap(),
+            ..Default::default()
+        });
 
         let mut requires_reset = true;
         let mut last_scissor_rect = None;
@@ -124,22 +120,12 @@ impl Node for EguiPassNode {
         let mut vertex_offset: u32 = 0;
         for draw_command in &data.draw_commands {
             if requires_reset {
-                render_pass.set_viewport(
-                    0.,
-                    0.,
-                    physical_viewport_size.x as f32,
-                    physical_viewport_size.y as f32,
-                    0.,
-                    1.,
-                );
-                last_scissor_rect = None;
                 render_pass.set_render_pipeline(pipeline);
                 render_pass.set_bind_group(
                     0,
                     transform_buffer_bind_group,
                     &[transform_buffer_offset],
                 );
-
                 requires_reset = false;
             }
 
@@ -157,24 +143,24 @@ impl Node for EguiPassNode {
             let scissor_rect = clip_urect.intersect(bevy_math::URect::new(
                 0,
                 0,
-                physical_viewport_size.x,
-                physical_viewport_size.y,
+                viewport.physical_size.x,
+                viewport.physical_size.y,
             ));
-            if scissor_rect.is_empty() {
-                continue;
-            }
+            // if scissor_rect.is_empty() {
+            //     continue;
+            // }
 
             if Some(scissor_rect) != last_scissor_rect {
                 last_scissor_rect = Some(scissor_rect);
 
-                // Bevy TrackedRenderPass doesn't track set_scissor_rect calls
-                // So set_scissor_rect is updated only when it is needed
-                render_pass.set_scissor_rect(
-                    scissor_rect.min.x,
-                    scissor_rect.min.y,
-                    scissor_rect.width(),
-                    scissor_rect.height(),
-                );
+                // Bevy TrackedRenderPass doesn't track set_scissor_rect calls,
+                // so set_scissor_rect is updated only when it is needed.
+                // render_pass.set_scissor_rect(
+                //     scissor_rect.min.x,
+                //     scissor_rect.min.y,
+                //     scissor_rect.width(),
+                //     scissor_rect.height(),
+                // );
             }
 
             match &draw_command.primitive {

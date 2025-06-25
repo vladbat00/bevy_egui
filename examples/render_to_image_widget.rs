@@ -8,7 +8,7 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiPrimaryContextPass, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{egui::Widget, EguiPrimaryContextPass, EguiContexts, EguiPlugin, EguiUserTextures, EguiGlobalSettings, PrimaryEguiContext};
 
 fn main() {
     App::new()
@@ -39,7 +39,11 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
 ) {
+    // Disable the automatic creation of a primary context to set it up manually for the camera we need.
+    egui_global_settings.auto_create_primary_context = false;
+
     let size = Extent3d {
         width: 512,
         height: 512,
@@ -136,6 +140,7 @@ fn setup(
 
     // The main pass camera.
     commands.spawn((
+        PrimaryEguiContext,
         Camera3d::default(),
         Transform::from_translation(Vec3::new(0.0, 0.0, 15.0)).looking_at(Vec3::default(), Vec3::Y),
     ));

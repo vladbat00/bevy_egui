@@ -1,5 +1,9 @@
 use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
-use bevy_egui::{egui, EguiPrimaryContextPass, EguiContexts, EguiPlugin};
+use bevy_egui::{
+    egui, EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
+    PrimaryEguiContext,
+};
+use bevy_render::view::RenderLayers;
 
 fn main() {
     App::new()
@@ -16,7 +20,7 @@ fn main() {
 // be done in another system.
 fn ui_example_system(
     mut contexts: EguiContexts,
-    mut camera: Single<&mut Camera>,
+    mut camera: Single<&mut Camera, Without<EguiContext>>,
     window: Single<&mut Window, With<PrimaryWindow>>,
 ) {
     let ctx = contexts.ctx_mut();
@@ -72,7 +76,7 @@ fn ui_example_system(
     // |         |                  vvvvvv   |         |
     // |         |---------------------------|         |
     // |         |                           |         |
-    // |<-width->|        2D viewport        |<-width->|
+    // |<-width->|          viewport         |<-width->|
     // |         |                           |         |
     // |         |---------------------------|         |
     // |         |          bottom   ^^^^^^  |         |
@@ -83,11 +87,11 @@ fn ui_example_system(
     // The upper left point of the viewport is the width of the left panel and the height of the
     // top panel
     //
-    // The width of the 2D viewport the width of the top/bottom panel
+    // The width of the viewport the width of the top/bottom panel
     // Alternative the width can be calculated as follow:
     // size.x = window width - left panel width - right panel width
     //
-    // The height of the 2d viewport is:
+    // The height of the viewport is:
     // size.y = window height - top panel height - bottom panel height
     //
     // Therefore we use the alternative for the width, as we can callculate the Viewport as
@@ -105,13 +109,17 @@ fn ui_example_system(
     });
 }
 
-// Set up the example entities for the 2D scene. The only important thing is a 2D Camera which
+// Set up the example entities for the scene. The only important thing is a camera which
 // renders directly to the window.
 fn setup_system(
     mut commands: Commands,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    // Disable the automatic creation of a primary context to set it up manually for the camera we need.
+    egui_global_settings.auto_create_primary_context = false;
+
     // Circle.
     commands.spawn((
         Mesh2d(meshes.add(Circle::new(50.))),
@@ -138,5 +146,18 @@ fn setup_system(
         Transform::from_translation(Vec3::new(150., 0., 0.)),
     ));
 
+    // World camera.
     commands.spawn(Camera2d);
+    // Egui camera.
+    commands.spawn((
+        // The `PrimaryEguiContext` component requires everything needed to render a primary context.
+        PrimaryEguiContext,
+        Camera2d,
+        // Setting RenderLayers to none makes sure we won't render anything apart from the UI.
+        RenderLayers::none(),
+        Camera {
+            order: 1,
+            ..default()
+        },
+    ));
 }
