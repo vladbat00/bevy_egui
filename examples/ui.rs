@@ -48,7 +48,7 @@ fn main() {
         .add_plugins(EguiPlugin::default())
         .add_systems(
             PreStartup,
-            setup_camera.before(EguiStartupSet::InitContexts),
+            setup_camera_system.before(EguiStartupSet::InitContexts),
         )
         .add_systems(
             Startup,
@@ -61,7 +61,7 @@ fn main() {
         .run();
 }
 
-fn setup_camera(mut commands: Commands) {
+fn setup_camera_system(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 

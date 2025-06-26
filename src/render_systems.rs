@@ -5,8 +5,8 @@ use crate::{
     },
     helpers::QueryHelper,
     render::{EguiCameraView, EguiViewTarget},
-    EguiContext, EguiContextSettings, EguiManagedTextures, EguiRenderOutput, EguiRenderToImage,
-    EguiUserTextures, RenderTargetViewport,
+    EguiContext, EguiContextSettings, EguiManagedTextures, EguiRenderOutput, EguiUserTextures,
+    RenderTargetViewport,
 };
 use bevy_asset::prelude::*;
 use bevy_derive::{Deref, DerefMut};
@@ -121,9 +121,9 @@ impl ExtractedEguiTextures<'_> {
 
 /// Sets up render nodes for newly created Egui contexts.
 pub fn setup_new_egui_nodes_system(
-    windows: Extract<
-        Query<(Entity, &RenderEntity, AnyOf<(&Window, &EguiRenderToImage)>), Added<EguiContext>>,
-    >,
+    // windows: Extract<
+    //     Query<(Entity, &RenderEntity, AnyOf<(&Window, &EguiRenderToImage)>), Added<EguiContext>>,
+    // >,
     mut render_graph: ResMut<RenderGraph>,
 ) {
     // for (main_entity, render_entity, (window, render_to_image)) in windows.iter() {
@@ -334,9 +334,9 @@ pub fn queue_pipelines_system(
 #[derive(Default, Resource)]
 pub struct EguiRenderData(pub(crate) HashMap<MainEntity, EguiRenderTargetData>);
 
-#[derive(Default)]
 pub(crate) struct EguiRenderTargetData {
     keep: bool,
+    pub(crate) render_entity: RenderEntity,
     pub(crate) vertex_data: Vec<u8>,
     pub(crate) vertex_buffer_capacity: usize,
     pub(crate) vertex_buffer: Option<Buffer>,
@@ -351,6 +351,26 @@ pub(crate) struct EguiRenderTargetData {
     pub(crate) render_target_size: Option<RenderTargetViewport>,
 }
 
+impl Default for EguiRenderTargetData {
+    fn default() -> Self {
+        Self {
+            keep: false,
+            render_entity: RenderEntity::from(Entity::PLACEHOLDER),
+            vertex_data: Vec::new(),
+            vertex_buffer_capacity: 0,
+            vertex_buffer: None,
+            index_data: Vec::new(),
+            index_buffer_capacity: 0,
+            index_buffer: None,
+            draw_commands: Vec::new(),
+            postponed_updates: Vec::new(),
+            pixels_per_point: 0.0,
+            key: None,
+            render_target_size: None,
+        }
+    }
+}
+
 /// Prepares Egui transforms.
 pub fn prepare_egui_render_target_data(
     mut render_data: ResMut<EguiRenderData>,
@@ -358,12 +378,15 @@ pub fn prepare_egui_render_target_data(
         Entity,
         &ExtractedView,
         &RenderTargetViewport,
+        &EguiViewTarget,
         &EguiRenderOutput,
     )>,
+    extracted_cameras: Query<&ExtractedCamera>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     extracted_windows: Res<ExtractedWindows>,
     gpu_images: Res<RenderAssets<GpuImage>>,
+    manual_texture_views: Res<ManualTextureViews>,
 ) {
     let render_data = &mut render_data.0;
     render_data.retain(|_, data| {
@@ -372,18 +395,30 @@ pub fn prepare_egui_render_target_data(
         keep
     });
 
-    for (e, view, render_target_viewport, render_output) in render_targets.iter() {
+    for (render_entity, view, render_target_viewport, egui_view_target, render_output) in
+        render_targets.iter()
+    {
         let data = render_data
             .entry(view.retained_view_entity.main_entity)
             .or_default();
 
         data.keep = true;
+        data.render_entity = render_entity.into();
         let render_target_size = *render_target_viewport;
         data.render_target_size = Some(render_target_size);
 
         // Construct a pipeline key based on a render target.
-
-        // data.key = Some(key);
+        let Ok(extracted_camera) = extracted_cameras.get(egui_view_target.0) else {
+            log::warn!("ExtractedCamera entity doesn't exist for the Egui view");
+            continue;
+        };
+        data.key = extracted_camera
+            .target
+            .as_ref()
+            .and_then(|target| {
+                target.get_texture_format(&extracted_windows, &gpu_images, &manual_texture_views)
+            })
+            .map(|texture_format| EguiPipelineKey { texture_format });
 
         data.pixels_per_point = render_target_size.scale_factor;
         let viewport_rect = render_target_size.viewport_to_egui_rect();

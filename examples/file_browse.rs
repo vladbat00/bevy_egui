@@ -5,8 +5,13 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
+        .add_systems(Startup, setup_camera_system)
         .add_systems(EguiPrimaryContextPass, foo::ui_system)
         .run();
+}
+
+fn setup_camera_system(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
 
 #[cfg(not(any(target_os = "ios", target_os = "android", target_arch = "wasm32")))]

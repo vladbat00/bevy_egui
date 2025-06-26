@@ -7,12 +7,19 @@ use bevy::{
 use bevy_egui::{
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext, EguiPrimaryContextPass, EguiContextSettings, EguiContexts, EguiInputSet,
-    EguiMultipassSchedule, EguiPlugin, EguiRenderToImage,
+    EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
+    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
 };
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RenderToImageContextPass;
+struct RenderToMeshImageContextPass;
+#[derive(Component)]
+struct MeshImageEguiContext;
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+struct RenderToEguiTextureImageContextPass;
+#[derive(Component)]
+struct EguiTextureImageEguiContext;
 
 fn main() {
     App::new()
@@ -27,7 +34,14 @@ fn main() {
         )
         .add_systems(Update, update_image_size_system)
         .add_systems(EguiPrimaryContextPass, ui_system)
-        .add_systems(RenderToImageContextPass, mesh_ui_system)
+        .add_systems(
+            RenderToMeshImageContextPass,
+            render_to_image_ui_system::<MeshImageEguiContext>,
+        )
+        .add_systems(
+            RenderToEguiTextureImageContextPass,
+            render_to_image_ui_system::<EguiTextureImageEguiContext>,
+        )
         .run();
 }
 
@@ -43,8 +57,6 @@ struct AppState {
     displayed_ui: DisplayedUi,
     color_test: ColorTest,
     top_panel_height: u32,
-    mesh_image_entity: Entity,
-    egui_texture_image_entity: Entity,
     egui_texture_image_handle: Handle<bevy::image::Image>,
     egui_texture_image_id: egui::TextureId,
 }
@@ -55,8 +67,6 @@ impl Default for AppState {
             displayed_ui: DisplayedUi::Regular,
             color_test: Default::default(),
             top_panel_height: 0,
-            mesh_image_entity: Entity::PLACEHOLDER,
-            egui_texture_image_entity: Entity::PLACEHOLDER,
             egui_texture_image_handle: Handle::default(),
             egui_texture_image_id: egui::TextureId::User(0),
         }
@@ -66,11 +76,17 @@ impl Default for AppState {
 fn setup_system(
     mut commands: Commands,
     mut egui_contexts: EguiContexts,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
     mut app_state: ResMut<AppState>,
     mut meshes: ResMut<Assets<bevy::prelude::Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<bevy::image::Image>>,
 ) {
+    // Disable the automatic creation of a primary context to set it up manually for the camera we need.
+    egui_global_settings.auto_create_primary_context = false;
+
+    commands.spawn((Camera2d, PrimaryEguiContext));
+
     let size = Extent3d {
         width: 256,
         height: 256,
@@ -87,29 +103,34 @@ fn setup_system(
     let mesh_image_handle = images.add(image.clone());
     let egui_texture_image_handle = images.add(image);
 
-    app_state.mesh_image_entity = commands
-        .spawn((
-            Mesh2d(meshes.add(Rectangle::new(256.0, 256.0))),
-            MeshMaterial2d(materials.add(mesh_image_handle.clone())),
-            EguiRenderToImage {
-                handle: mesh_image_handle,
-                load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
-            },
-            EguiMultipassSchedule::new(RenderToImageContextPass),
-        ))
-        .id();
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(256.0, 256.0))),
+        MeshMaterial2d(materials.add(mesh_image_handle.clone())),
+    ));
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            target: RenderTarget::Image(mesh_image_handle.clone().into()),
+            ..default()
+        },
+        MeshImageEguiContext,
+        EguiMultipassSchedule::new(RenderToMeshImageContextPass),
+    ));
 
-    app_state.egui_texture_image_entity = commands
-        .spawn(EguiRenderToImage {
-            handle: egui_texture_image_handle.clone(),
-            load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
-        })
-        .id();
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 2,
+            target: RenderTarget::Image(egui_texture_image_handle.clone().into()),
+            ..default()
+        },
+        EguiTextureImageEguiContext,
+        EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
+    ));
     app_state.egui_texture_image_handle = egui_texture_image_handle.clone_weak();
     app_state.egui_texture_image_id =
         egui_contexts.add_image(egui_texture_image_handle.clone_weak());
-
-    commands.spawn(Camera2d);
 }
 
 fn update_image_size_system(
@@ -119,11 +140,9 @@ fn update_image_size_system(
     app_state: Res<AppState>,
     mut images: ResMut<Assets<bevy::image::Image>>,
     mut meshes: ResMut<Assets<bevy::prelude::Mesh>>,
-    mut egui_render_to_image_query: Query<(
-        &EguiRenderToImage,
-        Option<&Mesh2d>,
-        Option<&mut Transform>,
-    )>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    egui_camera_query: Query<&Camera, With<EguiContext>>,
+    mut egui_mesh: Single<(&Mesh2d, &MeshMaterial2d<ColorMaterial>, &mut Transform)>,
 ) {
     if *prev_window_size == window.physical_size()
         && *prev_top_panel_height == app_state.top_panel_height
@@ -136,23 +155,28 @@ fn update_image_size_system(
 
     let new_height = window.physical_height() - app_state.top_panel_height;
 
-    for (egui_render_to_image, mesh_handle, transform) in egui_render_to_image_query.iter_mut() {
+    for egui_camera in egui_camera_query.iter() {
+        let Some(image_handle) = egui_camera.target.as_image() else {
+            continue;
+        };
+
         let image = images
-            .get_mut(&egui_render_to_image.handle)
+            .get_mut(image_handle)
             .expect("Expected a created image");
         (image.data.as_mut().expect("image data"))
             .resize((window.physical_width() * new_height * 4) as usize, 0);
         image.texture_descriptor.size.width = window.physical_width();
         image.texture_descriptor.size.height = new_height;
-
-        if let Some((mesh_handle, mut transform)) = mesh_handle.zip(transform) {
-            *meshes
-                .get_mut(mesh_handle)
-                .expect("Expected a created mesh") =
-                Rectangle::new(window.physical_width() as f32, new_height as f32).into();
-            transform.translation.y = *prev_top_panel_height as f32 / -2.0;
-        }
     }
+
+    let (mesh_handle, material, mut transform) = egui_mesh.into_inner();
+    // Mark the material as dirty for change detection to react to the image update.
+    materials.get_mut(material.id()).unwrap();
+    *meshes
+        .get_mut(mesh_handle)
+        .expect("Expected a created mesh") =
+        Rectangle::new(window.physical_width() as f32, new_height as f32).into();
+    transform.translation.y = *prev_top_panel_height as f32 / -2.0;
 }
 
 #[allow(clippy::type_complexity)]
@@ -160,20 +184,21 @@ fn update_egui_hovered_context(
     mut commands: Commands,
     app_state: Res<AppState>,
     mut cursor_moved_reader: EventReader<CursorMoved>,
-    mut egui_contexts: Query<
-        (
-            Entity,
-            &mut EguiContextPointerPosition,
-            &EguiContextSettings,
-            Option<&Mesh2d>,
-        ),
-        (With<EguiContext>, Without<PrimaryWindow>),
-    >,
+    mut egui_contexts: Query<(
+        Entity,
+        &mut EguiContextPointerPosition,
+        &EguiContextSettings,
+        AnyOf<(&MeshImageEguiContext, &EguiTextureImageEguiContext)>,
+    )>,
 ) {
-    for (entity, mut context_pointer_position, settings, mesh) in egui_contexts.iter_mut() {
+    for (entity, mut context_pointer_position, settings, tag) in egui_contexts.iter_mut() {
         if !matches!(
-            (&app_state.displayed_ui, mesh),
-            (DisplayedUi::MeshImage, Some(_)) | (DisplayedUi::EguiTextureImage, None)
+            (&app_state.displayed_ui, tag),
+            (DisplayedUi::MeshImage, (Some(MeshImageEguiContext), None))
+                | (
+                    DisplayedUi::EguiTextureImage,
+                    (None, Some(EguiTextureImageEguiContext))
+                )
         ) {
             continue;
         }
@@ -249,20 +274,22 @@ fn ui_system(
                     ));
                 });
 
-            let egui_texture_image_entity_ctx =
-                contexts.ctx_for_entity_mut(app_state.egui_texture_image_entity);
-            egui::CentralPanel::default().show(egui_texture_image_entity_ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    app_state.color_test.ui(ui);
-                });
-            });
+            // let egui_texture_image_entity_ctx =
+            //     contexts.ctx_for_entity_mut(app_state.egui_texture_image_entity);
+            // egui::CentralPanel::default().show(egui_texture_image_entity_ctx, |ui| {
+            //     egui::ScrollArea::vertical().show(ui, |ui| {
+            //         app_state.color_test.ui(ui);
+            //     });
+            // });
         }
     }
 }
 
-fn mesh_ui_system(mut app_state: ResMut<AppState>, mut contexts: EguiContexts) {
-    let mesh_image_ctx = contexts.ctx_for_entity_mut(app_state.mesh_image_entity);
-    egui::CentralPanel::default().show(mesh_image_ctx, |ui| {
+fn render_to_image_ui_system<C: Component>(
+    mut app_state: ResMut<AppState>,
+    mut context: Single<&mut EguiContext, With<C>>,
+) {
+    egui::CentralPanel::default().show(context.get_mut(), |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {
             app_state.color_test.ui(ui);
         });
@@ -274,6 +301,7 @@ fn mesh_ui_system(mut app_state: ResMut<AppState>, mut contexts: EguiContexts) {
 //
 
 use bevy_ecs::schedule::ScheduleLabel;
+use bevy_render::camera::{ImageRenderTarget, RenderTarget};
 use egui::{
     epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2, Color32, FontId, Image,
     Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke, TextureHandle,

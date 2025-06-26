@@ -3,7 +3,6 @@ use crate::{
         EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTextureId, EguiTransform,
         EguiTransforms,
     },
-    EguiRenderToImage,
 };
 use bevy_asset::{prelude::*, weak_handle};
 use bevy_ecs::{
@@ -547,7 +546,7 @@ pub trait EguiBevyPaintCallbackImpl: Send + Sync {
     fn update(
         &self,
         info: egui::PaintCallbackInfo,
-        window_entity: RenderEntity,
+        render_entity: RenderEntity,
         pipeline_key: EguiPipelineKey,
         world: &mut World,
     );
@@ -561,11 +560,11 @@ pub trait EguiBevyPaintCallbackImpl: Send + Sync {
         &self,
         info: egui::PaintCallbackInfo,
         render_context: &mut RenderContext<'w>,
-        window_entity: RenderEntity,
+        render_entity: RenderEntity,
         pipeline_key: EguiPipelineKey,
         world: &'w World,
     ) {
-        let _ = (info, render_context, window_entity, pipeline_key, world);
+        let _ = (info, render_context, render_entity, pipeline_key, world);
         // Do nothing by default
     }
 
@@ -577,7 +576,7 @@ pub trait EguiBevyPaintCallbackImpl: Send + Sync {
         &self,
         info: egui::PaintCallbackInfo,
         render_pass: &mut TrackedRenderPass<'pass>,
-        window_entity: RenderEntity,
+        render_entity: RenderEntity,
         pipeline_key: EguiPipelineKey,
         world: &'pass World,
     );

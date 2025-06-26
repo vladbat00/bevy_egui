@@ -2,8 +2,8 @@ use bevy::{
     ecs::schedule::ScheduleLabel, prelude::*, render::camera::Viewport, window::WindowResized,
 };
 use bevy_egui::{
-    egui, EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
-    EguiPrimaryContextPass, PrimaryEguiContext,
+    egui, EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings,
+    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
 };
 
 fn main() {
@@ -139,7 +139,6 @@ fn update_camera_viewports_system(
     window: Single<&Window>,
     mut resize_events: EventReader<WindowResized>,
     mut query: Query<(
-        Entity,
         &mut Camera,
         AnyOf<(
             &PlayerCamera<0>,
@@ -158,7 +157,7 @@ fn update_camera_viewports_system(
 
     let mut result: Vec<_> = query.iter_mut().collect();
 
-    for (e, ref mut camera, _) in &mut result {
+    for (ref mut camera, _) in &mut result {
         camera.is_active = (camera.order as u8) < players_count.0;
         if !camera.is_active {
             continue;
@@ -202,8 +201,22 @@ fn players_count_ui_system(
         });
 }
 
-fn ui_example_system<const N: u8>(mut context: Single<&mut EguiContext, With<PlayerCamera<N>>>) {
+fn ui_example_system<const N: u8>(
+    mut enable_hidpi_scaling: Local<bool>,
+    context: Single<(&mut EguiContext, &mut EguiContextSettings, &Camera), With<PlayerCamera<N>>>,
+) {
+    let (mut context, mut settings, camera) = context.into_inner();
     egui::Window::new("Hello").show(context.get_mut(), |ui| {
         ui.label(format!("Player {N}"));
+
+        if let Some(target_scaling_factor) = camera.target_scaling_factor() {
+            ui.checkbox(&mut enable_hidpi_scaling, "Use system HiDPI scaling");
+
+            settings.scale_factor = if *enable_hidpi_scaling {
+                target_scaling_factor
+            } else {
+                1.0
+            };
+        }
     });
 }

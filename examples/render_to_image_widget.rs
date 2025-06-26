@@ -14,7 +14,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
-        .add_systems(Startup, setup)
+        .add_systems(Startup, setup_system)
         .add_systems(
             EguiPrimaryContextPass,
             (rotator_system, render_to_image_example_system),
@@ -33,7 +33,7 @@ struct MainPassCube;
 #[derive(Deref, Resource)]
 struct CubePreviewImage(Handle<Image>);
 
-fn setup(
+fn setup_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,

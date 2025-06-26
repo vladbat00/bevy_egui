@@ -624,12 +624,6 @@ impl EguiContext {
     }
 }
 
-#[cfg(not(feature = "render"))]
-type EguiContextsFilter = With<Camera>;
-
-#[cfg(feature = "render")]
-type EguiContextsFilter = Or<(With<Camera>, With<EguiRenderToImage>)>;
-
 #[derive(SystemParam)]
 /// A helper SystemParam that provides a way to get [`EguiContext`] with less boilerplate and
 /// combines a proxy interface to the [`EguiUserTextures`] resource.
@@ -642,7 +636,6 @@ pub struct EguiContexts<'w, 's> {
             &'static mut EguiContext,
             Option<&'static PrimaryEguiContext>,
         ),
-        EguiContextsFilter,
     >,
     #[cfg(feature = "render")]
     user_textures: ResMut<'w, EguiUserTextures>,
@@ -810,34 +803,6 @@ impl EguiContexts<'_, '_> {
     #[track_caller]
     pub fn image_id(&self, image: &Handle<Image>) -> Option<egui::TextureId> {
         self.user_textures.image_id(image)
-    }
-}
-
-/// Contexts with this component will render UI to a specified image.
-///
-/// You can create an entity just with this component, `bevy_egui` will initialize an [`EguiContext`]
-/// automatically.
-#[cfg(feature = "render")]
-#[derive(Component, Clone, Debug)]
-#[require(EguiContext)]
-pub struct EguiRenderToImage {
-    /// A handle of an image to render to.
-    pub handle: Handle<Image>,
-    /// Customizable [`LoadOp`] for the render node which will be created for this context.
-    ///
-    /// You'll likely want [`LoadOp::Clear`], unless you need to draw the UI on top of existing
-    /// pixels of the image.
-    pub load_op: LoadOp<wgpu_types::Color>,
-}
-
-#[cfg(feature = "render")]
-impl EguiRenderToImage {
-    /// Creates a component from an image handle and sets [`EguiRenderToImage::load_op`] to [`LoadOp::Clear].
-    pub fn new(handle: Handle<Image>) -> Self {
-        Self {
-            handle,
-            load_op: LoadOp::Clear(wgpu_types::Color::TRANSPARENT),
-        }
     }
 }
 
@@ -1550,10 +1515,7 @@ pub fn capture_pointer_input_system(
 /// Updates textures painted by Egui.
 #[cfg(feature = "render")]
 pub fn update_egui_textures_system(
-    mut egui_render_output: Query<
-        (Entity, &EguiRenderOutput),
-        Or<(With<Camera>, With<EguiRenderToImage>)>,
-    >,
+    mut egui_render_output: Query<(Entity, &EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
@@ -1612,10 +1574,7 @@ pub fn update_egui_textures_system(
 #[cfg(feature = "render")]
 pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
-    egui_render_output: Query<
-        (Entity, &EguiRenderOutput),
-        Or<(With<Camera>, With<EguiRenderToImage>)>,
-    >,
+    egui_render_output: Query<(Entity, &EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
     mut image_events: EventReader<AssetEvent<Image>>,

@@ -4,6 +4,7 @@ use crate::{
     render_systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
 };
 use bevy_ecs::{entity::Entity, query::QueryState, world::World};
+use bevy_ecs::world::Mut;
 use bevy_math::UVec2;
 use bevy_render::{
     camera::{ExtractedCamera, Viewport},
@@ -13,7 +14,7 @@ use bevy_render::{
         CommandEncoderDescriptor, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
     },
     renderer::RenderContext,
-    sync_world::MainEntity,
+    sync_world::{MainEntity, RenderEntity},
     view::{ExtractedView, ViewTarget},
 };
 use wgpu_types::{IndexFormat, Operations, StoreOp};
@@ -36,6 +37,31 @@ impl Node for EguiPassNode {
     fn update(&mut self, world: &mut World) {
         self.egui_view_query.update_archetypes(world);
         self.egui_view_target_query.update_archetypes(world);
+
+        world.resource_scope(|world, mut render_data: Mut<EguiRenderData>| {
+            for (_main_entity, data) in &mut render_data.0 {
+                let (Some(render_target_size), Some(key)) = (data.render_target_size, data.key) else {
+                    bevy_log::warn!("Failed to retrieve egui node data!");
+                    return;
+                };
+
+                for (clip_rect, command) in data.postponed_updates.drain(..) {
+                    let info = egui::PaintCallbackInfo {
+                        viewport: command.rect,
+                        clip_rect,
+                        pixels_per_point: data.pixels_per_point,
+                        screen_size_px: [
+                            render_target_size.target_size.x as u32,
+                            render_target_size.target_size.y as u32,
+                        ],
+                    };
+                    command
+                        .callback
+                        .cb()
+                        .update(info, data.render_entity, key, world);
+                }
+            }
+        });
     }
 
     fn run<'w>(
@@ -140,6 +166,7 @@ impl Node for EguiPassNode {
                 },
             };
 
+            // TODO!
             let scissor_rect = clip_urect.intersect(bevy_math::URect::new(
                 0,
                 0,
@@ -163,6 +190,9 @@ impl Node for EguiPassNode {
                 // );
             }
 
+            let Some(pipeline_key) = data.key else {
+                continue;
+            };
             match &draw_command.primitive {
                 DrawPrimitive::Egui(command) => {
                     let texture_bind_group = match bind_groups.get(&command.egui_texture) {
@@ -186,34 +216,33 @@ impl Node for EguiPassNode {
                     vertex_offset += command.vertices_count as u32;
                 }
                 DrawPrimitive::PaintCallback(command) => {
-                    todo!()
-                    // let info = egui::PaintCallbackInfo {
-                    //     viewport: command.rect,
-                    //     clip_rect: draw_command.clip_rect,
-                    //     pixels_per_point: data.pixels_per_point,
-                    //     screen_size_px: [physical_viewport_size.x, physical_viewport_size.y],
-                    // };
-                    //
-                    // let viewport = info.viewport_in_pixels();
-                    // if viewport.width_px > 0 && viewport.height_px > 0 {
-                    //     requires_reset = true;
-                    //     render_pass.set_viewport(
-                    //         viewport.left_px as f32,
-                    //         viewport.top_px as f32,
-                    //         viewport.width_px as f32,
-                    //         viewport.height_px as f32,
-                    //         0.,
-                    //         1.,
-                    //     );
-                    //
-                    //     command.callback.cb().render(
-                    //         info,
-                    //         &mut render_pass,
-                    //         render_target_render_entity,
-                    //         key,
-                    //         world,
-                    //     );
-                    // }
+                    let info = egui::PaintCallbackInfo {
+                        viewport: command.rect,
+                        clip_rect: draw_command.clip_rect,
+                        pixels_per_point: data.pixels_per_point,
+                        screen_size_px: [viewport.physical_size.x, viewport.physical_size.y],
+                    };
+
+                    let viewport = info.viewport_in_pixels();
+                    if viewport.width_px > 0 && viewport.height_px > 0 {
+                        requires_reset = true;
+                        render_pass.set_viewport(
+                            viewport.left_px as f32,
+                            viewport.top_px as f32,
+                            viewport.width_px as f32,
+                            viewport.height_px as f32,
+                            0.,
+                            1.,
+                        );
+
+                        command.callback.cb().render(
+                            info,
+                            &mut render_pass,
+                            RenderEntity::from(view_target.0),
+                            pipeline_key,
+                            world,
+                        );
+                    }
                 }
             }
         }
