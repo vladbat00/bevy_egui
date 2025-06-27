@@ -2,7 +2,9 @@ use bevy::{
     log::{Level, LogPlugin},
     prelude::*,
 };
-use bevy_egui::{EguiContextPass, EguiContextSettings, EguiContexts, EguiPlugin};
+use bevy_egui::{
+    EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
+};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -44,14 +46,25 @@ fn main() {
                 }),
         )
         .add_plugins(EguiPlugin::default())
-        .add_systems(Startup, configure_visuals_system)
-        .add_systems(Startup, configure_ui_state_system)
         .add_systems(
-            EguiContextPass,
+            PreStartup,
+            setup_camera_system.before(EguiStartupSet::InitContexts),
+        )
+        .add_systems(
+            Startup,
+            (configure_visuals_system, configure_ui_state_system),
+        )
+        .add_systems(
+            EguiPrimaryContextPass,
             (ui_example_system, update_ui_scale_factor_system),
         )
         .run();
 }
+
+fn setup_camera_system(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
 #[derive(Default, Resource)]
 struct UiState {
     label: String,
@@ -76,19 +89,18 @@ fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
 fn update_ui_scale_factor_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut toggle_scale_factor: Local<Option<bool>>,
-    mut contexts: Query<(&mut EguiContextSettings, &Window)>,
+    mut egui_settings: Single<&mut EguiContextSettings>,
+    window: Single<&Window>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Slash) || toggle_scale_factor.is_none() {
         *toggle_scale_factor = Some(!toggle_scale_factor.unwrap_or(true));
 
-        if let Ok((mut egui_settings, window)) = contexts.single_mut() {
-            let scale_factor = if toggle_scale_factor.unwrap() {
-                1.0
-            } else {
-                1.0 / window.scale_factor()
-            };
-            egui_settings.scale_factor = scale_factor;
-        }
+        let scale_factor = if toggle_scale_factor.unwrap() {
+            1.0
+        } else {
+            1.0 / window.scale_factor()
+        };
+        egui_settings.scale_factor = scale_factor;
     }
 }
 

@@ -10,13 +10,20 @@ fn main() {
         .add_plugins(EguiPlugin::default())
         .add_systems(
             PreStartup,
-            configure_context.after(EguiStartupSet::InitContexts),
+            (
+                setup_camera_system.before(EguiStartupSet::InitContexts),
+                configure_context_system.after(EguiStartupSet::InitContexts),
+            ),
         )
         .add_systems(Update, ui_example_system)
         .run();
 }
 
-fn configure_context(mut egui_settings: Query<&mut EguiContextSettings>) -> Result {
+fn setup_camera_system(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn configure_context_system(mut egui_settings: Query<&mut EguiContextSettings>) -> Result {
     egui_settings.single_mut()?.run_manually = true;
     Ok(())
 }
