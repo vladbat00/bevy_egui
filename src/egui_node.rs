@@ -1,15 +1,15 @@
-use crate::{
-    render_systems::{
-        EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTextureId, EguiTransform,
-        EguiTransforms,
-    },
+use crate::render_systems::{
+    EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTextureId, EguiTransform,
+    EguiTransforms,
 };
 use bevy_asset::{prelude::*, weak_handle};
 use bevy_ecs::{
     prelude::*,
     world::{FromWorld, World},
 };
-use bevy_image::{BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
+use bevy_image::{
+    BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
+};
 use bevy_render::{
     render_asset::{RenderAssetUsages, RenderAssets},
     render_graph::{Node, NodeRunError, RenderGraphContext},
@@ -29,6 +29,7 @@ use bevy_render::{
     view::{ExtractedWindow, ExtractedWindows},
 };
 use egui::{TextureFilter, TextureOptions};
+use wgpu_types::{BlendComponent, BlendFactor, BlendOperation};
 
 /// Egui shader.
 pub const EGUI_SHADER_HANDLE: Handle<Shader> = weak_handle!("05a4d7a0-4f24-4d7f-b606-3f399074261f");
@@ -107,9 +108,8 @@ impl SpecializedRenderPipeline for EguiPipeline {
                 shader_defs: Vec::new(),
                 entry_point: "fs_main".into(),
                 targets: vec![Some(ColorTargetState {
-                    // format: key.texture_format,
                     format: TextureFormat::bevy_default(),
-                    blend: Some(BlendState::ALPHA_BLENDING),
+                    blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
             }),
@@ -472,7 +472,7 @@ pub(crate) fn color_image_as_bevy_image(
         .iter()
         // We unmultiply Egui textures to premultiply them later in the fragment shader.
         // As user textures loaded as Bevy assets are not premultiplied (and there seems to be no
-        // convenient way to convert them to premultiplied ones), we do the this with Egui ones.
+        // convenient way to convert them to premultiplied ones), we do this with Egui ones.
         .flat_map(|color| color.to_srgba_unmultiplied())
         .collect();
 
