@@ -1,4 +1,7 @@
-use crate::{render::graph::NodeEgui, EguiContext, EguiRenderOutput, RenderTargetViewport};
+use crate::{
+    render::graph::NodeEgui, EguiContext, EguiContextSettings, EguiRenderOutput,
+    RenderComputedScaleFactor,
+};
 use bevy_app::SubApp;
 use bevy_core_pipeline::{core_2d::Camera2d, prelude::Camera3d};
 use bevy_ecs::{
@@ -91,18 +94,19 @@ impl Node for RunEguiSubgraphOnEguiViewNode {
 pub fn extract_egui_camera_view(
     mut commands: Commands,
     mut world: ResMut<MainWorld>,
-    // query: Extract<
-    //     Query<
-    //         (Entity, RenderEntity, &Camera),
-    //         (With<EguiContext>, Or<(With<Camera2d>, With<Camera3d>)>),
-    //     >,
-    // >,
     mut live_entities: Local<HashSet<RetainedViewEntity>>,
 ) {
     live_entities.clear();
-    let mut q = world.query::<(Entity, RenderEntity, &Camera, &mut EguiRenderOutput, &RenderTargetViewport)>();
+    let mut q = world.query::<(
+        Entity,
+        RenderEntity,
+        &Camera,
+        &mut EguiRenderOutput,
+        &EguiContextSettings,
+    )>();
 
-    for (main_entity, render_entity, camera, mut egui_render_output, render_target_viewport) in &mut q.iter_mut(&mut world)
+    for (main_entity, render_entity, camera, mut egui_render_output, settings) in
+        &mut q.iter_mut(&mut world)
     {
         // Move Egui shapes and textures out of the main world into the render one.
         let egui_render_output = std::mem::take(egui_render_output.as_mut());
@@ -156,7 +160,10 @@ pub fn extract_egui_camera_view(
                     // Link to the main camera view.
                     EguiViewTarget(render_entity),
                     egui_render_output,
-                    render_target_viewport.clone(),
+                    RenderComputedScaleFactor {
+                        scale_factor: settings.scale_factor
+                            * camera.target_scaling_factor().unwrap_or(1.0),
+                    },
                     TemporaryRenderEntity,
                 ))
                 .id();

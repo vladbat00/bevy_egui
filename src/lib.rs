@@ -161,7 +161,6 @@ pub mod web_clipboard;
 
 pub use egui;
 
-use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
@@ -173,6 +172,7 @@ use crate::{
     egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
     render_systems::{EguiRenderData, EguiTransforms, ExtractedEguiManagedTextures},
 };
+use crate::{helpers::vec2_into_egui_pos2, input::*};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -409,7 +409,7 @@ pub struct EguiContextSettings {
     ///     }
     /// }
     /// ```
-    pub scale_factor: f32,
+    pub scale_factor: f32, // TODO! update the docs
     /// Is used as a default value for hyperlink [target](https://www.w3schools.com/tags/att_a_target.asp) hints.
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
@@ -586,7 +586,6 @@ pub struct EguiOutput {
     EguiFullOutput,
     EguiRenderOutput,
     EguiOutput,
-    RenderTargetViewport,
     CursorIcon
 )]
 pub struct EguiContext {
@@ -869,23 +868,11 @@ impl EguiUserTextures {
 }
 
 /// Stores physical size and scale factor, is used as a helper to calculate logical size.
+/// The component lives only in the Render world.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-pub struct RenderTargetViewport {
-    pub viewport_size: Rect,
-    pub target_size: Vec2,
-    /// Scale factor
+pub struct RenderComputedScaleFactor {
+    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`Camera::target_scaling_factor`]).
     pub scale_factor: f32,
-}
-
-impl RenderTargetViewport {
-    pub fn viewport_to_egui_rect(&self) -> egui::Rect {
-        let min = self.viewport_size.min / self.scale_factor;
-        let max = self.viewport_size.max / self.scale_factor;
-        egui::Rect {
-            min: helpers::vec2_into_egui_pos2(min),
-            max: helpers::vec2_into_egui_pos2(max),
-        }
-    }
 }
 
 /// The names of `bevy_egui` nodes.
@@ -1661,7 +1648,6 @@ impl SubscribedEvents {
 pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
-    render_target_size: &'static mut RenderTargetViewport,
     egui_settings: &'static EguiContextSettings,
     camera: &'static Camera,
 }
@@ -1670,31 +1656,24 @@ pub struct UpdateUiSizeAndScaleQuery {
 /// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
 pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
-        let render_target_size = context
+        let Some((scale_factor, viewport_rect)) = context
             .camera
-            .physical_viewport_rect()
-            .zip(context.camera.physical_target_size())
-            .zip(context.camera.target_scaling_factor())
-            .map(|((viewport, target), scale_factor)| RenderTargetViewport {
-                viewport_size: viewport.as_rect(),
-                target_size: target.as_vec2(),
-                scale_factor: scale_factor * context.egui_settings.scale_factor,
-            });
-
-        let Some(new_render_target_size) = render_target_size else {
+            .target_scaling_factor()
+            .map(|scale_factor| scale_factor * context.egui_settings.scale_factor)
+            .zip(context.camera.physical_viewport_rect())
+        else {
             continue;
         };
 
-        let viewport_rect = new_render_target_size.viewport_to_egui_rect();
+        let viewport_rect = egui::Rect {
+            min: vec2_into_egui_pos2(viewport_rect.min.as_vec2() / scale_factor),
+            max: vec2_into_egui_pos2(viewport_rect.max.as_vec2() / scale_factor),
+        };
         if viewport_rect.width() < 1.0 || viewport_rect.height() < 1.0 {
             continue;
         }
         context.egui_input.screen_rect = Some(viewport_rect);
-        context
-            .ctx
-            .get_mut()
-            .set_pixels_per_point(new_render_target_size.scale_factor);
-        *context.render_target_size = new_render_target_size;
+        context.ctx.get_mut().set_pixels_per_point(scale_factor);
     }
 }
 

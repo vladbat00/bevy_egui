@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     render::camera::RenderTarget,
-    window::{PresentMode, PrimaryWindow, WindowRef, WindowResolution},
+    window::{PresentMode, WindowRef, WindowResolution},
 };
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_egui::{

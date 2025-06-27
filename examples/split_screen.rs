@@ -118,12 +118,12 @@ fn camera_position_and_size(index: u8, count: u32, window_size: UVec2) -> (UVec2
             UVec2::new(0, 0),
             UVec2::new(
                 window_size.x / count.min(2),
-                window_size.y / ((count + 1) / 2),
+                window_size.y / count.div_ceil(2),
             ),
         ),
         1 => (
             UVec2::new(window_size.x / 2, 0),
-            UVec2::new(window_size.x / 2, window_size.y / ((count + 1) / 2)),
+            UVec2::new(window_size.x / 2, window_size.y / count.div_ceil(2)),
         ),
         2 => (
             UVec2::new(0, window_size.y / 2),
@@ -134,6 +134,7 @@ fn camera_position_and_size(index: u8, count: u32, window_size: UVec2) -> (UVec2
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn update_camera_viewports_system(
     players_count: Res<PlayersCount>,
     window: Single<&Window>,
@@ -201,22 +202,8 @@ fn players_count_ui_system(
         });
 }
 
-fn ui_example_system<const N: u8>(
-    mut enable_hidpi_scaling: Local<bool>,
-    context: Single<(&mut EguiContext, &mut EguiContextSettings, &Camera), With<PlayerCamera<N>>>,
-) {
-    let (mut context, mut settings, camera) = context.into_inner();
+fn ui_example_system<const N: u8>(mut context: Single<&mut EguiContext, With<PlayerCamera<N>>>) {
     egui::Window::new("Hello").show(context.get_mut(), |ui| {
         ui.label(format!("Player {N}"));
-
-        if let Some(target_scaling_factor) = camera.target_scaling_factor() {
-            ui.checkbox(&mut enable_hidpi_scaling, "Use system HiDPI scaling");
-
-            settings.scale_factor = if *enable_hidpi_scaling {
-                target_scaling_factor
-            } else {
-                1.0
-            };
-        }
     });
 }

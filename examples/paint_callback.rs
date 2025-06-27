@@ -20,7 +20,7 @@ use bevy_egui::{
 };
 use bevy_render::camera::RenderTarget;
 use std::path::Path;
-use wgpu_types::{Extent3d, TextureUsages};
+use wgpu_types::{Extent3d, TextureFormat, TextureUsages};
 
 fn main() {
     App::new()
@@ -100,9 +100,9 @@ impl EguiBevyPaintCallbackImpl for CustomPaintCallback {
             .get_entity(render_entity.id())
             .ok()
             .and_then(|entity| entity.get::<CustomPaintPipelineId>())
-            .and_then(|custom_paint_pipeline_Id| {
+            .and_then(|custom_paint_pipeline_id| {
                 world.get_resource::<PipelineCache>().and_then(|cache| {
-                    cache.get_render_pipeline(custom_paint_pipeline_Id.pipeline_id)
+                    cache.get_render_pipeline(custom_paint_pipeline_id.pipeline_id)
                 })
             })
         else {
@@ -160,7 +160,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: key.texture_format,
+                    format: TextureFormat::bevy_default(),
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],

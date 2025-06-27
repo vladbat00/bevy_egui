@@ -133,6 +133,7 @@ fn setup_system(
         egui_contexts.add_image(egui_texture_image_handle.clone_weak());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_image_size_system(
     mut prev_top_panel_height: Local<u32>,
     mut prev_window_size: Local<UVec2>,
@@ -142,7 +143,7 @@ fn update_image_size_system(
     mut meshes: ResMut<Assets<bevy::prelude::Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     egui_camera_query: Query<&Camera, With<EguiContext>>,
-    mut egui_mesh: Single<(&Mesh2d, &MeshMaterial2d<ColorMaterial>, &mut Transform)>,
+    egui_mesh: Single<(&Mesh2d, &MeshMaterial2d<ColorMaterial>, &mut Transform)>,
 ) {
     if *prev_window_size == window.physical_size()
         && *prev_top_panel_height == app_state.top_panel_height
@@ -301,7 +302,7 @@ fn render_to_image_ui_system<C: Component>(
 //
 
 use bevy_ecs::schedule::ScheduleLabel;
-use bevy_render::camera::{ImageRenderTarget, RenderTarget};
+use bevy_render::camera::RenderTarget;
 use egui::{
     emath::GuiRounding, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
     Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,

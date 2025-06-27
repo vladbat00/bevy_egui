@@ -2,10 +2,14 @@ use crate::{
     egui_node::DrawPrimitive,
     render::{EguiCameraView, EguiViewTarget},
     render_systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
+    RenderComputedScaleFactor,
 };
-use bevy_ecs::{entity::Entity, query::QueryState, world::World};
-use bevy_ecs::world::Mut;
-use bevy_math::UVec2;
+use bevy_ecs::{
+    entity::Entity,
+    query::QueryState,
+    world::{Mut, World},
+};
+use bevy_math::{URect, UVec2};
 use bevy_render::{
     camera::{ExtractedCamera, Viewport},
     render_graph::{Node, NodeRunError, RenderGraphContext},
@@ -40,7 +44,7 @@ impl Node for EguiPassNode {
 
         world.resource_scope(|world, mut render_data: Mut<EguiRenderData>| {
             for (_main_entity, data) in &mut render_data.0 {
-                let (Some(render_target_size), Some(key)) = (data.render_target_size, data.key) else {
+                let Some(key) = data.key else {
                     bevy_log::warn!("Failed to retrieve egui node data!");
                     return;
                 };
@@ -50,10 +54,7 @@ impl Node for EguiPassNode {
                         viewport: command.rect,
                         clip_rect,
                         pixels_per_point: data.pixels_per_point,
-                        screen_size_px: [
-                            render_target_size.target_size.x as u32,
-                            render_target_size.target_size.y as u32,
-                        ],
+                        screen_size_px: data.target_size.to_array(),
                     };
                     command
                         .callback
@@ -109,7 +110,6 @@ impl Node for EguiPassNode {
         }) else {
             return Ok(());
         };
-        render_pass.set_camera_viewport(&viewport);
         render_pass.set_camera_viewport(&Viewport {
             physical_position: UVec2::ZERO,
             physical_size: camera.physical_target_size.unwrap(),
@@ -152,42 +152,44 @@ impl Node for EguiPassNode {
                     transform_buffer_bind_group,
                     &[transform_buffer_offset],
                 );
+                render_pass.set_camera_viewport(&Viewport {
+                    physical_position: UVec2::ZERO,
+                    physical_size: camera.physical_target_size.unwrap(),
+                    ..Default::default()
+                });
                 requires_reset = false;
             }
 
-            let clip_urect = bevy_math::URect {
-                min: bevy_math::UVec2 {
+            let clip_urect = URect {
+                min: UVec2 {
                     x: (draw_command.clip_rect.min.x * data.pixels_per_point).round() as u32,
                     y: (draw_command.clip_rect.min.y * data.pixels_per_point).round() as u32,
                 },
-                max: bevy_math::UVec2 {
+                max: UVec2 {
                     x: (draw_command.clip_rect.max.x * data.pixels_per_point).round() as u32,
                     y: (draw_command.clip_rect.max.y * data.pixels_per_point).round() as u32,
                 },
             };
 
-            // TODO!
-            let scissor_rect = clip_urect.intersect(bevy_math::URect::new(
-                0,
-                0,
-                viewport.physical_size.x,
-                viewport.physical_size.y,
-            ));
-            // if scissor_rect.is_empty() {
-            //     continue;
-            // }
+            let scissor_rect = clip_urect.intersect(URect {
+                min: viewport.physical_position,
+                max: viewport.physical_position + viewport.physical_size,
+            });
+            if scissor_rect.is_empty() {
+                continue;
+            }
 
             if Some(scissor_rect) != last_scissor_rect {
                 last_scissor_rect = Some(scissor_rect);
 
                 // Bevy TrackedRenderPass doesn't track set_scissor_rect calls,
                 // so set_scissor_rect is updated only when it is needed.
-                // render_pass.set_scissor_rect(
-                //     scissor_rect.min.x,
-                //     scissor_rect.min.y,
-                //     scissor_rect.width(),
-                //     scissor_rect.height(),
-                // );
+                render_pass.set_scissor_rect(
+                    scissor_rect.min.x,
+                    scissor_rect.min.y,
+                    scissor_rect.width(),
+                    scissor_rect.height(),
+                );
             }
 
             let Some(pipeline_key) = data.key else {
@@ -238,7 +240,7 @@ impl Node for EguiPassNode {
                         command.callback.cb().render(
                             info,
                             &mut render_pass,
-                            RenderEntity::from(view_target.0),
+                            RenderEntity::from(input_view_entity),
                             pipeline_key,
                             world,
                         );
