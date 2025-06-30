@@ -147,6 +147,9 @@ pub mod helpers;
 pub mod input;
 /// Systems for handling Egui output.
 pub mod output;
+/// `bevy_picking` integration for Egui.
+#[cfg(feature = "picking")]
+pub mod picking;
 /// Rendering Egui with [`bevy_render`].
 #[cfg(feature = "render")]
 pub mod render;
@@ -1768,6 +1771,23 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
     }
     if !used_schedules.contains(&ScheduleLabel::intern(&EguiPrimaryContextPass)) {
         let _ = world.try_run_schedule(EguiPrimaryContextPass);
+    }
+}
+
+/// Extension for the [`EntityCommands`] trait.
+#[cfg(feature = "picking")]
+pub trait BevyEguiEntityCommandsExt {
+    /// Makes an entity [`bevy_picking::Pickable`] and adds observers to react to pointer events by linking them with an Egui context.
+    fn add_picking_observers_for_context(&mut self, context: Entity) -> &mut Self;
+}
+
+#[cfg(feature = "picking")]
+impl<'a> BevyEguiEntityCommandsExt for EntityCommands<'a> {
+    fn add_picking_observers_for_context(&mut self, context: Entity) -> &mut Self {
+        self.insert(picking::PickableEguiContext(context))
+            .observe(picking::handle_over_system)
+            .observe(picking::handle_out_system)
+            .observe(picking::handle_move_system)
     }
 }
 

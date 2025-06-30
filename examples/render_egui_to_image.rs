@@ -1,5 +1,9 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
-use bevy_egui::{EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass};
+use bevy_egui::{
+    picking::PickableEguiContext, BevyEguiEntityCommandsExt, EguiContext, EguiContexts,
+    EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
+    PrimaryEguiContext,
+};
 use bevy_render::{camera::RenderTarget, view::RenderLayers};
 use wgpu_types::{Extent3d, TextureUsages};
 
@@ -8,18 +12,12 @@ fn main() {
     app.add_plugins((DefaultPlugins, MeshPickingPlugin));
     app.add_plugins(EguiPlugin::default());
     app.init_resource::<Name>();
-    app.add_systems(Startup, setup_worldspace_system);
+    app.add_systems(Startup, setup_system);
     app.add_systems(Update, draw_gizmos_system);
     app.add_systems(EguiPrimaryContextPass, update_screenspace_system);
     app.add_systems(WorldspaceContextPass, update_worldspace_system);
     app.run();
 }
-
-#[derive(Component)]
-pub struct EguiMesh;
-
-#[derive(Component)]
-pub struct EguiMeshCamera;
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct WorldspaceContextPass;
@@ -49,7 +47,7 @@ fn update_screenspace_system(mut name: ResMut<Name>, mut contexts: EguiContexts)
 
 fn update_worldspace_system(
     mut name: ResMut<Name>,
-    mut ctx: Single<&mut bevy_egui::EguiContext, With<EguiMeshCamera>>,
+    mut ctx: Single<&mut bevy_egui::EguiContext, Without<PrimaryEguiContext>>,
 ) {
     egui::Window::new("Worldspace UI").show(ctx.get_mut(), |ui| {
         ui.horizontal(|ui| {
@@ -69,13 +67,17 @@ struct MaterialHandles {
     hovered: Handle<StandardMaterial>,
 }
 
-fn setup_worldspace_system(
+fn setup_system(
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut commands: Commands,
     mut config_store: ResMut<GizmoConfigStore>,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
 ) {
+    // Disable the automatic creation of a primary context to set it up manually for the camera we need.
+    egui_global_settings.auto_create_primary_context = false;
+
     for (_, config, _) in config_store.iter_mut() {
         config.depth_bias = -1.0;
     }
@@ -107,9 +109,20 @@ fn setup_worldspace_system(
         }),
     };
 
+    let worldspace_context_id = commands
+        .spawn((
+            Camera3d::default(),
+            RenderLayers::none(),
+            Camera {
+                target: RenderTarget::Image(image.clone().into()),
+                ..default()
+            },
+            EguiMultipassSchedule::new(WorldspaceContextPass),
+        ))
+        .id();
+
     commands
         .spawn((
-            EguiMesh,
             Mesh3d(meshes.add(Plane3d::new(Vec3::Z, Vec2::splat(0.5)).mesh())),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: Color::WHITE,
@@ -119,16 +132,13 @@ fn setup_worldspace_system(
                 unlit: true,
                 ..default()
             })),
-            // EguiRenderToImage {
-            //     handle: image,
-            //     load_op: LoadOp::Clear(Color::srgb_u8(43, 44, 47).to_linear().into()),
-            // },
             // We want the "tablet" mesh behind to react to pointer inputs.
             Pickable {
                 should_block_lower: false,
                 is_hoverable: true,
             },
         ))
+        .add_picking_observers_for_context(worldspace_context_id)
         .with_children(|commands| {
             // The "tablet" mesh, on top of which Egui is rendered.
             commands
@@ -148,26 +158,14 @@ fn setup_worldspace_system(
     ));
 
     let camera_transform = Transform::from_xyz(1.0, 1.5, 2.5).looking_at(Vec3::ZERO, Vec3::Y);
-    commands.spawn((Camera3d::default(), camera_transform));
-
-    commands.spawn((
-        EguiMeshCamera,
-        Camera3d::default(),
-        RenderLayers::none(),
-        Camera {
-            target: RenderTarget::Image(image.into()),
-
-            ..default()
-        },
-        EguiMultipassSchedule::new(WorldspaceContextPass),
-    ));
+    commands.spawn((PrimaryEguiContext, Camera3d::default(), camera_transform));
 
     commands.insert_resource(material_handles);
 }
 
 fn draw_gizmos_system(
     mut gizmos: Gizmos,
-    egui_mesh_query: Query<&Transform, With<EguiMesh>>,
+    egui_mesh_query: Query<&Transform, With<PickableEguiContext>>,
 ) -> Result {
     let egui_mesh_transform = egui_mesh_query.single()?;
     gizmos.axes(*egui_mesh_transform, 0.1);
@@ -197,16 +195,26 @@ fn handle_out_system(
     *material = MeshMaterial3d(material_handles.normal.clone());
 }
 
+#[allow(clippy::type_complexity)]
 fn handle_drag_system(
     drag: Trigger<Pointer<Drag>>,
     window: Single<&Window, With<PrimaryWindow>>,
-    mut egui_mesh_transform: Single<&mut Transform, With<EguiMesh>>,
-    // Need to specify `Without<EguiMesh>` for `camera_query` and `egui_mesh_query` to be disjoint.
+    mut egui_mesh_transform: Single<&mut Transform, With<PickableEguiContext>>,
+    // Need to specify `Without<PickableEguiContext>` for `camera_query` and `egui_mesh_transform` to be disjoint.
     camera_transform: Single<
         &Transform,
-        (With<Camera>, Without<EguiMesh>, Without<EguiMeshCamera>),
+        (
+            With<Camera>,
+            Without<PickableEguiContext>,
+            With<PrimaryEguiContext>,
+        ),
     >,
+    mut mesh_egui_context: Single<&mut EguiContext, Without<PrimaryEguiContext>>,
 ) {
+    if mesh_egui_context.get_mut().wants_pointer_input() {
+        return;
+    }
+
     let Some(delta_normalized) = Vec3::new(drag.delta.y, drag.delta.x, 0.0).try_normalize() else {
         return;
     };

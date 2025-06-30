@@ -67,7 +67,7 @@ pub struct HoveredNonWindowEguiContext(pub Entity);
 
 /// Stores an entity of a focused non-window context (to push keyboard events to).
 ///
-/// The resource won't exist if no context is focused, [`Option<Res<HoveredNonWindowEguiContext>>`] must be used to read from it.
+/// The resource won't exist if no context is focused, [`Option<Res<FocusedNonWindowEguiContext>>`] must be used to read from it.
 /// If the [`HoveredNonWindowEguiContext`] resource exists, the [`FocusedNonWindowEguiContext`]
 /// resource will get inserted on mouse button press or touch start event
 /// (and removed if no hovered non-window context exists respectively).
