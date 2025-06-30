@@ -1,7 +1,6 @@
 use bevy::{
     math::primitives::Rectangle,
     prelude::{MeshMaterial2d, *},
-    render::render_resource::LoadOp,
     window::PrimaryWindow,
 };
 use bevy_egui::{

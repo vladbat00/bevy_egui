@@ -2,9 +2,7 @@ use bevy::{
     ecs::schedule::ScheduleLabel, prelude::*, render::render_resource::LoadOp,
     window::PrimaryWindow,
 };
-use bevy_egui::{
-    EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
-};
+use bevy_egui::{EguiContexts, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass};
 use bevy_render::{camera::RenderTarget, view::RenderLayers};
 use wgpu_types::{Extent3d, TextureUsages};
 

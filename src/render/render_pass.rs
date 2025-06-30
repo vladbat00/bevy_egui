@@ -1,11 +1,8 @@
-use crate::{
-    egui_node::DrawPrimitive,
-    render::{EguiCameraView, EguiViewTarget},
-    render_systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
-    RenderComputedScaleFactor,
+use crate::render::{
+    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
+    DrawPrimitive, EguiViewTarget,
 };
 use bevy_ecs::{
-    entity::Entity,
     query::QueryState,
     world::{Mut, World},
 };
@@ -13,22 +10,21 @@ use bevy_math::{URect, UVec2};
 use bevy_render::{
     camera::{ExtractedCamera, Viewport},
     render_graph::{Node, NodeRunError, RenderGraphContext},
-    render_phase::TrackedRenderPass,
-    render_resource::{
-        CommandEncoderDescriptor, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
-    },
+    render_resource::{PipelineCache, RenderPassDescriptor},
     renderer::RenderContext,
-    sync_world::{MainEntity, RenderEntity},
+    sync_world::RenderEntity,
     view::{ExtractedView, ViewTarget},
 };
-use wgpu_types::{IndexFormat, Operations, StoreOp};
+use wgpu_types::IndexFormat;
 
+/// Egui pass node.
 pub struct EguiPassNode {
     egui_view_query: QueryState<(&'static ExtractedView, &'static EguiViewTarget)>,
     egui_view_target_query: QueryState<(&'static ViewTarget, &'static ExtractedCamera)>,
 }
 
 impl EguiPassNode {
+    /// Creates an Egui pass node.
     pub fn new(world: &mut World) -> Self {
         Self {
             egui_view_query: world.query_filtered(),

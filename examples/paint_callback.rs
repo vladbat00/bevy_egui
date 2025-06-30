@@ -14,11 +14,11 @@ use bevy::{
     },
 };
 use bevy_egui::{
-    egui_node::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
+    render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
     EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext,
 };
-use bevy_render::camera::RenderTarget;
+use bevy_render::{camera::RenderTarget, view::ViewTarget};
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureFormat, TextureUsages};
 
@@ -160,7 +160,11 @@ impl SpecializedRenderPipeline for CustomPipeline {
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: TextureFormat::bevy_default(),
+                    format: if key.hdr {
+                        ViewTarget::TEXTURE_FORMAT_HDR
+                    } else {
+                        TextureFormat::bevy_default()
+                    },
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],

@@ -8,7 +8,10 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use bevy_egui::{egui::Widget, EguiPrimaryContextPass, EguiContexts, EguiPlugin, EguiUserTextures, EguiGlobalSettings, PrimaryEguiContext};
+use bevy_egui::{
+    egui::Widget, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
+    EguiUserTextures, PrimaryEguiContext,
+};
 
 fn main() {
     App::new()

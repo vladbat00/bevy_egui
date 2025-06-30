@@ -89,16 +89,16 @@ fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
 fn update_ui_scale_factor_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut toggle_scale_factor: Local<Option<bool>>,
-    mut egui_settings: Single<&mut EguiContextSettings>,
-    window: Single<&Window>,
+    egui_context: Single<(&mut EguiContextSettings, &Camera)>,
 ) {
+    let (mut egui_settings, camera) = egui_context.into_inner();
     if keyboard_input.just_pressed(KeyCode::Slash) || toggle_scale_factor.is_none() {
         *toggle_scale_factor = Some(!toggle_scale_factor.unwrap_or(true));
 
         let scale_factor = if toggle_scale_factor.unwrap() {
             1.0
         } else {
-            1.0 / window.scale_factor()
+            1.0 / camera.target_scaling_factor().unwrap_or(1.0)
         };
         egui_settings.scale_factor = scale_factor;
     }

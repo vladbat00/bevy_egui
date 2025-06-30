@@ -3,11 +3,12 @@
 
 use crate::{
     input::{EguiInputEvent, FocusedNonWindowEguiContext},
-    EguiContext, EguiContextSettings, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
+    EguiContextSettings, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
 };
 use bevy_ecs::prelude::*;
 use bevy_log as log;
-use bevy_window::{PrimaryWindow, RequestRedraw};
+use bevy_platform::collections::HashSet;
+use bevy_window::RequestRedraw;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
 use wasm_bindgen::prelude::*;
@@ -81,31 +82,41 @@ pub fn process_safari_virtual_keyboard_system(
 pub fn write_text_agent_channel_events_system(
     channel: Res<TextAgentChannel>,
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
-    // We can safely assume that we have only 1 window in WASM.
-    egui_context: Single<(Entity, &EguiContextSettings), (With<PrimaryWindow>, With<EguiContext>)>,
+    egui_contexts: Query<(Entity, &EguiContextSettings)>,
     mut egui_input_event_writer: EventWriter<EguiInputEvent>,
     mut redraw_event: EventWriter<RequestRedraw>,
-) {
-    // TODO! remove?
-    let (primary_context, context_settings) = *egui_context;
-    if !context_settings
-        .input_system_settings
-        .run_write_text_agent_channel_events_system
-    {
-        return;
+) -> Result {
+    let mut processed_entities = HashSet::new();
+
+    for (context_entity, _context_settings) in egui_contexts {
+        let mut redraw = false;
+        let context = focused_non_window_egui_context
+            .as_deref()
+            .map_or(context_entity, |context| context.0);
+
+        if !processed_entities.insert(context) {
+            continue;
+        }
+
+        let (_, context_settings) = egui_contexts.get(context)?;
+
+        if !context_settings
+            .input_system_settings
+            .run_write_text_agent_channel_events_system
+        {
+            continue;
+        }
+
+        while let Ok(event) = channel.receiver.try_recv() {
+            redraw = true;
+            egui_input_event_writer.write(EguiInputEvent { context, event });
+        }
+        if redraw {
+            redraw_event.write(RequestRedraw);
+        }
     }
 
-    let mut redraw = false;
-    let context = focused_non_window_egui_context
-        .as_deref()
-        .map_or(primary_context, |context| context.0);
-    while let Ok(event) = channel.receiver.try_recv() {
-        redraw = true;
-        egui_input_event_writer.write(EguiInputEvent { context, event });
-    }
-    if redraw {
-        redraw_event.write(RequestRedraw);
-    }
+    Ok(())
 }
 
 /// Installs a text agent on startup.

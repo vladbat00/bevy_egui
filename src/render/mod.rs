@@ -1,42 +1,67 @@
+pub use render_pass::*;
+
+/// Defines Egui node graph.
+pub mod graph {
+    use bevy_render::render_graph::{RenderLabel, RenderSubGraph};
+
+    /// Egui subgraph (is run by [`RunEguiSubgraphOnEguiViewNode`]).
+    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
+    pub struct SubGraphEgui;
+
+    /// Egui node defining the Egui rendering pass.
+    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+    pub enum NodeEgui {
+        /// Egui rendering pass.
+        EguiPass,
+    }
+}
+
 use crate::{
-    render::graph::NodeEgui, EguiContext, EguiContextSettings, EguiRenderOutput,
-    RenderComputedScaleFactor,
+    render::graph::{NodeEgui, SubGraphEgui},
+    EguiContextSettings, EguiRenderOutput, RenderComputedScaleFactor,
 };
 use bevy_app::SubApp;
-use bevy_core_pipeline::{core_2d::Camera2d, prelude::Camera3d};
+use bevy_asset::{weak_handle, Handle, RenderAssetUsages};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
-    query::{Or, With},
-    system::{Commands, Local, Query, ResMut},
-    world::World,
+    resource::Resource,
+    system::{Commands, Local, ResMut},
+    world::{FromWorld, World},
+};
+use bevy_image::{
+    BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
 };
 use bevy_math::{Mat4, UVec4};
 use bevy_platform::collections::HashSet;
 use bevy_render::{
     camera::Camera,
+    mesh::VertexBufferLayout,
+    prelude::Shader,
     render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext},
-    renderer::RenderContext,
+    render_phase::TrackedRenderPass,
+    render_resource::{
+        binding_types::{sampler, texture_2d, uniform_buffer},
+        BindGroupLayout, BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor,
+        SpecializedRenderPipeline, VertexState,
+    },
+    renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
-    view::{ExtractedView, RetainedViewEntity},
-    Extract, MainWorld,
+    view::{ExtractedView, RetainedViewEntity, ViewTarget},
+    MainWorld,
+};
+use egui::{TextureFilter, TextureOptions};
+use systems::{EguiTextureId, EguiTransform};
+use wgpu_types::{
+    BlendState, ColorTargetState, ColorWrites, Extent3d, MultisampleState, PrimitiveState,
+    SamplerBindingType, ShaderStages, TextureDimension, TextureFormat, TextureSampleType,
+    VertexFormat, VertexStepMode,
 };
 
 mod render_pass;
-use crate::render::graph::SubGraphEgui;
-pub use render_pass::*;
-
-pub mod graph {
-    use bevy_render::render_graph::{RenderLabel, RenderSubGraph};
-
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
-    pub struct SubGraphEgui;
-
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-    pub enum NodeEgui {
-        EguiPass,
-    }
-}
+/// Plugin systems for the render app.
+#[cfg(feature = "render")]
+pub mod systems;
 
 /// A render-world component that lives on the main render target view and
 /// specifies the corresponding Egui view.
@@ -58,6 +83,7 @@ pub struct EguiCameraView(pub Entity);
 #[derive(Component, Debug)]
 pub struct EguiViewTarget(pub Entity);
 
+/// Adds and returns an Egui subgraph.
 pub fn get_egui_graph(render_app: &mut SubApp) -> RenderGraph {
     let pass_node = EguiPassNode::new(render_app.world_mut());
     let mut graph = RenderGraph::default();
@@ -91,7 +117,7 @@ impl Node for RunEguiSubgraphOnEguiViewNode {
 }
 
 /// Extracts all Egui contexts associated with a camera into the render world.
-pub fn extract_egui_camera_view(
+pub fn extract_egui_camera_view_system(
     mut commands: Commands,
     mut world: ResMut<MainWorld>,
     mut live_entities: Local<HashSet<RetainedViewEntity>>,
@@ -176,4 +202,252 @@ pub fn extract_egui_camera_view(
             live_entities.insert(retained_view_entity);
         }
     }
+}
+
+/// Egui shader.
+pub const EGUI_SHADER_HANDLE: Handle<Shader> = weak_handle!("05a4d7a0-4f24-4d7f-b606-3f399074261f");
+
+/// Egui render pipeline.
+#[derive(Resource)]
+pub struct EguiPipeline {
+    /// Transform bind group layout.
+    pub transform_bind_group_layout: BindGroupLayout,
+    /// Texture bind group layout.
+    pub texture_bind_group_layout: BindGroupLayout,
+}
+
+impl FromWorld for EguiPipeline {
+    fn from_world(render_world: &mut World) -> Self {
+        let render_device = render_world.resource::<RenderDevice>();
+
+        let transform_bind_group_layout = render_device.create_bind_group_layout(
+            "egui_transform_layout",
+            &BindGroupLayoutEntries::single(
+                ShaderStages::VERTEX,
+                uniform_buffer::<EguiTransform>(true),
+            ),
+        );
+
+        let texture_bind_group_layout = render_device.create_bind_group_layout(
+            "egui_texture_layout",
+            &BindGroupLayoutEntries::sequential(
+                ShaderStages::FRAGMENT,
+                (
+                    texture_2d(TextureSampleType::Float { filterable: true }),
+                    sampler(SamplerBindingType::Filtering),
+                ),
+            ),
+        );
+
+        EguiPipeline {
+            transform_bind_group_layout,
+            texture_bind_group_layout,
+        }
+    }
+}
+
+/// Key for specialized pipeline.
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct EguiPipelineKey {
+    /// Reflects the value of [`Camera::hdr`].
+    pub hdr: bool,
+}
+
+impl SpecializedRenderPipeline for EguiPipeline {
+    type Key = EguiPipelineKey;
+
+    fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        RenderPipelineDescriptor {
+            label: Some("egui_pipeline".into()),
+            layout: vec![
+                self.transform_bind_group_layout.clone(),
+                self.texture_bind_group_layout.clone(),
+            ],
+            vertex: VertexState {
+                shader: EGUI_SHADER_HANDLE,
+                shader_defs: Vec::new(),
+                entry_point: "vs_main".into(),
+                buffers: vec![VertexBufferLayout::from_vertex_formats(
+                    VertexStepMode::Vertex,
+                    [
+                        VertexFormat::Float32x2, // position
+                        VertexFormat::Float32x2, // UV
+                        VertexFormat::Unorm8x4,  // color (sRGB)
+                    ],
+                )],
+            },
+            fragment: Some(FragmentState {
+                shader: EGUI_SHADER_HANDLE,
+                shader_defs: Vec::new(),
+                entry_point: "fs_main".into(),
+                targets: vec![Some(ColorTargetState {
+                    format: if key.hdr {
+                        ViewTarget::TEXTURE_FORMAT_HDR
+                    } else {
+                        TextureFormat::bevy_default()
+                    },
+                    blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+            }),
+            primitive: PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
+            zero_initialize_workgroup_memory: false,
+        }
+    }
+}
+
+pub(crate) struct DrawCommand {
+    pub(crate) clip_rect: egui::Rect,
+    pub(crate) primitive: DrawPrimitive,
+}
+
+pub(crate) enum DrawPrimitive {
+    Egui(EguiDraw),
+    PaintCallback(PaintCallbackDraw),
+}
+
+pub(crate) struct PaintCallbackDraw {
+    pub(crate) callback: std::sync::Arc<EguiBevyPaintCallback>,
+    pub(crate) rect: egui::Rect,
+}
+
+pub(crate) struct EguiDraw {
+    pub(crate) vertices_count: usize,
+    pub(crate) egui_texture: EguiTextureId,
+}
+
+pub(crate) fn as_color_image(image: &egui::ImageData) -> egui::ColorImage {
+    match image {
+        egui::ImageData::Color(image) => (**image).clone(),
+        egui::ImageData::Font(image) => alpha_image_as_color_image(image),
+    }
+}
+
+fn alpha_image_as_color_image(image: &egui::FontImage) -> egui::ColorImage {
+    egui::ColorImage {
+        size: image.size,
+        pixels: image.srgba_pixels(None).collect(),
+    }
+}
+
+pub(crate) fn color_image_as_bevy_image(
+    egui_image: &egui::ColorImage,
+    sampler_descriptor: ImageSampler,
+) -> Image {
+    let pixels = egui_image
+        .pixels
+        .iter()
+        // We unmultiply Egui textures to premultiply them later in the fragment shader.
+        // As user textures loaded as Bevy assets are not premultiplied (and there seems to be no
+        // convenient way to convert them to premultiplied ones), we do this with Egui ones.
+        .flat_map(|color| color.to_srgba_unmultiplied())
+        .collect();
+
+    Image {
+        sampler: sampler_descriptor,
+        ..Image::new(
+            Extent3d {
+                width: egui_image.width() as u32,
+                height: egui_image.height() as u32,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            pixels,
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
+        )
+    }
+}
+
+pub(crate) fn texture_options_as_sampler_descriptor(
+    options: &TextureOptions,
+) -> ImageSamplerDescriptor {
+    fn convert_filter(filter: &TextureFilter) -> ImageFilterMode {
+        match filter {
+            egui::TextureFilter::Nearest => ImageFilterMode::Nearest,
+            egui::TextureFilter::Linear => ImageFilterMode::Linear,
+        }
+    }
+    let address_mode = match options.wrap_mode {
+        egui::TextureWrapMode::ClampToEdge => ImageAddressMode::ClampToEdge,
+        egui::TextureWrapMode::Repeat => ImageAddressMode::Repeat,
+        egui::TextureWrapMode::MirroredRepeat => ImageAddressMode::MirrorRepeat,
+    };
+    ImageSamplerDescriptor {
+        mag_filter: convert_filter(&options.magnification),
+        min_filter: convert_filter(&options.minification),
+        address_mode_u: address_mode,
+        address_mode_v: address_mode,
+        ..Default::default()
+    }
+}
+
+/// Callback to execute custom 'wgpu' rendering inside [`EguiNode`] render graph node.
+///
+/// Rendering can be implemented using for example:
+/// * native wgpu rendering libraries,
+/// * or with [`bevy_render::render_phase`] approach.
+pub struct EguiBevyPaintCallback(Box<dyn EguiBevyPaintCallbackImpl>);
+
+impl EguiBevyPaintCallback {
+    /// Creates a new [`egui::epaint::PaintCallback`] from a callback trait instance.
+    pub fn new_paint_callback<T>(rect: egui::Rect, callback: T) -> egui::epaint::PaintCallback
+    where
+        T: EguiBevyPaintCallbackImpl + 'static,
+    {
+        let callback = Self(Box::new(callback));
+        egui::epaint::PaintCallback {
+            rect,
+            callback: std::sync::Arc::new(callback),
+        }
+    }
+
+    pub(crate) fn cb(&self) -> &dyn EguiBevyPaintCallbackImpl {
+        self.0.as_ref()
+    }
+}
+
+/// Callback that executes custom rendering logic
+pub trait EguiBevyPaintCallbackImpl: Send + Sync {
+    /// Paint callback will be rendered in near future, all data must be finalized for render step
+    fn update(
+        &self,
+        info: egui::PaintCallbackInfo,
+        render_entity: RenderEntity,
+        pipeline_key: EguiPipelineKey,
+        world: &mut World,
+    );
+
+    /// Paint callback call before render step
+    ///
+    ///
+    /// Can be used to implement custom render passes
+    /// or to submit command buffers for execution before egui render pass
+    fn prepare_render<'w>(
+        &self,
+        info: egui::PaintCallbackInfo,
+        render_context: &mut RenderContext<'w>,
+        render_entity: RenderEntity,
+        pipeline_key: EguiPipelineKey,
+        world: &'w World,
+    ) {
+        let _ = (info, render_context, render_entity, pipeline_key, world);
+        // Do nothing by default
+    }
+
+    /// Paint callback render step
+    ///
+    /// Native wgpu RenderPass can be retrieved from [`TrackedRenderPass`] by calling
+    /// [`TrackedRenderPass::wgpu_pass`].
+    fn render<'pass>(
+        &self,
+        info: egui::PaintCallbackInfo,
+        render_pass: &mut TrackedRenderPass<'pass>,
+        render_entity: RenderEntity,
+        pipeline_key: EguiPipelineKey,
+        world: &'pass World,
+    );
 }

@@ -9,7 +9,7 @@ use bevy::{
 use bevy_egui::{
     egui,
     input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input},
-    EguiPrimaryContextPass, EguiContexts, EguiGlobalSettings, EguiPlugin,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
 };
 
 fn main() {

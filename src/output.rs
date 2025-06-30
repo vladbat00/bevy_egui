@@ -10,7 +10,7 @@ use bevy_ecs::{
 use bevy_platform::collections::HashMap;
 use bevy_window::RequestRedraw;
 use bevy_winit::{cursor::CursorIcon, EventLoopProxy, WakeUp};
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 /// Reads Egui output.
 pub fn process_output_system(

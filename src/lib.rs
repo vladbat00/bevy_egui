@@ -34,7 +34,7 @@
 //! fn main() {
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+//!         .add_plugins(EguiPlugin::default())
 //!         .add_systems(EguiPrimaryContextPass, ui_example_system)
 //!         .run();
 //! }
@@ -139,19 +139,15 @@
 //!
 //! - [`bevy-inspector-egui`](https://github.com/jakobhellermann/bevy-inspector-egui)
 
-/// Egui render node.
-#[cfg(feature = "render")]
-pub mod egui_node;
 /// Helpers for converting Bevy types into Egui ones and vice versa.
 pub mod helpers;
 /// Systems for translating Bevy input events into Egui input.
 pub mod input;
 /// Systems for handling Egui output.
 pub mod output;
-pub mod render;
-/// Plugin systems for the render app.
+/// Rendering Egui with [`bevy_render`].
 #[cfg(feature = "render")]
-pub mod render_systems;
+pub mod render;
 /// Mobile web keyboard input support.
 #[cfg(target_arch = "wasm32")]
 pub mod text_agent;
@@ -167,12 +163,7 @@ use crate::text_agent::{
     write_text_agent_channel_events_system, SafariVirtualKeyboardTouchState, TextAgentChannel,
     VirtualTouchInfo,
 };
-#[cfg(feature = "render")]
-use crate::{
-    egui_node::{EguiPipeline, EGUI_SHADER_HANDLE},
-    render_systems::{EguiRenderData, EguiTransforms, ExtractedEguiManagedTextures},
-};
-use crate::{helpers::vec2_into_egui_pos2, input::*};
+use crate::{helpers::vec2_into_egui_pos2, input::*, render::EGUI_SHADER_HANDLE};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -192,7 +183,6 @@ use bevy_ecs::{
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
 use bevy_log as log;
-use bevy_math::{Rect, Vec2};
 #[cfg(feature = "picking")]
 use bevy_picking::{
     backend::{HitData, PointerHits},
@@ -202,25 +192,25 @@ use bevy_picking::{
 use bevy_platform::collections::HashMap;
 use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
+use bevy_render::camera::Camera;
 #[cfg(feature = "picking")]
 use bevy_render::camera::NormalizedRenderTarget;
-use bevy_render::camera::{Camera, RenderTarget, Viewport};
 #[cfg(feature = "render")]
 use bevy_render::{
-    extract_component::{ExtractComponent, ExtractComponentPlugin},
     extract_resource::{ExtractResource, ExtractResourcePlugin},
-    render_resource::{LoadOp, SpecializedRenderPipelines},
+    render_resource::SpecializedRenderPipelines,
     ExtractSchedule, Render, RenderApp, RenderSet,
 };
-use bevy_window::{PrimaryWindow, Window, WindowRef};
 use bevy_winit::cursor::CursorIcon;
 use output::process_output_system;
+use render::systems;
+#[cfg(feature = "render")]
+use render::systems::{EguiRenderData, EguiTransforms, ExtractedEguiManagedTextures};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
-use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -255,7 +245,7 @@ pub struct EguiPlugin {
     /// fn main() {
     ///     App::new()
     ///         .add_plugins(DefaultPlugins)
-    ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+    ///         .add_plugins(EguiPlugin::default())
     ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .run();
     /// }
@@ -277,7 +267,7 @@ pub struct EguiPlugin {
     /// fn main() {
     ///     App::new()
     ///         .add_plugins(DefaultPlugins)
-    ///         .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+    ///         .add_plugins(EguiPlugin::default())
     ///         .add_systems(Startup, create_new_window_system)
     ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .add_systems(SecondWindowContextPass, ui_example_system)
@@ -403,13 +393,13 @@ pub struct EguiContextSettings {
     /// use bevy::{prelude::*, window::PrimaryWindow};
     /// use bevy_egui::EguiContextSettings;
     ///
-    /// fn update_ui_scale_factor(mut windows: Query<(&mut EguiContextSettings, &Window), With<PrimaryWindow>>) {
-    ///     if let Ok((mut egui_settings, window)) = windows.single_mut() {
-    ///         egui_settings.scale_factor = 1.0 / window.scale_factor();
+    /// fn update_ui_scale_factor(mut egui_contexts: Query<(&mut EguiContextSettings, &Camera)>) {
+    ///     for (mut egui_settings, camera) in egui_contexts {
+    ///         egui_settings.scale_factor = 1.0 / camera.target_scale_factor().unwrap_or(1.0);
     ///     }
     /// }
     /// ```
-    pub scale_factor: f32, // TODO! update the docs
+    pub scale_factor: f32,
     /// Is used as a default value for hyperlink [target](https://www.w3schools.com/tags/att_a_target.asp) hints.
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
@@ -640,9 +630,8 @@ pub struct EguiContexts<'w, 's> {
     user_textures: ResMut<'w, EguiUserTextures>,
 }
 
-// TODO! replace mentions of windows.
 impl EguiContexts<'_, '_> {
-    /// Egui context of the primary window.
+    /// Returns an Egui context with the [`PrimaryEguiContext`] component.
     #[must_use]
     pub fn ctx_mut(&mut self) -> &mut egui::Context {
         self.try_ctx_mut()
@@ -686,7 +675,7 @@ impl EguiContexts<'_, '_> {
     }
 
     /// Allows to get multiple contexts at the same time. This function is useful when you want
-    /// to get multiple window contexts without using the `immutable_ctx` feature.
+    /// to get multiple contexts without using the `immutable_ctx` feature.
     #[track_caller]
     pub fn ctx_for_entities_mut<const N: usize>(
         &mut self,
@@ -697,7 +686,7 @@ impl EguiContexts<'_, '_> {
             .map(|arr| arr.map(|(_window_entity, ctx, _primary_window)| ctx.into_inner().get_mut()))
     }
 
-    /// Egui context of the primary window.
+    /// Returns an Egui context with the [`PrimaryEguiContext`] component.
     ///
     /// Even though the mutable borrow isn't necessary, as the context is wrapped into `RwLock`,
     /// using the immutable getter is gated with the `immutable_ctx` feature. Using the immutable
@@ -736,7 +725,7 @@ impl EguiContexts<'_, '_> {
             })
     }
 
-    /// Egui context of a specific window.
+    /// Egui context of a specific entity.
     ///
     /// Even though the mutable borrow isn't necessary, as the context is wrapped into `RwLock`,
     /// using the immutable getter is gated with the `immutable_ctx` feature. Using the immutable
@@ -884,7 +873,7 @@ pub mod node {
 #[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
 /// The `bevy_egui` plugin startup system sets.
 pub enum EguiStartupSet {
-    /// Initializes Egui contexts for available windows.
+    /// Initializes a primary Egui context (see [`setup_primary_egui_context_system`]).
     InitContexts,
 }
 
@@ -1182,15 +1171,15 @@ impl Plugin for EguiPlugin {
         )
         .add_systems(
             Render,
-            render_systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+            systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
         )
         .add_systems(
             Render,
-            render_systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+            systems::queue_bind_groups_system.in_set(RenderSet::Queue),
         )
         .add_systems(
             Render,
-            render_systems::queue_pipelines_system.in_set(RenderSet::Queue),
+            systems::queue_pipelines_system.in_set(RenderSet::Queue),
         )
         .add_systems(Last, free_egui_textures_system);
 
@@ -1207,8 +1196,8 @@ impl Plugin for EguiPlugin {
                 return;
             };
 
-            let ui_graph_2d = render::get_egui_graph(render_app);
-            let ui_graph_3d = render::get_egui_graph(render_app);
+            let egui_graph_2d = render::get_egui_graph(render_app);
+            let egui_graph_3d = render::get_egui_graph(render_app);
             let mut graph = render_app
                 .world_mut()
                 .resource_mut::<bevy_render::render_graph::RenderGraph>();
@@ -1216,7 +1205,7 @@ impl Plugin for EguiPlugin {
             if let Some(graph_2d) =
                 graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
             {
-                graph_2d.add_sub_graph(render::graph::SubGraphEgui, ui_graph_2d);
+                graph_2d.add_sub_graph(render::graph::SubGraphEgui, egui_graph_2d);
                 graph_2d.add_node(
                     render::graph::NodeEgui::EguiPass,
                     render::RunEguiSubgraphOnEguiViewNode,
@@ -1238,7 +1227,7 @@ impl Plugin for EguiPlugin {
             if let Some(graph_3d) =
                 graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
             {
-                graph_3d.add_sub_graph(render::graph::SubGraphEgui, ui_graph_3d);
+                graph_3d.add_sub_graph(render::graph::SubGraphEgui, egui_graph_3d);
                 graph_3d.add_node(
                     render::graph::NodeEgui::EguiPass,
                     render::RunEguiSubgraphOnEguiViewNode,
@@ -1269,37 +1258,31 @@ impl Plugin for EguiPlugin {
     fn finish(&self, app: &mut App) {
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
-                .init_resource::<egui_node::EguiPipeline>()
-                .init_resource::<SpecializedRenderPipelines<EguiPipeline>>()
+                .init_resource::<render::EguiPipeline>()
+                .init_resource::<SpecializedRenderPipelines<render::EguiPipeline>>()
                 .init_resource::<EguiTransforms>()
                 .init_resource::<EguiRenderData>()
                 .add_systems(
                     // Seems to be just the set to add/remove nodes, as it'll run before
                     // `RenderSet::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
-                    (
-                        render::extract_egui_camera_view,
-                        render_systems::setup_new_egui_nodes_system,
-                        // TODO!
-                        // render_systems::teardown_window_nodes_system,
-                        // render_systems::teardown_render_to_image_nodes_system,
-                    ),
+                    render::extract_egui_camera_view_system,
                 )
                 .add_systems(
                     Render,
-                    render_systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+                    systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
                 )
                 .add_systems(
                     Render,
-                    render_systems::prepare_egui_render_target_data.in_set(RenderSet::Prepare),
+                    systems::prepare_egui_render_target_data_system.in_set(RenderSet::Prepare),
                 )
                 .add_systems(
                     Render,
-                    render_systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+                    systems::queue_bind_groups_system.in_set(RenderSet::Queue),
                 )
                 .add_systems(
                     Render,
-                    render_systems::queue_pipelines_system.in_set(RenderSet::Queue),
+                    systems::queue_pipelines_system.in_set(RenderSet::Queue),
                 );
         }
     }
@@ -1325,7 +1308,10 @@ pub struct EguiManagedTexture {
     pub color_image: egui::ColorImage,
 }
 
-/// Adds bevy_egui components to newly created windows.
+/// Adds bevy_egui components to a first found camera assuming it's a primary one.
+///
+/// To disable this behavior, set [`EguiGlobalSettings::auto_create_primary_context`] to `false` before you create your first camera.
+/// When spawning a camera to which you want to attach the primary Egui context, insert the [`EguiPrimaryContextPass`] component into the respective camera entity.
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<Camera>>,
@@ -1469,23 +1455,39 @@ impl EguiClipboard {
 #[cfg(feature = "picking")]
 pub const PICKING_ORDER: f32 = 1_000_000.0;
 
-/// Captures pointers on egui windows for [`bevy_picking`].
+/// Captures pointers on Egui windows for [`bevy_picking`].
 #[cfg(feature = "picking")]
 pub fn capture_pointer_input_system(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings), With<Camera>>,
+    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings, &Camera)>,
     mut output: EventWriter<PointerHits>,
+    window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
-    return; // TODO!
-
     use helpers::QueryHelper;
 
     for (pointer, location) in pointers
         .iter()
         .filter_map(|(i, p)| p.location.as_ref().map(|l| (i, l)))
     {
-        if let NormalizedRenderTarget::Window(id) = location.target {
-            if let Some((entity, mut ctx, settings)) = egui_context.get_some_mut(id.entity()) {
+        if let NormalizedRenderTarget::Window(window) = location.target {
+            for window_context_entity in window_to_egui_context_map
+                .window_to_contexts
+                .get(&window.entity())
+                .cloned()
+                .unwrap_or_default()
+            {
+                let Some((entity, mut ctx, settings, camera)) =
+                    egui_context.get_some_mut(window_context_entity)
+                else {
+                    continue;
+                };
+                if !camera
+                    .physical_viewport_rect()
+                    .is_some_and(|rect| rect.as_rect().contains(location.position))
+                {
+                    continue;
+                }
+
                 if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
                     let entry = (entity, HitData::new(entity, 0.0, None, None));
                     output.write(PointerHits::new(
@@ -1508,16 +1510,16 @@ pub fn update_egui_textures_system(
 ) {
     for (entity, egui_render_output) in egui_render_output.iter_mut() {
         for (texture_id, image_delta) in &egui_render_output.textures_delta.set {
-            let color_image = egui_node::as_color_image(&image_delta.image);
+            let color_image = render::as_color_image(&image_delta.image);
 
             let texture_id = match texture_id {
                 egui::TextureId::Managed(texture_id) => *texture_id,
                 egui::TextureId::User(_) => continue,
             };
 
-            let sampler = ImageSampler::Descriptor(
-                egui_node::texture_options_as_sampler_descriptor(&image_delta.options),
-            );
+            let sampler = ImageSampler::Descriptor(render::texture_options_as_sampler_descriptor(
+                &image_delta.options,
+            ));
             if let Some(pos) = image_delta.pos {
                 // Partial update.
                 if let Some(managed_texture) = egui_managed_textures.get_mut(&(entity, texture_id))
@@ -1525,14 +1527,14 @@ pub fn update_egui_textures_system(
                     // TODO: when bevy supports it, only update the part of the texture that changes.
                     update_image_rect(&mut managed_texture.color_image, pos, &color_image);
                     let image =
-                        egui_node::color_image_as_bevy_image(&managed_texture.color_image, sampler);
+                        render::color_image_as_bevy_image(&managed_texture.color_image, sampler);
                     managed_texture.handle = image_assets.add(image);
                 } else {
                     log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
                 }
             } else {
                 // Full update.
-                let image = egui_node::color_image_as_bevy_image(&color_image, sampler);
+                let image = render::color_image_as_bevy_image(&color_image, sampler);
                 let handle = image_assets.add(image);
                 egui_managed_textures.insert(
                     (entity, texture_id),

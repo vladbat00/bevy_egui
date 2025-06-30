@@ -11,10 +11,9 @@ use bevy_input::{
     touch::TouchInput,
     ButtonInput, ButtonState,
 };
-use bevy_log::{self as log, warn};
+use bevy_log::{self as log};
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, FileDragAndDrop, Ime, PrimaryWindow, Window};
-use bevy_winit::WinitWindows;
 use egui::Modifiers;
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] events.
@@ -152,14 +151,19 @@ impl ModifierKeysState {
 }
 
 #[derive(Resource, Default)]
+/// A bidirectional map between [`Window`] and [`EguiContext`] entities.
+/// Multiple contexts may belong to a single window.
 pub struct WindowToEguiContextMap {
+    /// Indexes contexts by windows.
     pub window_to_contexts:
         bevy_platform::collections::HashMap<Entity, bevy_platform::collections::HashSet<Entity>>,
+    /// Indexes windows by contexts.
     pub context_to_window: bevy_platform::collections::HashMap<Entity, Entity>,
 }
 
 #[cfg(feature = "render")]
 impl WindowToEguiContextMap {
+    /// Adds a context to the map on creation.
     pub fn on_egui_context_added_system(
         mut res: ResMut<Self>,
         added_contexts: Query<(Entity, &bevy_render::camera::Camera), Added<EguiContext>>,
@@ -179,6 +183,7 @@ impl WindowToEguiContextMap {
         }
     }
 
+    /// Removes a context from the map on removal.
     pub fn on_egui_context_removed_system(
         mut res: ResMut<Self>,
         mut removed_contexts: RemovedComponents<EguiContext>,
@@ -200,6 +205,7 @@ impl WindowToEguiContextMap {
     }
 }
 
+/// Iterates over pairs of `(Event, Entity)`, where the entity points to the context that the event is related to.
 pub struct EguiContextsEventIterator<'a, E: Event, F> {
     event_iter: EventIterator<'a, E>,
     map_event_to_window_id_f: F,
@@ -240,6 +246,7 @@ impl<'a, E: Event, F: FnMut(&'a E) -> Entity> Iterator for EguiContextsEventIter
 }
 
 #[derive(SystemParam)]
+/// A helper system param to iterate over pairs of events and Egui contexts, see [`EguiContextsEventIterator`].
 pub struct EguiContextEventReader<'w, 's, E: Event> {
     event_reader: EventReader<'w, 's, E>,
     map: Res<'w, WindowToEguiContextMap>,
@@ -248,6 +255,8 @@ pub struct EguiContextEventReader<'w, 's, E: Event> {
 }
 
 impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
+    /// Returns [`EguiContextsEventIterator`] that iterates only over window events (i.e. skips contexts that render to images, etc.),
+    /// expects a lambda that extracts a window id from an event.
     pub fn read<'a, F>(
         &'a mut self,
         map_event_to_window_id_f: F,
@@ -266,6 +275,7 @@ impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
         }
     }
 
+    /// Returns [`EguiContextsEventIterator`] that iterates over window events but might substitute contexts with a currently hovered non-window context (see [`HoveredNonWindowEguiContext`]), expects a lambda that extracts a window id from an event.
     pub fn read_with_non_window_hovered<'a, F>(
         &'a mut self,
         map_event_to_window_id_f: F,
@@ -287,6 +297,7 @@ impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
         }
     }
 
+    /// Returns [`EguiContextsEventIterator`] that iterates over window events but might substitute contexts with a currently focused non-window context (see [`FocusedNonWindowEguiContext`]), expects a lambda that extracts a window id from an event.
     pub fn read_with_non_window_focused<'a, F>(
         &'a mut self,
         map_event_to_window_id_f: F,
@@ -1018,6 +1029,7 @@ fn write_touch_event(
 }
 
 /// Reads both [`EguiFileDragAndDropEvent`] and [`EguiInputEvent`] events and feeds them to Egui.
+#[allow(clippy::too_many_arguments)]
 pub fn write_egui_input_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,

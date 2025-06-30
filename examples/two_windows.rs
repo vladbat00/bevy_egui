@@ -34,7 +34,7 @@ fn create_new_window_system(
     mut commands: Commands,
     mut egui_global_settings: ResMut<EguiGlobalSettings>,
 ) {
-    // Disable the automatic creation of a primary context to set it up manually for every window camera.
+    // Disable the automatic creation of a primary context to set it up manually.
     egui_global_settings.auto_create_primary_context = false;
 
     // Spawn a camera for the primary window.

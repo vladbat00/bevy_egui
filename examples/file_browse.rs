@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::{EguiPrimaryContextPass, EguiPlugin};
+use bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 
 fn main() {
     App::new()

@@ -2,18 +2,25 @@ use bevy::{
     ecs::schedule::ScheduleLabel, prelude::*, render::camera::Viewport, window::WindowResized,
 };
 use bevy_egui::{
-    egui, EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings,
-    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
+    egui, EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
+    EguiPrimaryContextPass, PrimaryEguiContext,
 };
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
-        .insert_resource(PlayersCount(2))
-        .add_plugins(EguiPlugin::default())
-        .add_systems(Startup, setup_system)
-        .add_systems(Update, update_camera_viewports_system)
-        .add_systems(EguiPrimaryContextPass, players_count_ui_system);
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            // You may want this set to `true` if you need virtual keyboard work in mobile browsers.
+            prevent_default_event_handling: false,
+            ..default()
+        }),
+        ..default()
+    }))
+    .insert_resource(PlayersCount(2))
+    .add_plugins(EguiPlugin::default())
+    .add_systems(Startup, setup_system)
+    .add_systems(Update, update_camera_viewports_system)
+    .add_systems(EguiPrimaryContextPass, players_count_ui_system);
     register_ui_systems_for_player::<0>(&mut app);
     register_ui_systems_for_player::<1>(&mut app);
     register_ui_systems_for_player::<2>(&mut app);
@@ -187,7 +194,6 @@ fn players_count_ui_system(
     egui::Window::new("")
         .fixed_size([200.0, 30.0])
         .title_bar(false)
-        // .anchor(egui::Align2::CENTER_CENTER, [-100.0, -15.0])
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(egui_contexts.ctx_mut(), |ui| {
             ui.horizontal(|ui| {
@@ -202,8 +208,15 @@ fn players_count_ui_system(
         });
 }
 
-fn ui_example_system<const N: u8>(mut context: Single<&mut EguiContext, With<PlayerCamera<N>>>) {
+fn ui_example_system<const N: u8>(
+    mut input: Local<String>,
+    mut context: Single<&mut EguiContext, With<PlayerCamera<N>>>,
+) {
     egui::Window::new("Hello").show(context.get_mut(), |ui| {
         ui.label(format!("Player {N}"));
+        ui.horizontal(|ui| {
+            ui.label("Write something: ");
+            ui.text_edit_singleline(&mut *input);
+        });
     });
 }

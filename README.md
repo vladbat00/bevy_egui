@@ -53,7 +53,7 @@ use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin { enable_multipass_for_primary_context: true })
+        .add_plugins(EguiPlugin::default())
         .add_systems(EguiContextPass, ui_example_system)
         .run();
 }
