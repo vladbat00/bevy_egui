@@ -4,7 +4,7 @@ pub use render_pass::*;
 pub mod graph {
     use bevy_render::render_graph::{RenderLabel, RenderSubGraph};
 
-    /// Egui subgraph (is run by [`RunEguiSubgraphOnEguiViewNode`]).
+    /// Egui subgraph (is run by [`super::RunEguiSubgraphOnEguiViewNode`]).
     #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
     pub struct SubGraphEgui;
 
@@ -91,8 +91,7 @@ pub fn get_egui_graph(render_app: &mut SubApp) -> RenderGraph {
     graph
 }
 
-/// A [`RenderGraphNode`] that executes the Egui rendering subgraph on the Egui
-/// view.
+/// A [`Node`] that executes the Egui rendering subgraph on the Egui view.
 pub struct RunEguiSubgraphOnEguiViewNode;
 
 impl Node for RunEguiSubgraphOnEguiViewNode {
@@ -385,7 +384,7 @@ pub(crate) fn texture_options_as_sampler_descriptor(
     }
 }
 
-/// Callback to execute custom 'wgpu' rendering inside [`EguiNode`] render graph node.
+/// Callback to execute custom 'wgpu' rendering inside [`EguiPassNode`] render graph node.
 ///
 /// Rendering can be implemented using for example:
 /// * native wgpu rendering libraries,

@@ -392,7 +392,7 @@ pub struct EguiContextSettings {
     ///
     /// fn update_ui_scale_factor(mut egui_contexts: Query<(&mut EguiContextSettings, &Camera)>) {
     ///     for (mut egui_settings, camera) in egui_contexts {
-    ///         egui_settings.scale_factor = 1.0 / camera.target_scale_factor().unwrap_or(1.0);
+    ///         egui_settings.scale_factor = 1.0 / camera.target_scaling_factor().unwrap_or(1.0);
     ///     }
     /// }
     /// ```
@@ -542,7 +542,7 @@ pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
     /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`])
-    /// and processed during [`egui_node::EguiNode`]'s `update`.
+    /// and processed during [`render::EguiPassNode`]'s `update`.
     pub paint_jobs: Vec<egui::ClippedPrimitive>,
     /// The change in egui textures since last frame.
     pub textures_delta: egui::TexturesDelta,
@@ -857,7 +857,7 @@ impl EguiUserTextures {
 /// The component lives only in the Render world.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct RenderComputedScaleFactor {
-    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`Camera::target_scaling_factor`]).
+    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_render::camera::Camera::target_scaling_factor`]).
     pub scale_factor: f32,
 }
 
