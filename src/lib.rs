@@ -617,13 +617,12 @@ impl EguiContext {
 
 // This query is actually unused, but we use it just to cheat a relevant error message.
 type EguiContextsPrimaryQuery<'w, 's> =
-    Query<'w, 's, (Entity, &'static mut EguiContext), With<PrimaryEguiContext>>;
+    Query<'w, 's, &'static mut EguiContext, With<PrimaryEguiContext>>;
 
 type EguiContextsQuery<'w, 's> = Query<
     'w,
     's,
     (
-        Entity,
         &'static mut EguiContext,
         Option<&'static PrimaryEguiContext>,
     ),
@@ -647,7 +646,7 @@ impl EguiContexts<'_, '_> {
             Err(QuerySingleError::NoEntities(core::any::type_name::<
                 EguiContextsPrimaryQuery,
             >())),
-            |result, (_window_entity, ctx, primary)| match (&result, primary) {
+            |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get_mut()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
@@ -669,7 +668,7 @@ impl EguiContexts<'_, '_> {
     ) -> Result<&mut egui::Context, QueryEntityError> {
         self.q
             .get_mut(entity)
-            .map(|(_entity, context, _primary)| context.into_inner().get_mut())
+            .map(|(context, _primary)| context.into_inner().get_mut())
     }
 
     /// Allows to get multiple contexts at the same time. This function is useful when you want
@@ -681,7 +680,7 @@ impl EguiContexts<'_, '_> {
     ) -> Result<[&mut egui::Context; N], QueryEntityError> {
         self.q
             .get_many_mut(ids)
-            .map(|arr| arr.map(|(_window_entity, ctx, _primary_window)| ctx.into_inner().get_mut()))
+            .map(|arr| arr.map(|(ctx, _primary_window)| ctx.into_inner().get_mut()))
     }
 
     /// Returns an Egui context with the [`PrimaryEguiContext`] component.
@@ -700,7 +699,7 @@ impl EguiContexts<'_, '_> {
             Err(QuerySingleError::NoEntities(core::any::type_name::<
                 EguiContextsPrimaryQuery,
             >())),
-            |result, (_window_entity, ctx, primary)| match (&result, primary) {
+            |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.get()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
@@ -726,9 +725,7 @@ impl EguiContexts<'_, '_> {
     #[inline]
     #[cfg(feature = "immutable_ctx")]
     pub fn ctx_for_entity(&self, entity: Entity) -> Result<&egui::Context, QueryEntityError> {
-        self.q
-            .get(entity)
-            .map(|(_entity, context, _primary)| context.get())
+        self.q.get(entity).map(|(context, _primary)| context.get())
     }
 
     /// Can accept either a strong or a weak handle.
