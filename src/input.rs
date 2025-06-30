@@ -723,7 +723,7 @@ pub fn write_ime_events_system(
 pub fn set_ime_allowed_system(
     mut egui_context: Query<(&EguiOutput, &mut EguiContextImeState)>,
     windows: Query<Entity, With<PrimaryWindow>>,
-    winit_windows: NonSendMut<WinitWindows>,
+    winit_windows: NonSendMut<bevy_winit::WinitWindows>,
 ) {
     // We are on mobile, so we expect a single window.
     let Ok(window) = windows.single() else {

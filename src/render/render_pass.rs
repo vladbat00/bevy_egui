@@ -245,31 +245,6 @@ impl Node for EguiPassNode {
             }
         }
 
-        // drop(render_pass);
-        // command_encoder.finish();
-
-        // render_context.add_command_buffer_generation_task(move |device| {
-        //     let mut command_encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-        //         label: Some("egui_node_command_encoder"),
-        //     });
-        //
-        //     let render_pass = command_encoder.begin_render_pass(&RenderPassDescriptor {
-        //         label: Some("egui_pass"),
-        //         color_attachments: &[Some(RenderPassColorAttachment {
-        //             view: swap_chain_texture_view,
-        //             resolve_target: None,
-        //             ops: Operations {
-        //                 load: load_op,
-        //                 store: StoreOp::Store,
-        //             },
-        //         })],
-        //         depth_stencil_attachment: None,
-        //         timestamp_writes: None,
-        //         occlusion_query_set: None,
-        //     });
-        //     let mut render_pass = TrackedRenderPass::new(&device, render_pass);
-        // });
-
         Ok(())
     }
 }

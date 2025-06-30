@@ -42,12 +42,12 @@ jobs:
         run: bevy build --example render_egui_to_image --features="render bevy/bevy_gizmos" web --bundle
       - name: Build render_to_image_widget
         run: bevy build --example render_to_image_widget web --bundle
-      - name: Build side_panel_2d
-        run: bevy build --example side_panel_2d web --bundle
-      - name: Build side_panel_3d
-        run: bevy build --example side_panel_3d web --bundle
+      - name: Build side_panel
+        run: bevy build --example side_panel web --bundle
       - name: Build simple
         run: bevy build --example simple web --bundle
+      - name: Build split_screen
+        run: bevy build --example split_screen web --bundle
       - name: Build run_manually
         run: bevy build --example run_manually web --bundle
       # We skip the two_windows example as it's not supported in WASM

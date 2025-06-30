@@ -273,14 +273,6 @@ fn ui_system(
                         ],
                     ));
                 });
-
-            // let egui_texture_image_entity_ctx =
-            //     contexts.ctx_for_entity_mut(app_state.egui_texture_image_entity);
-            // egui::CentralPanel::default().show(egui_texture_image_entity_ctx, |ui| {
-            //     egui::ScrollArea::vertical().show(ui, |ui| {
-            //         app_state.color_test.ui(ui);
-            //     });
-            // });
         }
     }
 }

@@ -123,13 +123,13 @@ Demonstrating the available options for absorbing input when Egui is using point
 
 Rendering test from [egui.rs](https://egui.rs). We don't fully pass it, help is wanted ([#291](https://github.com/vladbat00/bevy_egui/issues/291)).
 
-### side_panel_2d ([live page](https://vladbat00.github.io/bevy_egui/side_panel_2d), source: [examples/side_panel_2d.rs](https://github.com/vladbat00/bevy_egui/blob/v0.34.1/examples/side_panel_2d.rs))
+### side_panel ([live page](https://vladbat00.github.io/bevy_egui/side_panel), source: [examples/side_panel.rs](https://github.com/vladbat00/bevy_egui/blob/v0.34.1/examples/side_panel_2d.rs))
 
 Showing how to display an Egui side panel and transform a camera with a perspective projection to make rendering centered relative to the remaining screen area.
 
-### side_panel_3d ([live page](https://vladbat00.github.io/bevy_egui/side_panel_3d), source: [examples/side_panel_3d.rs](https://github.com/vladbat00/bevy_egui/blob/v0.34.1/examples/side_panel_3d.rs))
+### split_screen ([live page](https://vladbat00.github.io/bevy_egui/split_screen), source: [examples/side_panel.rs](https://github.com/vladbat00/bevy_egui/blob/v0.34.1/examples/split_screen.rs))
 
-Showing how to display an Egui side panel and transform a camera with a orthographic projection to make rendering centered relative to the remaining screen area.
+Demonstrating how to render multiple Egui contexts, attaching them to several cameras that target the same window.
 
 ### render_egui_to_image ([live page](https://vladbat00.github.io/bevy_egui/render_egui_to_image), source: [examples/render_egui_to_image.rs](https://github.com/vladbat00/bevy_egui/blob/v0.34.1/examples/render_egui_to_image.rs))
 

@@ -203,9 +203,6 @@ use bevy_render::{
 };
 use bevy_winit::cursor::CursorIcon;
 use output::process_output_system;
-use render::systems;
-#[cfg(feature = "render")]
-use render::systems::{EguiRenderData, EguiTransforms, ExtractedEguiManagedTextures};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -939,7 +936,9 @@ impl Plugin for EguiPlugin {
             app.init_resource::<EguiManagedTextures>();
             app.init_resource::<EguiUserTextures>();
             app.add_plugins(ExtractResourcePlugin::<EguiUserTextures>::default());
-            app.add_plugins(ExtractResourcePlugin::<ExtractedEguiManagedTextures>::default());
+            app.add_plugins(ExtractResourcePlugin::<
+                render::systems::ExtractedEguiManagedTextures,
+            >::default());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -993,6 +992,7 @@ impl Plugin for EguiPlugin {
         {
             app.add_systems(PreStartup, web_clipboard::startup_setup_web_events_system);
         }
+        #[cfg(feature = "render")]
         app.add_systems(
             PreStartup,
             (
@@ -1005,6 +1005,7 @@ impl Plugin for EguiPlugin {
         );
 
         // PreUpdate systems.
+        #[cfg(feature = "render")]
         app.add_systems(
             PreUpdate,
             (
@@ -1013,7 +1014,6 @@ impl Plugin for EguiPlugin {
                 WindowToEguiContextMap::on_egui_context_added_system,
                 WindowToEguiContextMap::on_egui_context_removed_system,
                 ApplyDeferred,
-                #[cfg(feature = "render")]
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -1171,15 +1171,15 @@ impl Plugin for EguiPlugin {
         )
         .add_systems(
             Render,
-            systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+            render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
         )
         .add_systems(
             Render,
-            systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+            render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
         )
         .add_systems(
             Render,
-            systems::queue_pipelines_system.in_set(RenderSet::Queue),
+            render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
         )
         .add_systems(Last, free_egui_textures_system);
 
@@ -1260,8 +1260,8 @@ impl Plugin for EguiPlugin {
             render_app
                 .init_resource::<render::EguiPipeline>()
                 .init_resource::<SpecializedRenderPipelines<render::EguiPipeline>>()
-                .init_resource::<EguiTransforms>()
-                .init_resource::<EguiRenderData>()
+                .init_resource::<render::systems::EguiTransforms>()
+                .init_resource::<render::systems::EguiRenderData>()
                 .add_systems(
                     // Seems to be just the set to add/remove nodes, as it'll run before
                     // `RenderSet::ExtractCommands` where render nodes get updated.
@@ -1270,19 +1270,20 @@ impl Plugin for EguiPlugin {
                 )
                 .add_systems(
                     Render,
-                    systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+                    render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
                 )
                 .add_systems(
                     Render,
-                    systems::prepare_egui_render_target_data_system.in_set(RenderSet::Prepare),
+                    render::systems::prepare_egui_render_target_data_system
+                        .in_set(RenderSet::Prepare),
                 )
                 .add_systems(
                     Render,
-                    systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+                    render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
                 )
                 .add_systems(
                     Render,
-                    systems::queue_pipelines_system.in_set(RenderSet::Queue),
+                    render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
                 );
         }
     }
