@@ -32,7 +32,7 @@ render = [
     "egui/bytemuck",
     "wgpu-types",
 ]
-picking = ["bevy_picking"]
+picking = ["render", "bevy_picking"]
 serde = ["egui/serde"]
 # The enabled logs will print with the info log level, to make it less cumbersome to debug in browsers.
 log_input_events = []

@@ -157,13 +157,13 @@ pub mod web_clipboard;
 
 pub use egui;
 
+use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
     write_text_agent_channel_events_system, SafariVirtualKeyboardTouchState, TextAgentChannel,
     VirtualTouchInfo,
 };
-use crate::{helpers::vec2_into_egui_pos2, input::*, render::EGUI_SHADER_HANDLE};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -182,6 +182,7 @@ use bevy_ecs::{
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystem;
+#[allow(unused_imports)]
 use bevy_log as log;
 #[cfg(feature = "picking")]
 use bevy_picking::{
@@ -192,7 +193,6 @@ use bevy_picking::{
 use bevy_platform::collections::HashMap;
 use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
-use bevy_render::camera::Camera;
 #[cfg(feature = "picking")]
 use bevy_render::camera::NormalizedRenderTarget;
 #[cfg(feature = "render")]
@@ -1187,7 +1187,7 @@ impl Plugin for EguiPlugin {
         {
             load_internal_asset!(
                 app,
-                EGUI_SHADER_HANDLE,
+                render::EGUI_SHADER_HANDLE,
                 "render/egui.wgsl",
                 bevy_render::render_resource::Shader::from_wgsl
             );
@@ -1313,9 +1313,10 @@ pub struct EguiManagedTexture {
 ///
 /// To disable this behavior, set [`EguiGlobalSettings::auto_create_primary_context`] to `false` before you create your first camera.
 /// When spawning a camera to which you want to attach the primary Egui context, insert the [`EguiPrimaryContextPass`] component into the respective camera entity.
+#[cfg(feature = "render")]
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
-    new_cameras: Query<(Entity, Option<&EguiContext>), Added<Camera>>,
+    new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_render::camera::Camera>>,
     #[cfg(feature = "accesskit_placeholder")] adapters: Option<
         NonSend<bevy_winit::accessibility::AccessKitAdapters>,
     >,
@@ -1460,7 +1461,12 @@ pub const PICKING_ORDER: f32 = 1_000_000.0;
 #[cfg(feature = "picking")]
 pub fn capture_pointer_input_system(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    mut egui_context: Query<(Entity, &mut EguiContext, &EguiContextSettings, &Camera)>,
+    mut egui_context: Query<(
+        Entity,
+        &mut EguiContext,
+        &EguiContextSettings,
+        &bevy_render::camera::Camera,
+    )>,
     mut output: EventWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
@@ -1652,7 +1658,7 @@ pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
     egui_settings: &'static EguiContextSettings,
-    camera: &'static Camera,
+    camera: &'static bevy_render::camera::Camera,
 }
 
 #[cfg(feature = "render")]
@@ -1669,8 +1675,8 @@ pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQ
         };
 
         let viewport_rect = egui::Rect {
-            min: vec2_into_egui_pos2(viewport_rect.min.as_vec2() / scale_factor),
-            max: vec2_into_egui_pos2(viewport_rect.max.as_vec2() / scale_factor),
+            min: helpers::vec2_into_egui_pos2(viewport_rect.min.as_vec2() / scale_factor),
+            max: helpers::vec2_into_egui_pos2(viewport_rect.max.as_vec2() / scale_factor),
         };
         if viewport_rect.width() < 1.0 || viewport_rect.height() < 1.0 {
             continue;

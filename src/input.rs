@@ -13,7 +13,7 @@ use bevy_input::{
 };
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
-use bevy_window::{CursorMoved, FileDragAndDrop, Ime, PrimaryWindow, Window};
+use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window};
 use egui::Modifiers;
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] events.
@@ -167,7 +167,7 @@ impl WindowToEguiContextMap {
     pub fn on_egui_context_added_system(
         mut res: ResMut<Self>,
         added_contexts: Query<(Entity, &bevy_render::camera::Camera), Added<EguiContext>>,
-        primary_window: Query<Entity, With<PrimaryWindow>>,
+        primary_window: Query<Entity, With<bevy_window::PrimaryWindow>>,
     ) {
         for (egui_context_entity, camera) in added_contexts {
             if let Some(bevy_render::camera::NormalizedRenderTarget::Window(window_ref)) =
@@ -722,7 +722,7 @@ pub fn write_ime_events_system(
 #[cfg(any(target_os = "ios", target_os = "android"))]
 pub fn set_ime_allowed_system(
     mut egui_context: Query<(&EguiOutput, &mut EguiContextImeState)>,
-    windows: Query<Entity, With<PrimaryWindow>>,
+    windows: Query<Entity, With<bevy_window::PrimaryWindow>>,
     winit_windows: NonSendMut<bevy_winit::WinitWindows>,
 ) {
     // We are on mobile, so we expect a single window.
