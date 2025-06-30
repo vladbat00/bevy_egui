@@ -105,7 +105,7 @@ encase = { version = "0.10", optional = true }
 wgpu-types = { version = "24.0", optional = true }
 
 # `picking` feature
-bevy_picking = { version = "0.16.0", optional = true }
+bevy_picking = { version = "0.16.0", optional = true, features = ["bevy_mesh_picking_backend"] }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
