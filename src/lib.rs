@@ -698,7 +698,7 @@ impl EguiContexts<'_, '_> {
             >())),
             |result, (_window_entity, ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
-                (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get()),
+                (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.get()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
                 (Ok(_), Some(_)) => {
                     Err(QuerySingleError::MultipleEntities(core::any::type_name::<
@@ -723,8 +723,8 @@ impl EguiContexts<'_, '_> {
     #[cfg(feature = "immutable_ctx")]
     pub fn ctx_for_entity(&self, entity: Entity) -> Result<&egui::Context, QueryEntityError> {
         self.q
-            .get_mut(entity)
-            .map(|(_entity, context, _primary)| context.into_inner().get())
+            .get(entity)
+            .map(|(_entity, context, _primary)| context.get())
     }
 
     /// Can accept either a strong or a weak handle.
