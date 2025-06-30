@@ -186,9 +186,9 @@ fn setup_main_camera_system(
     ));
 }
 
-fn ui_example_system(mut ctx: EguiContexts) {
+fn ui_example_system(mut ctx: EguiContexts) -> Result {
     for id in 0..4 {
-        egui::Window::new(id.to_string()).show(ctx.ctx_mut(), |ui| {
+        egui::Window::new(id.to_string()).show(ctx.ctx_mut()?, |ui| {
             let (resp, painter) =
                 ui.allocate_painter(egui::Vec2 { x: 200., y: 200. }, egui::Sense::hover());
 
@@ -198,6 +198,7 @@ fn ui_example_system(mut ctx: EguiContexts) {
             ));
         });
     }
+    Ok(())
 }
 
 // The following systems are used to render UI in world space to demonstrate that paint callbacks

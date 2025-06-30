@@ -58,10 +58,11 @@ fn main() {
         .run();
 }
 
-fn ui_example_system(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+fn ui_example_system(mut contexts: EguiContexts) -> Result {
+    egui::Window::new("Hello").show(contexts.ctx_mut()?, |ui| {
         ui.label("world");
     });
+    Ok(())
 }
 
 ```
@@ -98,7 +99,7 @@ impl Plugin for MyPlugin {
     }
 }
 
-fn ui_system(contexts: EguiContexts) {
+fn ui_system(contexts: EguiContexts) -> Result {
     // ...
 }
 ```

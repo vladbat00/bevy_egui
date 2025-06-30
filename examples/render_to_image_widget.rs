@@ -160,7 +160,7 @@ fn render_to_image_example_system(
     let preview_material_handle = preview_cube_query.single()?;
     let preview_material = materials.get_mut(preview_material_handle).unwrap();
 
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut()?;
     let mut apply = false;
     egui::Window::new("Cube material preview").show(ctx, |ui| {
         ui.image(egui::load::SizedTexture::new(

@@ -75,11 +75,12 @@ struct UiState {
     is_window_open: bool,
 }
 
-fn configure_visuals_system(mut contexts: EguiContexts) {
-    contexts.ctx_mut().set_visuals(egui::Visuals {
+fn configure_visuals_system(mut contexts: EguiContexts) -> Result {
+    contexts.ctx_mut()?.set_visuals(egui::Visuals {
         window_corner_radius: 0.0.into(),
         ..Default::default()
     });
+    Ok(())
 }
 
 fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
@@ -116,11 +117,18 @@ fn ui_example_system(
     images: Local<Images>,
     image_assets: ResMut<Assets<Image>>,
     mut contexts: EguiContexts,
-) {
+) -> Result {
+    if !*is_initialized {
+        *is_initialized = true;
+        *rendered_texture_id = contexts.add_image(images.bevy_icon.clone_weak());
+    }
+
+    let ctx = contexts.ctx_mut()?;
+
     let egui_texture_handle = ui_state
         .egui_texture_handle
         .get_or_insert_with(|| {
-            contexts.ctx_mut().load_texture(
+            ctx.load_texture(
                 "example-image",
                 egui::ColorImage::example(),
                 Default::default(),
@@ -132,13 +140,6 @@ fn ui_example_system(
     let mut copy = false;
     let mut remove = false;
     let mut invert = false;
-
-    if !*is_initialized {
-        *is_initialized = true;
-        *rendered_texture_id = contexts.add_image(images.bevy_icon.clone_weak());
-    }
-
-    let ctx = contexts.ctx_mut();
 
     egui::SidePanel::left("side_panel")
         .default_width(200.0)
@@ -245,7 +246,7 @@ fn ui_example_system(
             .expect("images should be created");
 
         contexts
-            .ctx_mut()
+            .ctx_mut()?
             .copy_image(egui::ColorImage::from_rgba_unmultiplied(
                 image.size().to_array().map(|a| a as usize),
                 image.data.as_ref().expect("image data"),
@@ -255,6 +256,7 @@ fn ui_example_system(
         contexts.remove_image(&images.bevy_icon);
         contexts.remove_image(&images.bevy_icon_inverted);
     }
+    Ok(())
 }
 
 struct Painting {

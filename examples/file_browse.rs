@@ -35,8 +35,8 @@ mod foo {
         mut contexts: EguiContexts,
         mut state: Local<MyState>,
         mut file_dialog: Local<Option<Task<DialogResponse>>>,
-    ) {
-        let ctx = contexts.ctx_mut();
+    ) -> Result {
+        let ctx = contexts.ctx_mut()?;
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
@@ -105,7 +105,9 @@ mod foo {
             if i.raw.modifiers.ctrl {
                 info!("ctrl pressed");
             }
-        })
+        });
+
+        Ok(())
     }
 
     fn preview_files_being_dropped(ctx: &egui::Context) {

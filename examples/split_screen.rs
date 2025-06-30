@@ -190,12 +190,12 @@ fn update_camera_viewports_system(
 fn players_count_ui_system(
     mut egui_contexts: EguiContexts,
     mut players_count: ResMut<PlayersCount>,
-) {
+) -> Result {
     egui::Window::new("")
         .fixed_size([200.0, 30.0])
         .title_bar(false)
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(egui_contexts.ctx_mut(), |ui| {
+        .show(egui_contexts.ctx_mut()?, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("-").clicked() {
                     players_count.0 = (players_count.0 - 1).max(1);
@@ -206,6 +206,7 @@ fn players_count_ui_system(
                 }
             })
         });
+    Ok(())
 }
 
 fn ui_example_system<const N: u8>(

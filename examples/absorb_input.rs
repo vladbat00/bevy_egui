@@ -83,7 +83,7 @@ fn ui_system(
     mut keyboard_input_events: EventReader<KeyboardInput>,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mut mouse_wheel_events: EventReader<MouseWheel>,
-) {
+) -> Result {
     if let Some(ev) = keyboard_input_events.read().last() {
         last_events.keyboard_input = Some(ev.clone());
     }
@@ -97,7 +97,7 @@ fn ui_system(
     egui::Window::new("Absorb Input")
         .max_size([300.0, 200.0])
         .vscroll(true)
-        .show(contexts.ctx_mut(), |ui| {
+        .show(contexts.ctx_mut()?, |ui| {
             ui.checkbox(
                 &mut egui_global_settings.enable_absorb_bevy_input_system,
                 "Absorb all input events",
@@ -123,6 +123,8 @@ fn ui_system(
             ui.label("A text field to test absorbing keyboard events");
             ui.text_edit_multiline(&mut text.0);
         });
+
+    Ok(())
 }
 
 fn keyboard_input_system(

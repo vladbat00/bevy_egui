@@ -39,10 +39,11 @@
 //!         .run();
 //! }
 //!
-//! fn ui_example_system(mut contexts: EguiContexts) {
-//!     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+//! fn ui_example_system(mut contexts: EguiContexts) -> Result {
+//!     egui::Window::new("Hello").show(contexts.ctx_mut()?, |ui| {
 //!         ui.label("world");
 //!     });
+//!     Ok(())
 //! }
 //! ```
 //!
@@ -78,7 +79,7 @@
 //!     }
 //! }
 //!
-//! fn ui_system(contexts: EguiContexts) {
+//! fn ui_system(contexts: EguiContexts) -> Result {
 //!     // ...
 //! }
 //! ```
@@ -175,7 +176,7 @@ use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
-    query::{QueryData, QueryEntityError},
+    query::{QueryData, QueryEntityError, QuerySingleError},
     schedule::{InternedScheduleLabel, ScheduleLabel},
     system::SystemParam,
 };
@@ -246,7 +247,7 @@ pub struct EguiPlugin {
     ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .run();
     /// }
-    /// fn ui_example_system(contexts: EguiContexts) {
+    /// fn ui_example_system(contexts: EguiContexts) -> Result {
     ///     // ...
     /// }
     /// ```
@@ -275,7 +276,7 @@ pub struct EguiPlugin {
     ///     commands.spawn((Window::default(), EguiMultipassSchedule::new(SecondWindowContextPass)));
     /// }
     ///
-    /// fn ui_example_system(contexts: EguiContexts) {
+    /// fn ui_example_system(contexts: EguiContexts) -> Result {
     ///     // ...
     /// }
     /// ```
@@ -308,7 +309,7 @@ pub struct EguiPlugin {
     ///     }
     /// }
     ///
-    /// fn ui_system(contexts: EguiContexts) {
+    /// fn ui_system(contexts: EguiContexts) -> Result {
     ///     // ...
     /// }
     /// ```
@@ -610,70 +611,66 @@ impl EguiContext {
     }
 }
 
+// This query is actually unused, but we use it just to cheat a relevant error message.
+type EguiContextsPrimaryQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static mut EguiContext), With<PrimaryEguiContext>>;
+
+type EguiContextsQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut EguiContext,
+        Option<&'static PrimaryEguiContext>,
+    ),
+>;
+
 #[derive(SystemParam)]
 /// A helper SystemParam that provides a way to get [`EguiContext`] with less boilerplate and
 /// combines a proxy interface to the [`EguiUserTextures`] resource.
 pub struct EguiContexts<'w, 's> {
-    q: Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static mut EguiContext,
-            Option<&'static PrimaryEguiContext>,
-        ),
-    >,
+    q: EguiContextsQuery<'w, 's>,
     #[cfg(feature = "render")]
     user_textures: ResMut<'w, EguiUserTextures>,
 }
 
+#[allow(clippy::manual_try_fold)]
 impl EguiContexts<'_, '_> {
     /// Returns an Egui context with the [`PrimaryEguiContext`] component.
-    #[must_use]
-    pub fn ctx_mut(&mut self) -> &mut egui::Context {
-        self.try_ctx_mut()
-            .expect("`EguiContexts::ctx_mut` was called for an uninitialized context (primary camera), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (for startup systems, make sure you set up a camera at [`PreStartup`] before [`EguiStartupSet::InitContexts`])")
-    }
-
-    /// Fallible variant of [`EguiContexts::ctx_mut`].
-    #[must_use]
-    pub fn try_ctx_mut(&mut self) -> Option<&mut egui::Context> {
-        self.q
-            .iter_mut()
-            .find_map(|(_window_entity, ctx, primary)| {
-                if primary.is_some() {
-                    Some(ctx.into_inner().get_mut())
-                } else {
-                    None
+    #[inline]
+    pub fn ctx_mut(&mut self) -> Result<&mut egui::Context, QuerySingleError> {
+        self.q.iter_mut().fold(
+            Err(QuerySingleError::NoEntities(core::any::type_name::<
+                EguiContextsPrimaryQuery,
+            >())),
+            |result, (_window_entity, ctx, primary)| match (&result, primary) {
+                (Err(QuerySingleError::MultipleEntities(_)), _) => result,
+                (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get_mut()),
+                (Err(QuerySingleError::NoEntities(_)), None) => result,
+                (Ok(_), Some(_)) => {
+                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
+                        EguiContextsPrimaryQuery,
+                    >()))
                 }
-            })
+                (Ok(_), None) => result,
+            },
+        )
     }
 
     /// Egui context of a specific entity.
-    #[must_use]
-    pub fn ctx_for_entity_mut(&mut self, entity: Entity) -> &mut egui::Context {
-        self.try_ctx_for_entity_mut(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_window_mut` was called for an uninitialized context (entity {entity:?})"))
-    }
-
-    /// Fallible variant of [`EguiContexts::ctx_for_entity_mut`].
-    #[must_use]
-    #[track_caller]
-    pub fn try_ctx_for_entity_mut(&mut self, entity: Entity) -> Option<&mut egui::Context> {
+    #[inline]
+    pub fn ctx_for_entity_mut(
+        &mut self,
+        entity: Entity,
+    ) -> Result<&mut egui::Context, QueryEntityError> {
         self.q
-            .iter_mut()
-            .find_map(|(window_entity, ctx, _primary)| {
-                if window_entity == entity {
-                    Some(ctx.into_inner().get_mut())
-                } else {
-                    None
-                }
-            })
+            .get_mut(entity)
+            .map(|(_entity, context, _primary)| context.into_inner().get_mut())
     }
 
     /// Allows to get multiple contexts at the same time. This function is useful when you want
     /// to get multiple contexts without using the `immutable_ctx` feature.
-    #[track_caller]
+    #[inline]
     pub fn ctx_for_entities_mut<const N: usize>(
         &mut self,
         ids: [Entity; N],
@@ -693,33 +690,24 @@ impl EguiContexts<'_, '_> {
     /// sure that the context isn't accessed concurrently and can perform other useful work
     /// instead of busy-waiting.
     #[cfg(feature = "immutable_ctx")]
-    #[must_use]
-    pub fn ctx(&self) -> &egui::Context {
-        self.try_ctx()
-            .expect("`EguiContexts::ctx` was called for an uninitialized context (primary camera), make sure your system is run after [`EguiPreUpdateSet::InitContexts`] (for startup systems, make sure you set up a camera at [`PreStartup`] before [`EguiStartupSet::InitContexts`])")
-    }
-
-    /// Fallible variant of [`EguiContexts::ctx`].
-    ///
-    /// Even though the mutable borrow isn't necessary, as the context is wrapped into `RwLock`,
-    /// using the immutable getter is gated with the `immutable_ctx` feature. Using the immutable
-    /// borrow is discouraged as it may cause unpredictable blocking in UI systems.
-    ///
-    /// When the context is queried with `&mut EguiContext`, the Bevy scheduler is able to make
-    /// sure that the context isn't accessed concurrently and can perform other useful work
-    /// instead of busy-waiting.
-    #[cfg(feature = "immutable_ctx")]
-    #[must_use]
-    pub fn try_ctx(&self) -> Option<&egui::Context> {
-        self.q
-            .iter()
-            .find_map(|(_window_entity, ctx, primary_window)| {
-                if primary_window.is_some() {
-                    Some(ctx.get())
-                } else {
-                    None
+    #[inline]
+    pub fn ctx(&self) -> Result<&egui::Context, QuerySingleError> {
+        self.q.iter().fold(
+            Err(QuerySingleError::NoEntities(core::any::type_name::<
+                EguiContextsPrimaryQuery,
+            >())),
+            |result, (_window_entity, ctx, primary)| match (&result, primary) {
+                (Err(QuerySingleError::MultipleEntities(_)), _) => result,
+                (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get()),
+                (Err(QuerySingleError::NoEntities(_)), None) => result,
+                (Ok(_), Some(_)) => {
+                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
+                        EguiContextsPrimaryQuery,
+                    >()))
                 }
-            })
+                (Ok(_), None) => result,
+            },
+        )
     }
 
     /// Egui context of a specific entity.
@@ -731,35 +719,12 @@ impl EguiContexts<'_, '_> {
     /// When the context is queried with `&mut EguiContext`, the Bevy scheduler is able to make
     /// sure that the context isn't accessed concurrently and can perform other useful work
     /// instead of busy-waiting.
-    #[must_use]
+    #[inline]
     #[cfg(feature = "immutable_ctx")]
-    pub fn ctx_for_entity(&self, entity: Entity) -> &egui::Context {
-        self.try_ctx_for_entity(entity)
-            .unwrap_or_else(|| panic!("`EguiContexts::ctx_for_entity` was called for an uninitialized context (entity {entity:?})"))
-    }
-
-    /// Fallible variant of [`EguiContexts::ctx_for_entity`].
-    ///
-    /// Even though the mutable borrow isn't necessary, as the context is wrapped into `RwLock`,
-    /// using the immutable getter is gated with the `immutable_ctx` feature. Using the immutable
-    /// borrow is discouraged as it may cause unpredictable blocking in UI systems.
-    ///
-    /// When the context is queried with `&mut EguiContext`, the Bevy scheduler is able to make
-    /// sure that the context isn't accessed concurrently and can perform other useful work
-    /// instead of busy-waiting.
-    #[must_use]
-    #[track_caller]
-    #[cfg(feature = "immutable_ctx")]
-    pub fn try_ctx_for_entity(&self, entity: Entity) -> Option<&egui::Context> {
+    pub fn ctx_for_entity(&self, entity: Entity) -> Result<&egui::Context, QueryEntityError> {
         self.q
-            .iter()
-            .find_map(|(window_entity, ctx, _primary_window)| {
-                if window_entity == entity {
-                    Some(ctx.get())
-                } else {
-                    None
-                }
-            })
+            .get_mut(entity)
+            .map(|(_entity, context, _primary)| context.into_inner().get())
     }
 
     /// Can accept either a strong or a weak handle.

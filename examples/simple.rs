@@ -16,8 +16,9 @@ fn setup_camera_system(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
-fn ui_example_system(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+fn ui_example_system(mut contexts: EguiContexts) -> Result {
+    egui::Window::new("Hello").show(contexts.ctx_mut()?, |ui| {
         ui.label("world");
     });
+    Ok(())
 }

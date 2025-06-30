@@ -223,8 +223,8 @@ fn ui_system(
     mut app_state: ResMut<AppState>,
     mut contexts: EguiContexts,
     images: Res<Assets<bevy::image::Image>>,
-) {
-    let ctx = contexts.ctx_mut();
+) -> Result {
+    let ctx = contexts.ctx_mut()?;
     app_state.top_panel_height = egui::TopBottomPanel::top("top_panel")
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -275,6 +275,8 @@ fn ui_system(
                 });
         }
     }
+
+    Ok(())
 }
 
 fn render_to_image_ui_system<C: Component>(

@@ -22,8 +22,8 @@ fn ui_example_system(
     mut contexts: EguiContexts,
     mut camera: Single<&mut Camera, Without<EguiContext>>,
     window: Single<&mut Window, With<PrimaryWindow>>,
-) {
-    let ctx = contexts.ctx_mut();
+) -> Result {
+    let ctx = contexts.ctx_mut()?;
 
     let mut left = egui::SidePanel::left("left_panel")
         .resizable(true)
@@ -107,6 +107,8 @@ fn ui_example_system(
         physical_size: size,
         ..default()
     });
+
+    Ok(())
 }
 
 // Set up the example entities for the scene. The only important thing is a camera which
