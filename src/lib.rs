@@ -81,6 +81,7 @@
 //!
 //! fn ui_system(contexts: EguiContexts) -> Result {
 //!     // ...
+//!     Ok(())
 //! }
 //! ```
 //!
@@ -249,6 +250,7 @@ pub struct EguiPlugin {
     /// }
     /// fn ui_example_system(contexts: EguiContexts) -> Result {
     ///     // ...
+    ///     Ok(())
     /// }
     /// ```
     ///
@@ -278,6 +280,7 @@ pub struct EguiPlugin {
     ///
     /// fn ui_example_system(contexts: EguiContexts) -> Result {
     ///     // ...
+    ///     Ok(())
     /// }
     /// ```
     ///
@@ -311,6 +314,7 @@ pub struct EguiPlugin {
     ///
     /// fn ui_system(contexts: EguiContexts) -> Result {
     ///     // ...
+    ///     Ok(())
     /// }
     /// ```
     #[deprecated(
