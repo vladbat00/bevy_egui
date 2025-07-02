@@ -35,8 +35,13 @@
 //!     App::new()
 //!         .add_plugins(DefaultPlugins)
 //!         .add_plugins(EguiPlugin::default())
+//!         .add_systems(Startup, setup_camera_system)
 //!         .add_systems(EguiPrimaryContextPass, ui_example_system)
 //!         .run();
+//! }
+//!
+//! fn setup_camera_system(mut commands: Commands) {
+//!     commands.spawn(Camera2d);
 //! }
 //!
 //! fn ui_example_system(mut contexts: EguiContexts) -> Result {
@@ -248,8 +253,12 @@ pub struct EguiPlugin {
     ///     App::new()
     ///         .add_plugins(DefaultPlugins)
     ///         .add_plugins(EguiPlugin::default())
+    ///         .add_systems(Startup, setup_camera_system)
     ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .run();
+    /// }
+    /// fn setup_camera_system(mut commands: Commands) {
+    ///     commands.spawn(Camera2d);
     /// }
     /// fn ui_example_system(contexts: EguiContexts) -> Result {
     ///     // ...
@@ -261,9 +270,13 @@ pub struct EguiPlugin {
     /// you need to define a custom schedule and assign it to additional contexts manually:
     ///
     /// ```no_run,rust
-    /// # use bevy::prelude::*;
+    /// # use bevy::{
+    /// #    prelude::*,
+    /// #    render::camera::RenderTarget,
+    /// #    window::{PresentMode, WindowRef, WindowResolution},
+    /// # };
     /// # use bevy::ecs::schedule::ScheduleLabel;
-    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiMultipassSchedule};
+    /// # use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiMultipassSchedule, PrimaryEguiContext, EguiGlobalSettings};
     /// #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     /// pub struct SecondWindowContextPass;
     ///
@@ -271,14 +284,30 @@ pub struct EguiPlugin {
     ///     App::new()
     ///         .add_plugins(DefaultPlugins)
     ///         .add_plugins(EguiPlugin::default())
-    ///         .add_systems(Startup, create_new_window_system)
+    ///         .add_systems(Startup, setup_system)
     ///         .add_systems(EguiPrimaryContextPass, ui_example_system)
     ///         .add_systems(SecondWindowContextPass, ui_example_system)
     ///         .run();
     /// }
     ///
-    /// fn create_new_window_system(mut commands: Commands) {
-    ///     commands.spawn((Window::default(), EguiMultipassSchedule::new(SecondWindowContextPass)));
+    /// fn setup_system(
+    ///     mut commands: Commands,
+    ///     mut egui_global_settings: ResMut<EguiGlobalSettings>,
+    /// ) {
+    ///     // Disable the automatic creation of a primary context to set it up manually.
+    ///     egui_global_settings.auto_create_primary_context = false;
+    ///     // Spawn a camera for the primary window.
+    ///     commands.spawn((Camera3d::default(), PrimaryEguiContext));
+    ///     // Spawn the second window and its camera.
+    ///     let second_window_id = commands.spawn(Window::default()).id();
+    ///     commands.spawn((
+    ///         EguiMultipassSchedule::new(SecondWindowContextPass),
+    ///         Camera3d::default(),
+    ///         Camera {
+    ///             target: RenderTarget::Window(WindowRef::Entity(second_window_id)),
+    ///             ..Default::default()
+    ///         },
+    ///     ));
     /// }
     ///
     /// fn ui_example_system(contexts: EguiContexts) -> Result {

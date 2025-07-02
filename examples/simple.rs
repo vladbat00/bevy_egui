@@ -6,8 +6,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_camera_system)
-        // Systems that create Egui widgets should be run during the `CoreSet::Update` set,
-        // or after the `EguiPreUpdateSet::BeginPass` system (which belongs to the `CoreSet::PreUpdate` set).
         .add_systems(EguiPrimaryContextPass, ui_example_system)
         .run();
 }

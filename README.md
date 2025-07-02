@@ -48,14 +48,19 @@ bevy_egui = "0.35.0"
 
 ```rust
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiContextPass};
+use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
-        .add_systems(EguiContextPass, ui_example_system)
+        .add_systems(Startup, setup_camera_system)
+        .add_systems(EguiPrimaryContextPass, ui_example_system)
         .run();
+}
+
+fn setup_camera_system(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
 
 fn ui_example_system(mut contexts: EguiContexts) -> Result {
@@ -64,7 +69,6 @@ fn ui_example_system(mut contexts: EguiContexts) -> Result {
     });
     Ok(())
 }
-
 ```
 
 Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
@@ -101,6 +105,7 @@ impl Plugin for MyPlugin {
 
 fn ui_system(contexts: EguiContexts) -> Result {
     // ...
+    Ok(())
 }
 ```
 
