@@ -40,7 +40,7 @@ fn create_new_window_system(
     // Spawn a camera for the primary window.
     commands.spawn((Camera3d::default(), PrimaryEguiContext));
 
-    // Spawn the second window and camera.
+    // Spawn the second window and its camera.
     let second_window_id = commands
         .spawn(Window {
             title: "Second window".to_owned(),
