@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The plugin should be initialized with `EguiPlugin::default()` now.
   - The single-pass support is going to be removed in the future. If you still need it for any reason, please let me know in the issues!
 - **Breaking change:** Attach `EguiContext` instances to cameras ([#392](https://github.com/vladbat00/bevy_egui/pull/392)).
-  - This is a breaking change for users having multiple windows or accessing the `Window` component together with `EguiContext` (or any other related to Egui) in a single query. See the updated examples.  
+  - For Egui to render, users now need at least one camera in the world. Egui automatically attaches itself to the first created camera, but more precise control is also possible: for details, see the [examples/side_panel.rs](./examples/side_panel.rs) example.
+  - This is also a breaking change for users having multiple windows or accessing the `Window` component together with `EguiContext` (or any other related to Egui) in a single query.  
 - **Breaking change:** Refactor `EguiContexts` to support Bevy result systems ([#393](https://github.com/vladbat00/bevy_egui/pull/393)).
   - With this change, systems using `EguiContexts` should be transformed into [Result systems](https://bevy.org/news/bevy-0-16/#unified-ecs-error-handling). 
 - Update cursor icons only if changed, make updates disableable ([#388](https://github.com/vladbat00/bevy_egui/pull/388)).
