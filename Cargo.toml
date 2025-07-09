@@ -1,6 +1,6 @@
 [package]
 name = "bevy_egui"
-version = "0.35.0"
+version = "0.35.1"
 # Needed for LazyLock https://doc.rust-lang.org/stable/std/sync/struct.LazyLock.html
 rust-version = "1.80.0"
 authors = ["vladbat00 <vladyslav.batyrenko@gmail.com>"]
