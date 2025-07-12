@@ -187,8 +187,8 @@ fn ui_example_system(
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
         // The top panel is often a good place for a menu bar:
-        egui::menu::bar(ui, |ui| {
-            egui::menu::menu_button(ui, "File", |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
+            egui::containers::menu::MenuButton::new("File").ui(ui, |ui| {
                 if ui.button("Quit").clicked() {
                     std::process::exit(0);
                 }
