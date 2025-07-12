@@ -116,11 +116,11 @@ pub fn process_output_system(
             // winit, that it needs to wake up next frame as well even if there are no inputs.
             //
             // TLDR: this solves repaint corner cases of `WinitSettings::desktop_app()`.
-            if let Some(Duration::ZERO) =
-                ctx.viewport(|viewport| viewport.input.wants_repaint_after())
-            {
-                let _ = event_loop_proxy.send_event(WakeUp);
-            }
+            // if let Some(Duration::ZERO) =
+            //     ctx.viewport(|viewport| viewport.input.wants_repaint_after())
+            // {
+            //     let _ = event_loop_proxy.send_event(WakeUp);
+            // }
         }
     }
 

@@ -681,6 +681,7 @@ impl TextureManager {
                 "color_test_gradient",
                 epaint::ColorImage {
                     size: [width, height],
+                    source_size: Vec2::from([width as f32, height as f32]),
                     pixels,
                 },
                 TextureOptions::LINEAR,
