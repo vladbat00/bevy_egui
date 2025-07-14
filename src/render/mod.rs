@@ -321,14 +321,6 @@ pub(crate) struct EguiDraw {
 pub(crate) fn as_color_image(image: &egui::ImageData) -> egui::ColorImage {
     match image {
         egui::ImageData::Color(image) => (**image).clone(),
-        egui::ImageData::Font(image) => alpha_image_as_color_image(image),
-    }
-}
-
-fn alpha_image_as_color_image(image: &egui::FontImage) -> egui::ColorImage {
-    egui::ColorImage {
-        size: image.size,
-        pixels: image.srgba_pixels(None).collect(),
     }
 }
 

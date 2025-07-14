@@ -5,12 +5,11 @@ use crate::{
 use bevy_ecs::{
     entity::Entity,
     event::EventWriter,
-    system::{Commands, Local, NonSend, Query, Res},
+    system::{Commands, Local, Query, Res},
 };
 use bevy_platform::collections::HashMap;
 use bevy_window::RequestRedraw;
-use bevy_winit::{cursor::CursorIcon, EventLoopProxy, WakeUp};
-use std::time::Duration;
+use bevy_winit::cursor::CursorIcon;
 
 /// Reads Egui output.
 #[allow(clippy::too_many_arguments)]
@@ -28,7 +27,6 @@ pub fn process_output_system(
     mut egui_clipboard: bevy_ecs::system::ResMut<crate::EguiClipboard>,
     mut event: EventWriter<RequestRedraw>,
     mut last_cursor_icon: Local<HashMap<Entity, egui::CursorIcon>>,
-    event_loop_proxy: Option<NonSend<EventLoopProxy<WakeUp>>>,
     egui_global_settings: Res<EguiGlobalSettings>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
@@ -107,21 +105,6 @@ pub fn process_output_system(
 
         let needs_repaint = !render_output.is_empty();
         should_request_redraw |= ctx.has_requested_repaint() && needs_repaint;
-
-        // The resource doesn't exist in the headless mode.
-        if let Some(event_loop_proxy) = &event_loop_proxy {
-            // A zero duration indicates that it's an outstanding redraw request, which gives Egui an
-            // opportunity to settle the effects of interactions with widgets. Such repaint requests
-            // are processed not immediately but on a next frame. In this case, we need to indicate to
-            // winit, that it needs to wake up next frame as well even if there are no inputs.
-            //
-            // TLDR: this solves repaint corner cases of `WinitSettings::desktop_app()`.
-            if let Some(Duration::ZERO) =
-                ctx.viewport(|viewport| viewport.input.wants_repaint_after())
-            {
-                let _ = event_loop_proxy.send_event(WakeUp);
-            }
-        }
     }
 
     if should_request_redraw {
