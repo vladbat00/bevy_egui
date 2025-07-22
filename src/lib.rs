@@ -1283,6 +1283,31 @@ impl Plugin for EguiPlugin {
                     Render,
                     render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
                 );
+
+            // Select a consistent ordering between bevy_ui and egui.
+            // (see https://github.com/vladbat00/bevy_egui/issues/404)
+            #[cfg(feature = "bevy_ui")]
+            {
+                let mut graph = render_app
+                    .world_mut()
+                    .resource_mut::<bevy_render::render_graph::RenderGraph>();
+                if let Some(graph_2d) =
+                    graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
+                {
+                    graph_2d.add_node_edge(
+                        bevy_ui::graph::NodeUi::UiPass,
+                        render::graph::NodeEgui::EguiPass,
+                    );
+                }
+                if let Some(graph_3d) =
+                    graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
+                {
+                    graph_3d.add_node_edge(
+                        bevy_ui::graph::NodeUi::UiPass,
+                        render::graph::NodeEgui::EguiPass,
+                    );
+                }
+            }
         }
     }
 }
