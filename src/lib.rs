@@ -1303,6 +1303,8 @@ impl Plugin for EguiPlugin {
                     render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
                 );
 
+            // Configure a fixed rendering order between Bevy UI and egui.
+            // Otherwise, this order is effectively decided at random on every game startup.
             #[cfg(feature = "bevy_ui")]
             {
                 use bevy_render::render_graph::RenderLabel;
@@ -1322,12 +1324,26 @@ impl Plugin for EguiPlugin {
                 if let Some(graph_2d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
                 {
-                    graph_2d.add_node_edge(below, above);
+                    // Only apply if the bevy_ui plugin is actually enabled.
+                    // In theory we could use RenderGraph::try_add_node_edge instead and ignore the result,
+                    // but that still seems to end up writing the corrupt edge into the graph,
+                    // causing the game to panic down the line.
+                    if graph_2d
+                        .get_node_state(bevy_ui::graph::NodeUi::UiPass)
+                        .is_ok()
+                    {
+                        graph_2d.add_node_edge(below, above);
+                    }
                 }
                 if let Some(graph_3d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
                 {
-                    graph_3d.add_node_edge(below, above);
+                    if graph_3d
+                        .get_node_state(bevy_ui::graph::NodeUi::UiPass)
+                        .is_ok()
+                    {
+                        graph_3d.add_node_edge(below, above);
+                    }
                 }
             }
         }
