@@ -353,6 +353,13 @@ pub struct EguiPlugin {
         note = "The option to disable the multi-pass mode is now deprecated, use `EguiPlugin::default` instead"
     )]
     pub enable_multipass_for_primary_context: bool,
+
+    /// Configures whether [`egui`] will be rendered above or below [`bevy_ui`](Bevy UI) GUIs.
+    ///
+    /// Defaults to [`UiRenderOrder::EguiAboveBevyUi`], on the assumption that games that use both
+    /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
+    #[cfg(feature = "bevy_ui")]
+    pub ui_render_order: UiRenderOrder,
 }
 
 impl Default for EguiPlugin {
@@ -360,8 +367,20 @@ impl Default for EguiPlugin {
         Self {
             #[allow(deprecated)]
             enable_multipass_for_primary_context: true,
+            ui_render_order: UiRenderOrder::EguiAboveBevyUi,
         }
     }
+}
+
+/// Configures the rendering order between [`egui`] and [`bevy_ui`](Bevy UI).
+///
+/// See [`EguiPlugin::ui_render_order`].
+#[cfg(feature = "bevy_ui")]
+pub enum UiRenderOrder {
+    /// [`egui`] UIs are rendered on top of [`bevy_ui`](Bevy UI).
+    EguiAboveBevyUi,
+    /// [`bevy_ui`](Bevy UI) UIs are rendered on top of [`egui`].
+    BevyUiAboveEgui,
 }
 
 /// A resource for storing global plugin settings.
@@ -1284,28 +1303,31 @@ impl Plugin for EguiPlugin {
                     render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
                 );
 
-            // Select a consistent ordering between bevy_ui and egui.
-            // (see https://github.com/vladbat00/bevy_egui/issues/404)
             #[cfg(feature = "bevy_ui")]
             {
+                use bevy_render::render_graph::RenderLabel;
                 let mut graph = render_app
                     .world_mut()
                     .resource_mut::<bevy_render::render_graph::RenderGraph>();
+                let (below, above) = match self.ui_render_order {
+                    UiRenderOrder::EguiAboveBevyUi => (
+                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                        render::graph::NodeEgui::EguiPass.intern(),
+                    ),
+                    UiRenderOrder::BevyUiAboveEgui => (
+                        render::graph::NodeEgui::EguiPass.intern(),
+                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                    ),
+                };
                 if let Some(graph_2d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
                 {
-                    graph_2d.add_node_edge(
-                        bevy_ui::graph::NodeUi::UiPass,
-                        render::graph::NodeEgui::EguiPass,
-                    );
+                    graph_2d.add_node_edge(below, above);
                 }
                 if let Some(graph_3d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
                 {
-                    graph_3d.add_node_edge(
-                        bevy_ui::graph::NodeUi::UiPass,
-                        render::graph::NodeEgui::EguiPass,
-                    );
+                    graph_3d.add_node_edge(below, above);
                 }
             }
         }
