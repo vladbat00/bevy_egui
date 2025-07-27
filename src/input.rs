@@ -1175,7 +1175,7 @@ pub struct EguiWantsInput {
     wants_pointer_input: bool,
     is_using_pointer: bool,
     wants_keyboard_input: bool,
-    is_context_menu_open: bool,
+    is_popup_open: bool,
 }
 
 impl EguiWantsInput {
@@ -1207,8 +1207,14 @@ impl EguiWantsInput {
     }
 
     /// Is an egui context menu open?
+    #[deprecated = "use is_popup_open, renamed upstream in egui"]
     pub fn is_context_menu_open(&self) -> bool {
-        self.is_context_menu_open
+        self.is_popup_open
+    }
+
+    /// Is an egui context menu open?
+    pub fn is_popup_open(&self) -> bool {
+        self.is_popup_open
     }
 
     /// Returns `true` if any of the following is true:
@@ -1217,13 +1223,13 @@ impl EguiWantsInput {
         self.is_pointer_over_area
             || self.wants_pointer_input
             || self.is_using_pointer
-            || self.is_context_menu_open
+            || self.is_popup_open
     }
 
     /// Returns `true` if any of the following is true:
     /// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_context_menu_open`].
     pub fn wants_any_keyboard_input(&self) -> bool {
-        self.wants_keyboard_input || self.is_context_menu_open
+        self.wants_keyboard_input || self.is_popup_open
     }
 
     /// Returns `true` if any of the following is true:
@@ -1237,7 +1243,7 @@ impl EguiWantsInput {
         self.wants_pointer_input = false;
         self.is_using_pointer = false;
         self.wants_keyboard_input = false;
-        self.is_context_menu_open = false;
+        self.is_popup_open = false;
     }
 }
 
@@ -1258,8 +1264,7 @@ pub fn write_egui_wants_input_system(
             egui_wants_input.is_using_pointer || egui_ctx.is_using_pointer();
         egui_wants_input.wants_keyboard_input =
             egui_wants_input.wants_keyboard_input || egui_ctx.wants_keyboard_input();
-        egui_wants_input.is_context_menu_open =
-            egui_wants_input.is_context_menu_open || egui_ctx.is_context_menu_open();
+        egui_wants_input.is_popup_open = egui_wants_input.is_popup_open || egui_ctx.is_popup_open();
     }
 }
 

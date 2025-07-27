@@ -77,7 +77,7 @@ name = "file_browse"
 required-features = ["render"]
 
 [dependencies]
-egui = { version = "0.31", default-features = false }
+egui = { version = "0.32", default-features = false }
 bevy_a11y = { version = "0.16.0", optional = true }
 bevy_app = "0.16.0"
 bevy_derive = "0.16.0"
@@ -131,7 +131,7 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "webgl2",
     "x11",
 ] }
-egui = { version = "0.31", default-features = false, features = ["bytemuck"] }
+egui = { version = "0.32", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dev-dependencies]
 rfd = "0.15"
