@@ -367,6 +367,7 @@ impl Default for EguiPlugin {
         Self {
             #[allow(deprecated)]
             enable_multipass_for_primary_context: true,
+            #[cfg(feature = "bevy_ui")]
             ui_render_order: UiRenderOrder::EguiAboveBevyUi,
         }
     }
@@ -376,6 +377,7 @@ impl Default for EguiPlugin {
 ///
 /// See [`EguiPlugin::ui_render_order`].
 #[cfg(feature = "bevy_ui")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UiRenderOrder {
     /// [`egui`] UIs are rendered on top of [`bevy_ui`](Bevy UI).
     EguiAboveBevyUi,
