@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 4-Aug-2025
+
+## Added
+
+- Make it configurable whether to render egui on top of bevy_ui or not ([#405](https://github.com/vladbat00/bevy_egui/pull/405) by @nightkr).
+
+## Changed
+
+- Update Egui to 0.32 ([#402](https://github.com/vladbat00/bevy_egui/pull/402), [#399](https://github.com/vladbat00/bevy_egui/pull/399) by @globin and @hacknus).
+
 ## [0.35.1] - 9-Jul-2025
 
 ### Misc
