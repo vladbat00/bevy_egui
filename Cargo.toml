@@ -26,6 +26,7 @@ render = [
     "bevy_core_pipeline",
     "bevy_image",
     "bevy_render",
+    "bevy_tasks",
     "bevy_transform",
     "encase",
     "bytemuck",
@@ -88,7 +89,6 @@ bevy_math = "0.16.0"
 bevy_platform = "0.16.0"
 bevy_reflect = "0.16.0"
 bevy_time = "0.16.0"
-bevy_transform = { version = "0.16.1", optional = true }
 bevy_ui = { version = "0.16.1", optional = true }
 bevy_window = "0.16.0"
 bevy_winit = "0.16.0"
@@ -102,6 +102,8 @@ bevy_asset = { version = "0.16.0", optional = true }
 bevy_core_pipeline = { version = "0.16.1", optional = true }
 bevy_image = { version = "0.16.0", optional = true }
 bevy_render = { version = "0.16.0", optional = true }
+bevy_tasks = { version = "0.16.0", optional = true }
+bevy_transform = { version = "0.16.1", optional = true }
 encase = { version = "0.10", optional = true }
 wgpu-types = { version = "24.0", optional = true }
 

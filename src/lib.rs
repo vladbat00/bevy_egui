@@ -1512,7 +1512,7 @@ impl EguiClipboard {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn get(&self) -> Option<RefMut<Clipboard>> {
+    fn get(&self) -> Option<RefMut<'_, Clipboard>> {
         self.clipboard
             .get_or(|| {
                 Clipboard::new()

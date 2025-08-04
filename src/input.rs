@@ -166,10 +166,14 @@ impl WindowToEguiContextMap {
     /// Adds a context to the map on creation.
     pub fn on_egui_context_added_system(
         mut res: ResMut<Self>,
-        added_contexts: Query<(Entity, &bevy_render::camera::Camera), Added<EguiContext>>,
+        added_contexts: Query<
+            (Entity, &bevy_render::camera::Camera, &mut EguiContext),
+            Added<EguiContext>,
+        >,
         primary_window: Query<Entity, With<bevy_window::PrimaryWindow>>,
+        event_loop_proxy: Res<bevy_winit::EventLoopProxyWrapper<bevy_winit::WakeUp>>,
     ) {
-        for (egui_context_entity, camera) in added_contexts {
+        for (egui_context_entity, camera, mut egui_context) in added_contexts {
             if let Some(bevy_render::camera::NormalizedRenderTarget::Window(window_ref)) =
                 camera.target.normalize(primary_window.single().ok())
             {
@@ -179,6 +183,19 @@ impl WindowToEguiContextMap {
                     .insert(egui_context_entity);
                 res.context_to_window
                     .insert(egui_context_entity, window_ref.entity());
+
+                // The resource doesn't exist in the headless mode.
+                let event_loop_proxy = (*event_loop_proxy).clone();
+                egui_context
+                    .get_mut()
+                    .set_request_repaint_callback(move |repaint_info| {
+                        // TODO: find a lightweight async timer implementation that also works in WASM
+                        //  to support non-zero wake-ups as well.
+                        if repaint_info.delay.is_zero() {
+                            log::trace!("Sending the WakeUp event");
+                            let _ = event_loop_proxy.send_event(bevy_winit::WakeUp);
+                        }
+                    });
             }
         }
     }
