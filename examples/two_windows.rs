@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    render::camera::RenderTarget,
+    camera::RenderTarget,
     window::{PresentMode, WindowRef, WindowResolution},
 };
 use bevy_ecs::schedule::ScheduleLabel;
@@ -83,7 +83,7 @@ fn ui_first_window_system(
     images: Res<Images>,
     mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
 ) {
-    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone_weak());
+    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone());
     egui::Window::new("First Window")
         .vscroll(true)
         .show(egui_ctx.get_mut(), |ui| {
@@ -110,7 +110,7 @@ fn ui_second_window_system(
     images: Res<Images>,
     mut egui_ctx: Single<&mut EguiContext, Without<PrimaryEguiContext>>,
 ) {
-    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone_weak());
+    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone());
     egui::Window::new("Second Window")
         .vscroll(true)
         .show(egui_ctx.get_mut(), |ui| {
