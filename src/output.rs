@@ -1,6 +1,6 @@
 use crate::{
-    helpers, input::WindowToEguiContextMap, EguiContext, EguiContextSettings, EguiFullOutput,
-    EguiGlobalSettings, EguiOutput, EguiRenderOutput,
+    EguiContext, EguiContextSettings, EguiFullOutput, EguiGlobalSettings, EguiOutput,
+    EguiRenderOutput, helpers, input::WindowToEguiContextMap,
 };
 use bevy_ecs::{
     entity::Entity,
@@ -8,8 +8,7 @@ use bevy_ecs::{
     system::{Commands, Local, Query, Res},
 };
 use bevy_platform::collections::HashMap;
-use bevy_window::RequestRedraw;
-use bevy_winit::cursor::CursorIcon;
+use bevy_window::{CursorIcon, RequestRedraw};
 
 /// Reads Egui output.
 #[allow(clippy::too_many_arguments)]
@@ -37,7 +36,9 @@ pub fn process_output_system(
     {
         let ctx = context.get_mut();
         let Some(full_output) = full_output.0.take() else {
-            bevy_log::error!("bevy_egui pass output has not been prepared (if EguiSettings::run_manually is set to true, make sure to call egui::Context::run or egui::Context::begin_pass and egui::Context::end_pass)");
+            bevy_log::error!(
+                "bevy_egui pass output has not been prepared (if EguiSettings::run_manually is set to true, make sure to call egui::Context::run or egui::Context::begin_pass and egui::Context::end_pass)"
+            );
             continue;
         };
         let egui::FullOutput {

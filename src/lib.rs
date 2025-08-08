@@ -170,9 +170,9 @@ pub use egui;
 use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
-    install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
-    write_text_agent_channel_events_system, SafariVirtualKeyboardTouchState, TextAgentChannel,
-    VirtualTouchInfo,
+    SafariVirtualKeyboardTouchState, TextAgentChannel, VirtualTouchInfo, install_text_agent_system,
+    is_mobile_safari, process_safari_virtual_keyboard_system,
+    write_text_agent_channel_events_system,
 };
 #[cfg(all(
     feature = "manage_clipboard",
@@ -181,7 +181,9 @@ use crate::text_agent::{
 use arboard::Clipboard;
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
-use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle};
+use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
+#[cfg(feature = "picking")]
+use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
@@ -191,7 +193,7 @@ use bevy_ecs::{
 };
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
-use bevy_input::InputSystem;
+use bevy_input::InputSystems;
 #[allow(unused_imports)]
 use bevy_log as log;
 #[cfg(feature = "picking")]
@@ -203,15 +205,13 @@ use bevy_picking::{
 use bevy_platform::collections::HashMap;
 use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
-#[cfg(feature = "picking")]
-use bevy_render::camera::NormalizedRenderTarget;
 #[cfg(feature = "render")]
 use bevy_render::{
+    ExtractSchedule, Render, RenderApp, RenderSystems,
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
-    ExtractSchedule, Render, RenderApp, RenderSet,
 };
-use bevy_winit::cursor::CursorIcon;
+use bevy_window::CursorIcon;
 use output::process_output_system;
 #[cfg(all(
     feature = "manage_clipboard",
@@ -696,18 +696,16 @@ impl EguiContexts<'_, '_> {
     #[inline]
     pub fn ctx_mut(&mut self) -> Result<&mut egui::Context, QuerySingleError> {
         self.q.iter_mut().fold(
-            Err(QuerySingleError::NoEntities(core::any::type_name::<
-                EguiContextsPrimaryQuery,
-            >())),
+            Err(QuerySingleError::NoEntities(
+                bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+            )),
             |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get_mut()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
-                (Ok(_), Some(_)) => {
-                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
-                        EguiContextsPrimaryQuery,
-                    >()))
-                }
+                (Ok(_), Some(_)) => Err(QuerySingleError::MultipleEntities(
+                    bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+                )),
                 (Ok(_), None) => result,
             },
         )
@@ -749,18 +747,16 @@ impl EguiContexts<'_, '_> {
     #[inline]
     pub fn ctx(&self) -> Result<&egui::Context, QuerySingleError> {
         self.q.iter().fold(
-            Err(QuerySingleError::NoEntities(core::any::type_name::<
-                EguiContextsPrimaryQuery,
-            >())),
+            Err(QuerySingleError::NoEntities(
+                bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+            )),
             |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.get()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
-                (Ok(_), Some(_)) => {
-                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
-                        EguiContextsPrimaryQuery,
-                    >()))
-                }
+                (Ok(_), Some(_)) => Err(QuerySingleError::MultipleEntities(
+                    bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+                )),
                 (Ok(_), None) => result,
             },
         )
@@ -970,7 +966,7 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 EguiPreUpdateSet::InitContexts,
-                EguiPreUpdateSet::ProcessInput.after(InputSystem),
+                EguiPreUpdateSet::ProcessInput.after(InputSystems),
                 EguiPreUpdateSet::BeginPass,
             )
                 .chain(),
@@ -1001,7 +997,8 @@ impl Plugin for EguiPlugin {
             (
                 EguiPostUpdateSet::EndPass,
                 EguiPostUpdateSet::ProcessOutput,
-                EguiPostUpdateSet::PostProcessOutput.before(bevy_a11y::AccessibilitySystem::Update),
+                EguiPostUpdateSet::PostProcessOutput
+                    .before(bevy_a11y::AccessibilitySystems::Update),
             )
                 .chain(),
         );
@@ -1180,7 +1177,9 @@ impl Plugin for EguiPlugin {
         if app.is_plugin_added::<bevy_picking::PickingPlugin>() {
             app.add_systems(PostUpdate, capture_pointer_input_system);
         } else {
-            log::warn!("The `bevy_egui/picking` feature is enabled, but `PickingPlugin` is not added (if you use Bevy's `DefaultPlugins`, make sure the `bevy/bevy_picking` feature is enabled too)");
+            log::warn!(
+                "The `bevy_egui/picking` feature is enabled, but `PickingPlugin` is not added (if you use Bevy's `DefaultPlugins`, make sure the `bevy/bevy_picking` feature is enabled too)"
+            );
         }
 
         #[cfg(feature = "render")]
@@ -1190,15 +1189,15 @@ impl Plugin for EguiPlugin {
         )
         .add_systems(
             Render,
-            render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+            render::systems::prepare_egui_transforms_system.in_set(RenderSystems::Prepare),
         )
         .add_systems(
             Render,
-            render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+            render::systems::queue_bind_groups_system.in_set(RenderSystems::Queue),
         )
         .add_systems(
             Render,
-            render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
+            render::systems::queue_pipelines_system.in_set(RenderSystems::Queue),
         )
         .add_systems(Last, free_egui_textures_system);
 
@@ -1208,7 +1207,7 @@ impl Plugin for EguiPlugin {
                 app,
                 render::EGUI_SHADER_HANDLE,
                 "render/egui.wgsl",
-                bevy_render::render_resource::Shader::from_wgsl
+                bevy_shader::Shader::from_wgsl
             );
 
             let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
@@ -1276,7 +1275,7 @@ impl Plugin for EguiPlugin {
     #[cfg(feature = "render")]
     fn finish(&self, app: &mut App) {
         #[cfg(feature = "bevy_ui")]
-        let bevy_ui_is_enabled = app.is_plugin_added::<bevy_ui::UiPlugin>();
+        let bevy_ui_is_enabled = app.is_plugin_added::<bevy_ui_render::UiRenderPlugin>();
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
@@ -1286,26 +1285,26 @@ impl Plugin for EguiPlugin {
                 .init_resource::<render::systems::EguiRenderData>()
                 .add_systems(
                     // Seems to be just the set to add/remove nodes, as it'll run before
-                    // `RenderSet::ExtractCommands` where render nodes get updated.
+                    // `RenderSystems::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
                     render::extract_egui_camera_view_system,
                 )
                 .add_systems(
                     Render,
-                    render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+                    render::systems::prepare_egui_transforms_system.in_set(RenderSystems::Prepare),
                 )
                 .add_systems(
                     Render,
                     render::systems::prepare_egui_render_target_data_system
-                        .in_set(RenderSet::Prepare),
+                        .in_set(RenderSystems::Prepare),
                 )
                 .add_systems(
                     Render,
-                    render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+                    render::systems::queue_bind_groups_system.in_set(RenderSystems::Queue),
                 )
                 .add_systems(
                     Render,
-                    render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
+                    render::systems::queue_pipelines_system.in_set(RenderSystems::Queue),
                 );
 
             // Configure a fixed rendering order between Bevy UI and egui.
@@ -1318,12 +1317,12 @@ impl Plugin for EguiPlugin {
                     .resource_mut::<bevy_render::render_graph::RenderGraph>();
                 let (below, above) = match self.ui_render_order {
                     UiRenderOrder::EguiAboveBevyUi => (
-                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
                         render::graph::NodeEgui::EguiPass.intern(),
                     ),
                     UiRenderOrder::BevyUiAboveEgui => (
                         render::graph::NodeEgui::EguiPass.intern(),
-                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
                     ),
                 };
                 if let Some(graph_2d) =
@@ -1333,7 +1332,7 @@ impl Plugin for EguiPlugin {
                     // In theory we could use RenderGraph::try_add_node_edge instead and ignore the result,
                     // but that still seems to end up writing the corrupt edge into the graph,
                     // causing the game to panic down the line.
-                    match graph_2d.get_node_state(bevy_ui::graph::NodeUi::UiPass) {
+                    match graph_2d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
                         Ok(_) => {
                             graph_2d.add_node_edge(below, above);
                         }
@@ -1346,7 +1345,7 @@ impl Plugin for EguiPlugin {
                 if let Some(graph_3d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
                 {
-                    match graph_3d.get_node_state(bevy_ui::graph::NodeUi::UiPass) {
+                    match graph_3d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
                         Ok(_) => {
                             graph_3d.add_node_edge(below, above);
                         }
@@ -1357,7 +1356,9 @@ impl Plugin for EguiPlugin {
                     }
                 }
             } else {
-                log::debug!("bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order")
+                log::debug!(
+                    "bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order"
+                )
             }
         }
     }
@@ -1390,7 +1391,7 @@ pub struct EguiManagedTexture {
 #[cfg(feature = "render")]
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
-    new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_render::camera::Camera>>,
+    new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
     #[cfg(feature = "accesskit_placeholder")] adapters: Option<
         NonSend<bevy_winit::accessibility::AccessKitAdapters>,
     >,
@@ -1539,7 +1540,7 @@ pub fn capture_pointer_input_system(
         Entity,
         &mut EguiContext,
         &EguiContextSettings,
-        &bevy_render::camera::Camera,
+        &bevy_camera::Camera,
     )>,
     mut output: EventWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
@@ -1661,8 +1662,10 @@ pub fn free_egui_textures_system(
     }
 
     for image_event in image_events.read() {
-        if let AssetEvent::Removed { id } = image_event {
-            egui_user_textures.remove_image(&Handle::<Image>::Weak(*id));
+        if let AssetEvent::Removed { id } = image_event
+            && let AssetId::Uuid { uuid } = id
+        {
+            egui_user_textures.remove_image(&Handle::Uuid(*uuid, std::marker::PhantomData));
         }
     }
 }
@@ -1732,7 +1735,7 @@ pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
     egui_settings: &'static EguiContextSettings,
-    camera: &'static bevy_render::camera::Camera,
+    camera: &'static bevy_camera::Camera,
 }
 
 #[cfg(feature = "render")]
@@ -1844,11 +1847,11 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
         })
         .collect();
 
-    for (entity, ctx, ref mut input, EguiMultipassSchedule(multipass_schedule)) in
-        &mut multipass_contexts
-    {
+    for (entity, ctx, input, EguiMultipassSchedule(multipass_schedule)) in &mut multipass_contexts {
         if !used_schedules.insert(*multipass_schedule) {
-            panic!("Each Egui context running in the multi-pass mode must have a unique schedule (attempted to reuse schedule {multipass_schedule:?})");
+            panic!(
+                "Each Egui context running in the multi-pass mode must have a unique schedule (attempted to reuse schedule {multipass_schedule:?})"
+            );
         }
 
         let output = ctx.run(input.take(), |_| {

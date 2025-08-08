@@ -1,12 +1,12 @@
 [package]
 name = "bevy_egui"
-version = "0.36.0"
+version = "0.37.0"
 # Needed for LazyLock https://doc.rust-lang.org/stable/std/sync/struct.LazyLock.html
-rust-version = "1.80.0"
+rust-version = "1.85.0"
 authors = ["vladbat00 <vladyslav.batyrenko@gmail.com>"]
 description = "A plugin for Egui integration into Bevy"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/vladbat00/bevy_egui"
 exclude = ["assets/**/*", ".github/**/*"]
 
@@ -23,15 +23,21 @@ open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
 render = [
     "bevy_asset",
+    "bevy_camera",
     "bevy_core_pipeline",
     "bevy_image",
+    "bevy_mesh",
     "bevy_render",
     "bevy_tasks",
+    "bevy_shader",
     "bevy_transform",
     "encase",
     "bytemuck",
     "egui/bytemuck",
     "wgpu-types",
+]
+bevy_ui = [
+    "bevy_ui_render",
 ]
 picking = ["render", "bevy_picking"]
 serde = ["egui/serde"]
@@ -78,37 +84,43 @@ name = "file_browse"
 required-features = ["render"]
 
 [dependencies]
-egui = { version = "0.32", default-features = false }
-bevy_a11y = { version = "0.16.0", optional = true }
-bevy_app = "0.16.0"
-bevy_derive = "0.16.0"
-bevy_ecs = "0.16.0"
-bevy_input = "0.16.0"
-bevy_log = "0.16.0"
-bevy_math = "0.16.0"
-bevy_platform = "0.16.0"
-bevy_reflect = "0.16.0"
-bevy_time = "0.16.0"
-bevy_ui = { version = "0.16.1", optional = true }
-bevy_window = "0.16.0"
-bevy_winit = "0.16.0"
+egui = { version = "0.32", default-features = false, git = "https://github.com/pindash-io/egui.git", branch = "accesskit" }
+bevy_a11y = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_app = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_derive = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_ecs = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_input = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_log = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_math = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_platform = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_reflect = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_time = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_window = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_winit = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git" }
+bevy_utils = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", features = ["debug"] }
 
 # `open_url` feature
 webbrowser = { version = "1.0.1", optional = true }
 
 # `render` feature
 bytemuck = { version = "1", optional = true }
-bevy_asset = { version = "0.16.0", optional = true }
-bevy_core_pipeline = { version = "0.16.1", optional = true }
-bevy_image = { version = "0.16.0", optional = true }
-bevy_render = { version = "0.16.0", optional = true }
-bevy_tasks = { version = "0.16.0", optional = true }
-bevy_transform = { version = "0.16.1", optional = true }
-encase = { version = "0.10", optional = true }
-wgpu-types = { version = "24.0", optional = true }
+bevy_asset = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_camera = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_core_pipeline = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_image = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", features = ["zstd_rust"], optional = true }
+bevy_mesh = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_render = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_shader = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_tasks = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+bevy_transform = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
+encase = { version = "0.11", optional = true }
+wgpu-types = { version = "26.0", optional = true }
+
+# `bevy_ui` feature
+bevy_ui_render = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true }
 
 # `picking` feature
-bevy_picking = { version = "0.16.0", optional = true, features = ["bevy_mesh_picking_backend"] }
+bevy_picking = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", optional = true, features = ["bevy_mesh_picking_backend"] }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
@@ -117,7 +129,7 @@ thread_local = { version = "1.1.0", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
-bevy = { version = "0.16.0", default-features = false, features = [
+bevy = { version = "0.17.0-dev", git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
     "accesskit_unix",
     "bevy_log",
     "bevy_asset",
@@ -125,6 +137,8 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "bevy_pbr",
     "bevy_mesh_picking_backend",
     "bevy_sprite",
+    "bevy_sprite_render",
+    "bevy_text",
     "bevy_window",
     "bevy_winit",
     "android-game-activity",
@@ -133,8 +147,9 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "tonemapping_luts",
     "webgl2",
     "x11",
+    "zstd_rust"
 ] }
-egui = { version = "0.32", default-features = false, features = ["bytemuck"] }
+egui = { version = "0.32", default-features = false, features = ["bytemuck"], git = "https://github.com/pindash-io/egui.git", branch = "accesskit" }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dev-dependencies]
 rfd = "0.15"

@@ -18,9 +18,9 @@ fn setup_camera_system(mut commands: Commands) {
 mod foo {
     use bevy::{
         prelude::*,
-        tasks::{block_on, poll_once, AsyncComputeTaskPool, Task},
+        tasks::{AsyncComputeTaskPool, Task, block_on, poll_once},
     };
-    use bevy_egui::{egui, EguiContexts};
+    use bevy_egui::{EguiContexts, egui};
 
     #[derive(Default)]
     pub struct MyState {

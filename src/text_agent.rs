@@ -2,14 +2,14 @@
 //! mobile keyboard and IME input.
 
 use crate::{
-    input::{EguiInputEvent, FocusedNonWindowEguiContext},
     EguiContextSettings, EguiInput, EguiOutput, EventClosure, SubscribedEvents,
+    input::{EguiInputEvent, FocusedNonWindowEguiContext},
 };
 use bevy_ecs::prelude::*;
 use bevy_log as log;
 use bevy_platform::collections::HashSet;
 use bevy_window::RequestRedraw;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use std::sync::{LazyLock, Mutex};
 use wasm_bindgen::prelude::*;
 
