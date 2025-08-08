@@ -165,7 +165,7 @@ fn update_camera_viewports_system(
 
     let mut result: Vec<_> = query.iter_mut().collect();
 
-    for (ref mut camera, _) in &mut result {
+    for (camera, _) in &mut result {
         camera.is_active = (camera.order as u8) < players_count.0;
         if !camera.is_active {
             continue;

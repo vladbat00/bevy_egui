@@ -141,7 +141,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
             vertex: bevy::render::render_resource::VertexState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],
-                entry_point: "vertex".into(),
+                entry_point: Some("vertex".into()),
                 buffers: vec![],
             },
             primitive: PrimitiveState {
@@ -158,7 +158,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
             fragment: Some(FragmentState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],
-                entry_point: "fragment".into(),
+                entry_point: Some("fragment".into()),
                 targets: vec![Some(ColorTargetState {
                     format: if key.hdr {
                         ViewTarget::TEXTURE_FORMAT_HDR

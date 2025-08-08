@@ -8,8 +8,7 @@ use bevy_ecs::{
     system::{Commands, Local, Query, Res},
 };
 use bevy_platform::collections::HashMap;
-use bevy_window::RequestRedraw;
-use bevy_winit::cursor::CursorIcon;
+use bevy_window::{RequestRedraw, CursorIcon};
 
 /// Reads Egui output.
 #[allow(clippy::too_many_arguments)]

@@ -127,9 +127,9 @@ fn setup_system(
         EguiTextureImageEguiContext,
         EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
     ));
-    app_state.egui_texture_image_handle = egui_texture_image_handle.clone_weak();
+    app_state.egui_texture_image_handle = egui_texture_image_handle.clone();
     app_state.egui_texture_image_id =
-        egui_contexts.add_image(egui_texture_image_handle.clone_weak());
+        egui_contexts.add_image(egui_texture_image_handle.clone());
 }
 
 #[allow(clippy::too_many_arguments)]
