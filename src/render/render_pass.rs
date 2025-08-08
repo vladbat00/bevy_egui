@@ -1,14 +1,15 @@
 use crate::render::{
-    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
     DrawPrimitive, EguiViewTarget,
+    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
 };
+use bevy_camera::Viewport;
 use bevy_ecs::{
     query::QueryState,
     world::{Mut, World},
 };
 use bevy_math::{URect, UVec2};
 use bevy_render::{
-    camera::{ExtractedCamera, Viewport},
+    camera::ExtractedCamera,
     render_graph::{Node, NodeRunError, RenderGraphContext},
     render_resource::{PipelineCache, RenderPassDescriptor},
     renderer::RenderContext,

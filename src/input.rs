@@ -1,15 +1,15 @@
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
-    helpers::{vec2_into_egui_pos2, QueryHelper},
     EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
+    helpers::{QueryHelper, vec2_into_egui_pos2},
 };
 use bevy_ecs::{event::EventIterator, prelude::*, system::SystemParam};
 use bevy_input::{
+    ButtonInput, ButtonState,
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
-    ButtonInput, ButtonState,
 };
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
@@ -39,7 +39,7 @@ pub struct EguiContextImeState {
     pub is_ime_allowed: bool,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 /// Wraps Egui events emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiInputEvent {
     /// Context to pass an event to.
@@ -48,7 +48,7 @@ pub struct EguiInputEvent {
     pub event: egui::Event,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 /// Wraps [`bevy::FileDragAndDrop`](bevy_window::FileDragAndDrop) events emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiFileDragAndDropEvent {
     /// Context to pass an event to.
@@ -166,16 +166,13 @@ impl WindowToEguiContextMap {
     /// Adds a context to the map on creation.
     pub fn on_egui_context_added_system(
         mut res: ResMut<Self>,
-        added_contexts: Query<
-            (Entity, &bevy_render::camera::Camera, &mut EguiContext),
-            Added<EguiContext>,
-        >,
+        added_contexts: Query<(Entity, &bevy_camera::Camera, &mut EguiContext), Added<EguiContext>>,
         primary_window: Query<Entity, With<bevy_window::PrimaryWindow>>,
         event_loop_proxy: Res<bevy_winit::EventLoopProxyWrapper<bevy_winit::WakeUp>>,
     ) {
         for (egui_context_entity, camera, mut egui_context) in added_contexts {
-            if let Some(bevy_render::camera::NormalizedRenderTarget::Window(window_ref)) =
-                camera.target.normalize(primary_window.single().ok())
+            if let bevy_camera::RenderTarget::Window(window_ref) = camera.target
+                && let Some(window_ref) = window_ref.normalize(primary_window.single().ok())
             {
                 res.window_to_contexts
                     .entry(window_ref.entity())
@@ -223,7 +220,7 @@ impl WindowToEguiContextMap {
 }
 
 /// Iterates over pairs of `(Event, Entity)`, where the entity points to the context that the event is related to.
-pub struct EguiContextsEventIterator<'a, E: Event, F> {
+pub struct EguiContextsEventIterator<'a, E: BufferedEvent, F> {
     event_iter: EventIterator<'a, E>,
     map_event_to_window_id_f: F,
     current_event: Option<&'a E>,
@@ -232,7 +229,9 @@ pub struct EguiContextsEventIterator<'a, E: Event, F> {
     map: &'a WindowToEguiContextMap,
 }
 
-impl<'a, E: Event, F: FnMut(&'a E) -> Entity> Iterator for EguiContextsEventIterator<'a, E, F> {
+impl<'a, E: BufferedEvent, F: FnMut(&'a E) -> Entity> Iterator
+    for EguiContextsEventIterator<'a, E, F>
+{
     type Item = (&'a E, Entity);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -264,14 +263,14 @@ impl<'a, E: Event, F: FnMut(&'a E) -> Entity> Iterator for EguiContextsEventIter
 
 #[derive(SystemParam)]
 /// A helper system param to iterate over pairs of events and Egui contexts, see [`EguiContextsEventIterator`].
-pub struct EguiContextEventReader<'w, 's, E: Event> {
+pub struct EguiContextEventReader<'w, 's, E: BufferedEvent> {
     event_reader: EventReader<'w, 's, E>,
     map: Res<'w, WindowToEguiContextMap>,
     hovered_non_window_egui_context: Option<Res<'w, HoveredNonWindowEguiContext>>,
     focused_non_window_egui_context: Option<Res<'w, FocusedNonWindowEguiContext>>,
 }
 
-impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
+impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
     /// Returns [`EguiContextsEventIterator`] that iterates only over window events (i.e. skips contexts that render to images, etc.),
     /// expects a lambda that extracts a window id from an event.
     pub fn read<'a, F>(
@@ -280,7 +279,7 @@ impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: Event,
+        E: BufferedEvent,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),
@@ -299,7 +298,7 @@ impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: Event,
+        E: BufferedEvent,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),
@@ -321,7 +320,7 @@ impl<'w, 's, E: Event> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: Event,
+        E: BufferedEvent,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),

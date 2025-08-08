@@ -7,9 +7,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_egui::{
-    egui,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, egui,
     input::{egui_wants_any_keyboard_input, egui_wants_any_pointer_input},
-    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
 };
 
 fn main() {
