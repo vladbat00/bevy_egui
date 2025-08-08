@@ -4,10 +4,10 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{
-    helpers::vec2_into_egui_pos2,
-    input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
     EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
     EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
+    helpers::vec2_into_egui_pos2,
+    input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
@@ -127,9 +127,8 @@ fn setup_system(
         EguiTextureImageEguiContext,
         EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
     ));
-    app_state.egui_texture_image_handle = egui_texture_image_handle.clone_weak();
-    app_state.egui_texture_image_id =
-        egui_contexts.add_image(egui_texture_image_handle.clone_weak());
+    app_state.egui_texture_image_handle = egui_texture_image_handle.clone();
+    app_state.egui_texture_image_id = egui_contexts.add_image(egui_texture_image_handle.clone());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -294,12 +293,12 @@ fn render_to_image_ui_system<C: Component>(
 // Copy-pasted from https://github.com/emilk/egui/blob/0.30.0/crates/egui_demo_lib/src/rendering_test.rs.
 //
 
+use bevy_camera::RenderTarget;
 use bevy_ecs::schedule::ScheduleLabel;
-use bevy_render::camera::RenderTarget;
 use egui::{
-    emath::GuiRounding, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
-    TextureHandle, TextureOptions, Ui, Vec2,
+    Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
+    Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding, epaint, lerp, pos2, vec2,
+    widgets::color_picker::show_color,
 };
 use std::collections::HashMap;
 use wgpu_types::{Extent3d, TextureUsages};
