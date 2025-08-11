@@ -183,7 +183,7 @@ pub fn queue_bind_groups_system(
     let bind_groups = egui_textures
         .handles()
         .filter_map(|(texture, handle_id)| {
-            let gpu_image = gpu_images.get(&Handle::Weak(handle_id))?;
+            let gpu_image = gpu_images.get(handle_id)?;
             let bind_group = render_device.create_bind_group(
                 None,
                 &egui_pipeline.texture_bind_group_layout,
