@@ -1,16 +1,13 @@
 use bevy::{
+    camera::{RenderTarget, visibility::RenderLayers},
     prelude::*,
-    render::{
-        camera::RenderTarget,
-        render_resource::{
-            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-        },
-        view::RenderLayers,
+    render::render_resource::{
+        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
 };
 use bevy_egui::{
-    egui::Widget, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
-    EguiUserTextures, PrimaryEguiContext,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiUserTextures,
+    PrimaryEguiContext, egui::Widget,
 };
 
 fn main() {
@@ -198,7 +195,7 @@ fn render_to_image_example_system(
         let material_clone = preview_material.clone();
 
         let main_material_handle = main_cube_query.single()?;
-        materials.insert(main_material_handle, material_clone);
+        materials.insert(main_material_handle, material_clone)?;
     }
 
     Ok(())
