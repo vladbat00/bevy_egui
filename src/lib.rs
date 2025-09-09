@@ -218,6 +218,7 @@ use output::process_output_system;
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
+use std::num::NonZero;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -360,6 +361,14 @@ pub struct EguiPlugin {
     /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
     #[cfg(feature = "bevy_ui")]
     pub ui_render_order: UiRenderOrder,
+
+    /// Configure if bindless mode for rendering can be used on devices that has supports for it.
+    ///
+    /// It is useful in cases where multiple textures are used to render UI.
+    /// And renderer needs to frequently switch between different textures.
+    /// This avoid cost of frequently changing bind groups.
+    #[cfg(feature = "render")]
+    pub bindless_mode_array_size: Option<NonZero<u32>>,
 }
 
 impl Default for EguiPlugin {
@@ -369,6 +378,8 @@ impl Default for EguiPlugin {
             enable_multipass_for_primary_context: true,
             #[cfg(feature = "bevy_ui")]
             ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+            #[cfg(feature = "render")]
+            bindless_mode_array_size: NonZero::new(16),
         }
     }
 }
@@ -1280,6 +1291,9 @@ impl Plugin for EguiPlugin {
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
+                .insert_resource(render::EguiRenderSettings {
+                    bindless_mode_array_size: self.bindless_mode_array_size,
+                })
                 .init_resource::<render::EguiPipeline>()
                 .init_resource::<SpecializedRenderPipelines<render::EguiPipeline>>()
                 .init_resource::<render::systems::EguiTransforms>()
