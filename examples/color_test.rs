@@ -182,7 +182,7 @@ fn update_image_size_system(
 fn update_egui_hovered_context(
     mut commands: Commands,
     app_state: Res<AppState>,
-    mut cursor_moved_reader: EventReader<CursorMoved>,
+    mut cursor_moved_reader: MessageReader<CursorMoved>,
     mut egui_contexts: Query<(
         Entity,
         &mut EguiContextPointerPosition,

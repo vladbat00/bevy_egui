@@ -938,8 +938,8 @@ impl Plugin for EguiPlugin {
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
         app.init_resource::<WindowToEguiContextMap>();
-        app.add_event::<EguiInputEvent>();
-        app.add_event::<EguiFileDragAndDropEvent>();
+        app.add_message::<EguiInputEvent>();
+        app.add_message::<EguiFileDragAndDropEvent>();
 
         #[allow(deprecated)]
         if self.enable_multipass_for_primary_context {
@@ -1542,7 +1542,7 @@ pub fn capture_pointer_input_system(
         &EguiContextSettings,
         &bevy_camera::Camera,
     )>,
-    mut output: EventWriter<PointerHits>,
+    mut output: MessageWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
     use helpers::QueryHelper;
@@ -1648,7 +1648,7 @@ pub fn free_egui_textures_system(
     egui_render_output: Query<(Entity, &EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
-    mut image_events: EventReader<AssetEvent<Image>>,
+    mut image_events: MessageReader<AssetEvent<Image>>,
 ) {
     for (entity, egui_render_output) in egui_render_output.iter() {
         for &texture_id in &egui_render_output.textures_delta.free {
