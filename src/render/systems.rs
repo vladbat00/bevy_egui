@@ -320,7 +320,7 @@ pub fn prepare_egui_render_target_data_system(
         data.pixels_per_point = computed_scale_factor.scale_factor;
         if extracted_camera
             .physical_viewport_size
-            .map_or(true, |size| size.x < 1 || size.y < 1)
+            .is_none_or(|size| size.x < 1 || size.y < 1)
         {
             continue;
         }

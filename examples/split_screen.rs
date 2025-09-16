@@ -143,7 +143,7 @@ fn camera_position_and_size(index: u8, count: u32, window_size: UVec2) -> (UVec2
 fn update_camera_viewports_system(
     players_count: Res<PlayersCount>,
     window: Single<&Window>,
-    mut resize_events: EventReader<WindowResized>,
+    mut resize_events: MessageReader<WindowResized>,
     mut query: Query<(
         &mut Camera,
         AnyOf<(

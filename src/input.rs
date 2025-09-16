@@ -4,7 +4,7 @@ use crate::{
     EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
     helpers::{QueryHelper, vec2_into_egui_pos2},
 };
-use bevy_ecs::{event::EventIterator, prelude::*, system::SystemParam};
+use bevy_ecs::{message::MessageIterator, prelude::*, system::SystemParam};
 use bevy_input::{
     ButtonInput, ButtonState,
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
@@ -39,7 +39,7 @@ pub struct EguiContextImeState {
     pub is_ime_allowed: bool,
 }
 
-#[derive(BufferedEvent)]
+#[derive(Message)]
 /// Wraps Egui events emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiInputEvent {
     /// Context to pass an event to.
@@ -48,7 +48,7 @@ pub struct EguiInputEvent {
     pub event: egui::Event,
 }
 
-#[derive(BufferedEvent)]
+#[derive(Message)]
 /// Wraps [`bevy::FileDragAndDrop`](bevy_window::FileDragAndDrop) events emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiFileDragAndDropEvent {
     /// Context to pass an event to.
@@ -220,8 +220,8 @@ impl WindowToEguiContextMap {
 }
 
 /// Iterates over pairs of `(Event, Entity)`, where the entity points to the context that the event is related to.
-pub struct EguiContextsEventIterator<'a, E: BufferedEvent, F> {
-    event_iter: EventIterator<'a, E>,
+pub struct EguiContextsEventIterator<'a, E: Message, F> {
+    event_iter: MessageIterator<'a, E>,
     map_event_to_window_id_f: F,
     current_event: Option<&'a E>,
     current_event_contexts: Vec<Entity>,
@@ -229,9 +229,7 @@ pub struct EguiContextsEventIterator<'a, E: BufferedEvent, F> {
     map: &'a WindowToEguiContextMap,
 }
 
-impl<'a, E: BufferedEvent, F: FnMut(&'a E) -> Entity> Iterator
-    for EguiContextsEventIterator<'a, E, F>
-{
+impl<'a, E: Message, F: FnMut(&'a E) -> Entity> Iterator for EguiContextsEventIterator<'a, E, F> {
     type Item = (&'a E, Entity);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -263,14 +261,14 @@ impl<'a, E: BufferedEvent, F: FnMut(&'a E) -> Entity> Iterator
 
 #[derive(SystemParam)]
 /// A helper system param to iterate over pairs of events and Egui contexts, see [`EguiContextsEventIterator`].
-pub struct EguiContextEventReader<'w, 's, E: BufferedEvent> {
-    event_reader: EventReader<'w, 's, E>,
+pub struct EguiContextEventReader<'w, 's, E: Message> {
+    event_reader: MessageReader<'w, 's, E>,
     map: Res<'w, WindowToEguiContextMap>,
     hovered_non_window_egui_context: Option<Res<'w, HoveredNonWindowEguiContext>>,
     focused_non_window_egui_context: Option<Res<'w, FocusedNonWindowEguiContext>>,
 }
 
-impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
+impl<'w, 's, E: Message> EguiContextEventReader<'w, 's, E> {
     /// Returns [`EguiContextsEventIterator`] that iterates only over window events (i.e. skips contexts that render to images, etc.),
     /// expects a lambda that extracts a window id from an event.
     pub fn read<'a, F>(
@@ -279,7 +277,7 @@ impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: BufferedEvent,
+        E: Message,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),
@@ -298,7 +296,7 @@ impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: BufferedEvent,
+        E: Message,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),
@@ -320,7 +318,7 @@ impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
     ) -> EguiContextsEventIterator<'a, E, F>
     where
         F: FnMut(&'a E) -> Entity,
-        E: BufferedEvent,
+        E: Message,
     {
         EguiContextsEventIterator {
             event_iter: self.event_reader.read(),
@@ -338,8 +336,8 @@ impl<'w, 's, E: BufferedEvent> EguiContextEventReader<'w, 's, E> {
 
 /// Reads [`KeyboardInput`] events to update the [`ModifierKeysState`] resource.
 pub fn write_modifiers_keys_state_system(
-    mut ev_keyboard_input: EventReader<KeyboardInput>,
-    mut ev_focus: EventReader<KeyboardFocusLost>,
+    mut ev_keyboard_input: MessageReader<KeyboardInput>,
+    mut ev_focus: MessageReader<KeyboardFocusLost>,
     mut modifier_keys_state: ResMut<ModifierKeysState>,
 ) {
     // If window focus is lost, clear all modifiers to avoid stuck keys.
@@ -373,7 +371,7 @@ pub fn write_modifiers_keys_state_system(
 /// Reads [`MouseButtonInput`] events and wraps them into [`EguiInputEvent`] (only for window contexts).
 pub fn write_window_pointer_moved_events_system(
     mut cursor_moved_reader: EguiContextEventReader<CursorMoved>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (&EguiContextSettings, &mut EguiContextPointerPosition),
         With<EguiContext>,
@@ -410,7 +408,7 @@ pub fn write_pointer_button_events_system(
     mut commands: Commands,
     modifier_keys_state: Res<ModifierKeysState>,
     mut mouse_button_input_reader: EguiContextEventReader<MouseButtonInput>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -474,8 +472,8 @@ pub fn write_pointer_button_events_system(
 /// Reads [`CursorMoved`] events and wraps them into [`EguiInputEvent`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
 pub fn write_non_window_pointer_moved_events_system(
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
-    mut cursor_moved_reader: EventReader<CursorMoved>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut cursor_moved_reader: MessageReader<CursorMoved>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     if cursor_moved_reader.is_empty() {
@@ -512,7 +510,7 @@ pub fn write_non_window_pointer_moved_events_system(
 pub fn write_mouse_wheel_events_system(
     modifier_keys_state: Res<ModifierKeysState>,
     mut mouse_wheel_reader: EguiContextEventReader<MouseWheel>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -555,7 +553,7 @@ pub fn write_keyboard_input_events_system(
     ))]
     mut egui_clipboard: ResMut<crate::EguiClipboard>,
     mut keyboard_input_reader: EguiContextEventReader<KeyboardInput>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -649,7 +647,7 @@ pub fn write_keyboard_input_events_system(
 /// Reads [`Ime`] events and wraps them into [`EguiInputEvent`], can redirect events to [`FocusedNonWindowEguiContext`].
 pub fn write_ime_events_system(
     mut ime_reader: EguiContextEventReader<Ime>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (
             Entity,
@@ -681,7 +679,7 @@ pub fn write_ime_events_system(
 
         let ime_event_enable =
             |ime_state: &mut EguiContextImeState,
-             egui_input_event_writer: &mut EventWriter<EguiInputEvent>| {
+             egui_input_event_writer: &mut MessageWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
                     egui_input_event_writer.write(EguiInputEvent {
                         context,
@@ -693,7 +691,7 @@ pub fn write_ime_events_system(
 
         let ime_event_disable =
             |ime_state: &mut EguiContextImeState,
-             egui_input_event_writer: &mut EventWriter<EguiInputEvent>| {
+             egui_input_event_writer: &mut MessageWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
                     egui_input_event_writer.write(EguiInputEvent {
                         context,
@@ -769,7 +767,7 @@ pub fn set_ime_allowed_system(
 /// Reads [`FileDragAndDrop`] events and wraps them into [`EguiFileDragAndDropEvent`], can redirect events to [`HoveredNonWindowEguiContext`].
 pub fn write_file_dnd_events_system(
     mut dnd_reader: EguiContextEventReader<FileDragAndDrop>,
-    mut egui_file_dnd_event_writer: EventWriter<EguiFileDragAndDropEvent>,
+    mut egui_file_dnd_event_writer: MessageWriter<EguiFileDragAndDropEvent>,
     egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     for (event, context) in dnd_reader.read_with_non_window_hovered(|event| match &event {
@@ -823,7 +821,7 @@ pub fn write_window_touch_events_system(
     egui_global_settings: Res<EguiGlobalSettings>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut touch_input_reader: EguiContextEventReader<TouchInput>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (
             &EguiContextSettings,
@@ -892,8 +890,8 @@ pub fn write_window_touch_events_system(
 /// Reads [`TouchInput`] events and wraps them into [`EguiInputEvent`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
 pub fn write_non_window_touch_events_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
-    mut touch_input_reader: EventReader<TouchInput>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut touch_input_reader: MessageReader<TouchInput>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut egui_contexts: Query<
         (
@@ -943,7 +941,7 @@ pub fn write_non_window_touch_events_system(
 }
 
 fn write_touch_event(
-    egui_input_event_writer: &mut EventWriter<EguiInputEvent>,
+    egui_input_event_writer: &mut MessageWriter<EguiInputEvent>,
     event: &TouchInput,
     context: Entity,
     _output: &EguiOutput,
@@ -1050,8 +1048,8 @@ pub fn write_egui_input_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
     modifier_keys_state: Res<ModifierKeysState>,
-    mut egui_input_event_reader: EventReader<EguiInputEvent>,
-    mut egui_file_dnd_event_reader: EventReader<EguiFileDragAndDropEvent>,
+    mut egui_input_event_reader: MessageReader<EguiInputEvent>,
+    mut egui_file_dnd_event_reader: MessageReader<EguiFileDragAndDropEvent>,
     mut egui_contexts: Query<(Entity, &mut EguiInput)>,
     windows: Query<&Window>,
     time: Res<Time<Real>>,
@@ -1150,9 +1148,9 @@ pub fn absorb_bevy_input_system(
     egui_wants_input: Res<EguiWantsInput>,
     mut mouse_input: ResMut<ButtonInput<MouseButton>>,
     mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
-    mut keyboard_input_events: ResMut<Events<KeyboardInput>>,
-    mut mouse_wheel_events: ResMut<Events<MouseWheel>>,
-    mut mouse_button_input_events: ResMut<Events<MouseButtonInput>>,
+    mut keyboard_input_events: ResMut<Messages<KeyboardInput>>,
+    mut mouse_wheel_events: ResMut<Messages<MouseWheel>>,
+    mut mouse_button_input_events: ResMut<Messages<MouseButtonInput>>,
 ) {
     let modifiers = [
         KeyCode::SuperLeft,
