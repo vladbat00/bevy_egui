@@ -114,6 +114,7 @@ impl Node for EguiPassNode {
 
         let mut requires_reset = true;
         let mut last_scissor_rect = None;
+        let mut last_bindless_offset = None;
 
         let pipeline_id = egui_pipelines
             .get(&view.retained_view_entity.main_entity)
@@ -154,6 +155,9 @@ impl Node for EguiPassNode {
                     ..Default::default()
                 });
                 requires_reset = false;
+
+                last_bindless_offset = None;
+                last_scissor_rect = None;
             }
 
             let clip_urect = URect {
@@ -205,14 +209,18 @@ impl Node for EguiPassNode {
                     render_pass.set_index_buffer(index_buffer.slice(..), 0, IndexFormat::Uint32);
 
                     if let Some(bindless_offset) = bindless_offset {
-                        // Use push constant to cheaply provide which texture to use inside
-                        // binding array. This is used to avoid costly set_bind_group operations
-                        // when frequent switching between textures is being done
-                        render_pass.set_push_constants(
-                            ShaderStages::FRAGMENT,
-                            0,
-                            bytemuck::bytes_of(bindless_offset),
-                        );
+                        if last_bindless_offset != Some(bindless_offset) {
+                            last_bindless_offset = Some(bindless_offset);
+
+                            // Use push constant to cheaply provide which texture to use inside
+                            // binding array. This is used to avoid costly set_bind_group operations
+                            // when frequent switching between textures is being done
+                            render_pass.set_push_constants(
+                                ShaderStages::FRAGMENT,
+                                0,
+                                bytemuck::bytes_of(bindless_offset),
+                            );
+                        }
                     }
 
                     render_pass.draw_indexed(
