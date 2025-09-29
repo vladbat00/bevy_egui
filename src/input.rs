@@ -1,15 +1,15 @@
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
-    helpers::{vec2_into_egui_pos2, QueryHelper},
     EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
+    helpers::{QueryHelper, vec2_into_egui_pos2},
 };
 use bevy_ecs::{event::EventIterator, prelude::*, system::SystemParam};
 use bevy_input::{
+    ButtonInput, ButtonState,
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
-    ButtonInput, ButtonState,
 };
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
@@ -37,6 +37,8 @@ pub struct EguiContextImeState {
     pub has_sent_ime_enabled: bool,
     /// Indicates whether IME is currently allowed, i.e. if the virtual keyboard is shown.
     pub is_ime_allowed: bool,
+    /// Corresponds to where an active egui text edit is located on the screen.
+    pub ime_rect: Option<egui::Rect>,
 }
 
 #[derive(Event)]
@@ -712,7 +714,7 @@ pub fn write_ime_events_system(
             Ime::Preedit {
                 value,
                 window: _,
-                cursor: _,
+                cursor: Some(_),
             } => {
                 ime_event_enable(&mut ime_state, &mut egui_input_event_writer);
                 egui_input_event_writer.write(EguiInputEvent {
@@ -727,7 +729,12 @@ pub fn write_ime_events_system(
                 });
                 ime_event_disable(&mut ime_state, &mut egui_input_event_writer);
             }
-            Ime::Disabled { window: _ } => {
+            Ime::Disabled { window: _ }
+            | Ime::Preedit {
+                cursor: None,
+                window: _,
+                value: _,
+            } => {
                 ime_event_disable(&mut ime_state, &mut egui_input_event_writer);
             }
         }
@@ -736,34 +743,59 @@ pub fn write_ime_events_system(
 
 /// Show the virtual keyboard when a text input is focused.
 /// Works by reading [`EguiOutput`] and calling `Window::set_ime_allowed` if the `ime` field is set.
-#[cfg(any(target_os = "ios", target_os = "android"))]
-pub fn set_ime_allowed_system(
-    mut egui_context: Query<(&EguiOutput, &mut EguiContextImeState)>,
-    windows: Query<Entity, With<bevy_window::PrimaryWindow>>,
+pub fn process_ime_system(
+    mut egui_context_query: Query<(
+        Entity,
+        &EguiOutput,
+        &EguiContextSettings,
+        &mut EguiContext,
+        &mut EguiContextImeState,
+    )>,
     winit_windows: NonSendMut<bevy_winit::WinitWindows>,
+    window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
-    // We are on mobile, so we expect a single window.
-    let Ok(window) = windows.single() else {
-        return;
-    };
+    for (entity, egui_output, egui_settings, mut egui_context, mut egui_ime_state) in
+        &mut egui_context_query
+    {
+        let Some(window_entity) = window_to_egui_context_map.context_to_window.get(&entity) else {
+            continue;
+        };
 
-    let Some(winit_window) = winit_windows.get_window(window) else {
-        log::warn!(
-            "Cannot access an underlying winit window for a window entity {}",
-            window
-        );
+        let Some(winit_window) = winit_windows.get_window(*window_entity) else {
+            log::warn!(
+                "Cannot access an underlying winit window for a window entity {}",
+                window_entity
+            );
 
-        return;
-    };
+            continue;
+        };
 
-    let Ok((egui_output, mut egui_ime_state)) = egui_context.single_mut() else {
-        return;
-    };
+        let ime_allowed = egui_output.platform_output.ime.is_some();
+        if ime_allowed != egui_ime_state.is_ime_allowed {
+            winit_window.set_ime_allowed(ime_allowed);
+            egui_ime_state.is_ime_allowed = ime_allowed;
+        }
 
-    let ime_allowed = egui_output.platform_output.ime.is_some();
-    if ime_allowed != egui_ime_state.is_ime_allowed {
-        winit_window.set_ime_allowed(ime_allowed);
-        egui_ime_state.is_ime_allowed = ime_allowed;
+        if let Some(ime) = egui_output.platform_output.ime {
+            let ime_rect_px = ime.rect * egui_settings.scale_factor;
+            if egui_ime_state.ime_rect != Some(ime_rect_px)
+                || egui_context.get_mut().input(|i| !i.events.is_empty())
+            {
+                egui_ime_state.ime_rect = Some(ime_rect_px);
+                winit_window.set_ime_cursor_area(
+                    winit::dpi::LogicalPosition {
+                        x: ime_rect_px.min.x,
+                        y: ime_rect_px.min.y,
+                    },
+                    winit::dpi::LogicalSize {
+                        width: ime_rect_px.width(),
+                        height: ime_rect_px.height(),
+                    },
+                );
+            }
+        } else {
+            egui_ime_state.ime_rect = None;
+        }
     }
 }
 

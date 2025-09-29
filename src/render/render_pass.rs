@@ -1,6 +1,6 @@
 use crate::render::{
-    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
     DrawPrimitive, EguiViewTarget,
+    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
 };
 use bevy_ecs::{
     query::QueryState,

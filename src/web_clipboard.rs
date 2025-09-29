@@ -1,7 +1,7 @@
 use crate::{
+    EguiClipboard, EguiContext, EguiContextSettings, EventClosure, SubscribedEvents,
     input::{EguiInputEvent, FocusedNonWindowEguiContext},
-    string_from_js_value, EguiClipboard, EguiContext, EguiContextSettings, EventClosure,
-    SubscribedEvents,
+    string_from_js_value,
 };
 use bevy_ecs::prelude::*;
 use bevy_log as log;

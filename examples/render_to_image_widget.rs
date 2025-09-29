@@ -9,8 +9,8 @@ use bevy::{
     },
 };
 use bevy_egui::{
-    egui::Widget, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
-    EguiUserTextures, PrimaryEguiContext,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiUserTextures,
+    PrimaryEguiContext, egui::Widget,
 };
 
 fn main() {
