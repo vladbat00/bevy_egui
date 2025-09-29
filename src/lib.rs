@@ -170,9 +170,9 @@ pub use egui;
 use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
-    install_text_agent_system, is_mobile_safari, process_safari_virtual_keyboard_system,
-    write_text_agent_channel_events_system, SafariVirtualKeyboardTouchState, TextAgentChannel,
-    VirtualTouchInfo,
+    SafariVirtualKeyboardTouchState, TextAgentChannel, VirtualTouchInfo, install_text_agent_system,
+    is_mobile_safari, process_safari_virtual_keyboard_system,
+    write_text_agent_channel_events_system,
 };
 #[cfg(all(
     feature = "manage_clipboard",
@@ -181,7 +181,7 @@ use crate::text_agent::{
 use arboard::Clipboard;
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
-use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle};
+use bevy_asset::{AssetEvent, Assets, Handle, load_internal_asset};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
@@ -207,9 +207,9 @@ use bevy_reflect::Reflect;
 use bevy_render::camera::NormalizedRenderTarget;
 #[cfg(feature = "render")]
 use bevy_render::{
+    ExtractSchedule, Render, RenderApp, RenderSet,
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
-    ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_winit::cursor::CursorIcon;
 use output::process_output_system;
@@ -1180,9 +1180,7 @@ impl Plugin for EguiPlugin {
             (
                 process_output_system,
                 write_egui_wants_input_system,
-                #[cfg(any(target_os = "ios", target_os = "android"))]
-                // show the virtual keyboard on mobile devices
-                set_ime_allowed_system,
+                process_ime_system.after(process_output_system),
             )
                 .in_set(EguiPostUpdateSet::ProcessOutput),
         );
@@ -1190,7 +1188,9 @@ impl Plugin for EguiPlugin {
         if app.is_plugin_added::<bevy_picking::PickingPlugin>() {
             app.add_systems(PostUpdate, capture_pointer_input_system);
         } else {
-            log::warn!("The `bevy_egui/picking` feature is enabled, but `PickingPlugin` is not added (if you use Bevy's `DefaultPlugins`, make sure the `bevy/bevy_picking` feature is enabled too)");
+            log::warn!(
+                "The `bevy_egui/picking` feature is enabled, but `PickingPlugin` is not added (if you use Bevy's `DefaultPlugins`, make sure the `bevy/bevy_picking` feature is enabled too)"
+            );
         }
 
         #[cfg(feature = "render")]
@@ -1370,7 +1370,9 @@ impl Plugin for EguiPlugin {
                     }
                 }
             } else {
-                log::debug!("bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order")
+                log::debug!(
+                    "bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order"
+                )
             }
         }
     }
@@ -1857,11 +1859,11 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
         })
         .collect();
 
-    for (entity, ctx, ref mut input, EguiMultipassSchedule(multipass_schedule)) in
-        &mut multipass_contexts
-    {
+    for (entity, ctx, input, EguiMultipassSchedule(multipass_schedule)) in &mut multipass_contexts {
         if !used_schedules.insert(*multipass_schedule) {
-            panic!("Each Egui context running in the multi-pass mode must have a unique schedule (attempted to reuse schedule {multipass_schedule:?})");
+            panic!(
+                "Each Egui context running in the multi-pass mode must have a unique schedule (attempted to reuse schedule {multipass_schedule:?})"
+            );
         }
 
         let output = ctx.run(input.take(), |_| {

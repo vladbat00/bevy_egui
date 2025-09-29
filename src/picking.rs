@@ -1,7 +1,6 @@
 use crate::{
-    helpers,
+    EguiContext, helpers,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
-    EguiContext,
 };
 use bevy_asset::Assets;
 use bevy_ecs::{
@@ -14,10 +13,10 @@ use bevy_ecs::{
 };
 use bevy_math::{Ray3d, Vec2};
 use bevy_picking::{
+    Pickable,
     events::{Move, Out, Over, Pointer},
     mesh_picking::ray_cast::RayMeshHit,
     prelude::{MeshRayCast, MeshRayCastSettings, RayCastVisibility},
-    Pickable,
 };
 use bevy_render::{
     camera::{Camera, NormalizedRenderTarget},
@@ -67,14 +66,16 @@ pub fn handle_move_system(
     ) else {
         return Ok(());
     };
-    let &[(
-        hit_entity,
-        RayMeshHit {
-            triangle_index: Some(triangle_index),
-            barycentric_coords,
-            ..
-        },
-    )] = mesh_ray_cast.cast_ray(ray, &settings)
+    let &[
+        (
+            hit_entity,
+            RayMeshHit {
+                triangle_index: Some(triangle_index),
+                barycentric_coords,
+                ..
+            },
+        ),
+    ] = mesh_ray_cast.cast_ray(ray, &settings)
     else {
         return Ok(());
     };

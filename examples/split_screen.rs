@@ -2,8 +2,8 @@ use bevy::{
     ecs::schedule::ScheduleLabel, prelude::*, render::camera::Viewport, window::WindowResized,
 };
 use bevy_egui::{
-    egui, EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
-    EguiPrimaryContextPass, PrimaryEguiContext,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
+    EguiPrimaryContextPass, PrimaryEguiContext, egui,
 };
 
 fn main() {

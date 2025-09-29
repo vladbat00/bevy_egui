@@ -1,8 +1,9 @@
 use bevy::{
-    asset::{embedded_asset, AssetPath},
+    asset::{AssetPath, embedded_asset},
     ecs::schedule::ScheduleLabel,
     prelude::*,
     render::{
+        RenderApp,
         mesh::PrimitiveTopology,
         render_resource::{
             BlendState, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
@@ -10,13 +11,12 @@ use bevy::{
             SpecializedRenderPipeline, SpecializedRenderPipelines,
         },
         sync_world::RenderEntity,
-        RenderApp,
     },
 };
 use bevy_egui::{
-    render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
     EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext,
+    render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
 };
 use bevy_render::{camera::RenderTarget, view::ViewTarget};
 use std::path::Path;

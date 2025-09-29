@@ -1,7 +1,7 @@
 use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
 use bevy_egui::{
-    egui, EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
-    PrimaryEguiContext,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
+    PrimaryEguiContext, egui,
 };
 use bevy_render::view::RenderLayers;
 

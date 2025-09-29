@@ -17,11 +17,11 @@ pub mod graph {
 }
 
 use crate::{
-    render::graph::{NodeEgui, SubGraphEgui},
     EguiContextSettings, EguiRenderOutput, RenderComputedScaleFactor,
+    render::graph::{NodeEgui, SubGraphEgui},
 };
 use bevy_app::SubApp;
-use bevy_asset::{weak_handle, Handle, RenderAssetUsages};
+use bevy_asset::{Handle, RenderAssetUsages, weak_handle};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
@@ -35,20 +35,20 @@ use bevy_image::{
 use bevy_math::{Mat4, UVec4};
 use bevy_platform::collections::HashSet;
 use bevy_render::{
+    MainWorld,
     camera::Camera,
     mesh::VertexBufferLayout,
     prelude::Shader,
     render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
-        binding_types::{sampler, texture_2d, uniform_buffer},
         BindGroupLayout, BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor,
         ShaderDefVal, SpecializedRenderPipeline, VertexState,
+        binding_types::{sampler, texture_2d, uniform_buffer},
     },
     renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
     view::{ExtractedView, RetainedViewEntity, ViewTarget},
-    MainWorld,
 };
 use egui::{TextureFilter, TextureOptions};
 use std::num::NonZero;
