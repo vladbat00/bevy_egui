@@ -16,8 +16,16 @@ struct VertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> transform: Transform;
+
+#ifdef BINDLESS
+@group(1) @binding(0) var image_texture: binding_array<texture_2d<f32>>;
+@group(1) @binding(1) var image_sampler: binding_array<sampler>;
+var<push_constant> offset: u32;
+
+#else //BINDLESS
 @group(1) @binding(0) var image_texture: texture_2d<f32>;
 @group(1) @binding(1) var image_sampler: sampler;
+#endif // BINDLESS
 
 // 0-1 linear  from  0-1 sRGB gamma.
 fn linear_from_gamma_rgb(srgb: vec3<f32>) -> vec3<f32> {
@@ -49,6 +57,11 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    #ifdef BINDLESS
+    let image_texture = image_texture[offset];
+    let image_sampler = image_sampler[offset];
+    #endif
+
     let texture_color_linear = textureSample(image_texture, image_sampler, in.uv);
     // We un-premultiply Egui-managed textures on CPU, because Bevy doesn't premultiply it's own images, so here we pre-multiply everything.
     let texture_color_linear_premultiplied = vec4<f32>(texture_color_linear.rgb * texture_color_linear.a, texture_color_linear.a);
