@@ -218,7 +218,6 @@ use output::process_output_system;
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
-use std::num::NonZero;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -362,13 +361,13 @@ pub struct EguiPlugin {
     #[cfg(feature = "bevy_ui")]
     pub ui_render_order: UiRenderOrder,
 
-    /// Configure if bindless mode for rendering can be used on devices that has supports for it.
+    /// Configure if bindless mode for rendering can be used on devices that has support for it.
     ///
-    /// It is useful in cases where multiple textures are used to render UI.
-    /// And renderer needs to frequently switch between different textures.
-    /// This avoid cost of frequently changing bind groups.
+    /// It is useful in cases where multiple textures are used to render UI
+    /// and renderer needs to frequently switch between different textures.
+    /// This avoids the cost of frequently changing bind groups.
     #[cfg(feature = "render")]
-    pub bindless_mode_array_size: Option<NonZero<u32>>,
+    pub bindless_mode_array_size: Option<std::num::NonZero<u32>>,
 }
 
 impl Default for EguiPlugin {
@@ -379,7 +378,7 @@ impl Default for EguiPlugin {
             #[cfg(feature = "bevy_ui")]
             ui_render_order: UiRenderOrder::EguiAboveBevyUi,
             #[cfg(feature = "render")]
-            bindless_mode_array_size: NonZero::new(16),
+            bindless_mode_array_size: std::num::NonZero::new(16),
         }
     }
 }

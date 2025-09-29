@@ -222,7 +222,7 @@ pub struct EguiPipeline {
     /// Texture bind group layout.
     pub texture_bind_group_layout: BindGroupLayout,
     /// Is bindless rendering mode enabled
-    /// and how many textures can be rendered in one bind group
+    /// and how many textures can be rendered in one bind group.
     pub bindless: Option<NonZero<u32>>,
 }
 
