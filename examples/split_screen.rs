@@ -83,6 +83,7 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 1,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -93,6 +94,7 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 2,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -103,15 +105,17 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 3,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
         PrimaryEguiContext,
-        Camera2d,
+        Camera3d::default(),
         Camera {
             order: 10,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
     ));
