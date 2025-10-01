@@ -102,7 +102,7 @@ pub fn write_text_agent_channel_events_system(
 
         if !context_settings
             .input_system_settings
-            .run_write_text_agent_channel_events_system
+            .run_write_text_agent_channel_messages_system
         {
             continue;
         }

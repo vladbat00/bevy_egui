@@ -360,6 +360,14 @@ pub struct EguiPlugin {
     /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
     #[cfg(feature = "bevy_ui")]
     pub ui_render_order: UiRenderOrder,
+
+    /// Configure if bindless mode for rendering can be used on devices that has support for it.
+    ///
+    /// It is useful in cases where multiple textures are used to render UI
+    /// and renderer needs to frequently switch between different textures.
+    /// This avoids the cost of frequently changing bind groups.
+    #[cfg(feature = "render")]
+    pub bindless_mode_array_size: Option<std::num::NonZero<u32>>,
 }
 
 impl Default for EguiPlugin {
@@ -369,6 +377,8 @@ impl Default for EguiPlugin {
             enable_multipass_for_primary_context: true,
             #[cfg(feature = "bevy_ui")]
             ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+            #[cfg(feature = "render")]
+            bindless_mode_array_size: std::num::NonZero::new(16),
         }
     }
 }
@@ -503,44 +513,44 @@ pub struct EguiInputSystemSettings {
     /// Controls running of the [`write_modifiers_keys_state_system`] system.
     pub run_write_modifiers_keys_state_system: bool,
     /// Controls running of the [`write_window_pointer_moved_events_system`] system.
-    pub run_write_window_pointer_moved_events_system: bool,
+    pub run_write_window_pointer_moved_messages_system: bool,
     /// Controls running of the [`write_pointer_button_events_system`] system.
-    pub run_write_pointer_button_events_system: bool,
+    pub run_write_pointer_button_messages_system: bool,
     /// Controls running of the [`write_window_touch_events_system`] system.
-    pub run_write_window_touch_events_system: bool,
+    pub run_write_window_touch_messages_system: bool,
     /// Controls running of the [`write_non_window_pointer_moved_events_system`] system.
-    pub run_write_non_window_pointer_moved_events_system: bool,
+    pub run_write_non_window_pointer_moved_messages_system: bool,
     /// Controls running of the [`write_mouse_wheel_events_system`] system.
-    pub run_write_mouse_wheel_events_system: bool,
+    pub run_write_mouse_wheel_messages_system: bool,
     /// Controls running of the [`write_non_window_touch_events_system`] system.
-    pub run_write_non_window_touch_events_system: bool,
+    pub run_write_non_window_touch_messages_system: bool,
     /// Controls running of the [`write_keyboard_input_events_system`] system.
-    pub run_write_keyboard_input_events_system: bool,
+    pub run_write_keyboard_input_messages_system: bool,
     /// Controls running of the [`write_ime_events_system`] system.
-    pub run_write_ime_events_system: bool,
+    pub run_write_ime_messages_system: bool,
     /// Controls running of the [`write_file_dnd_events_system`] system.
-    pub run_write_file_dnd_events_system: bool,
+    pub run_write_file_dnd_messages_system: bool,
     /// Controls running of the [`write_text_agent_channel_events_system`] system.
     #[cfg(target_arch = "wasm32")]
-    pub run_write_text_agent_channel_events_system: bool,
+    pub run_write_text_agent_channel_messages_system: bool,
     /// Controls running of the [`web_clipboard::write_web_clipboard_events_system`] system.
     #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
-    pub run_write_web_clipboard_events_system: bool,
+    pub run_write_web_clipboard_messages_system: bool,
 }
 
 impl Default for EguiInputSystemSettings {
     fn default() -> Self {
         Self {
             run_write_modifiers_keys_state_system: true,
-            run_write_window_pointer_moved_events_system: true,
-            run_write_pointer_button_events_system: true,
-            run_write_window_touch_events_system: true,
-            run_write_non_window_pointer_moved_events_system: true,
-            run_write_mouse_wheel_events_system: true,
-            run_write_non_window_touch_events_system: true,
-            run_write_keyboard_input_events_system: true,
-            run_write_ime_events_system: true,
-            run_write_file_dnd_events_system: true,
+            run_write_window_pointer_moved_messages_system: true,
+            run_write_pointer_button_messages_system: true,
+            run_write_window_touch_messages_system: true,
+            run_write_non_window_pointer_moved_messages_system: true,
+            run_write_mouse_wheel_messages_system: true,
+            run_write_non_window_touch_messages_system: true,
+            run_write_keyboard_input_messages_system: true,
+            run_write_ime_messages_system: true,
+            run_write_file_dnd_messages_system: true,
             #[cfg(target_arch = "wasm32")]
             run_write_text_agent_channel_events_system: true,
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
@@ -938,8 +948,8 @@ impl Plugin for EguiPlugin {
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
         app.init_resource::<WindowToEguiContextMap>();
-        app.add_message::<EguiInputEvent>();
-        app.add_message::<EguiFileDragAndDropEvent>();
+        app.add_message::<EguiEventMessage>();
+        app.add_message::<EguiFileDragAndDropMessage>();
 
         #[allow(deprecated)]
         if self.enable_multipass_for_primary_context {
@@ -1042,37 +1052,37 @@ impl Plugin for EguiPlugin {
                     write_modifiers_keys_state_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_modifiers_keys_state_system
                     })),
-                    write_window_pointer_moved_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_window_pointer_moved_events_system
-                    })),
+                    write_window_pointer_moved_messages_system.run_if(input_system_is_enabled(
+                        |s| s.run_write_window_pointer_moved_messages_system,
+                    )),
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
-                    write_pointer_button_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_pointer_button_events_system
+                    write_pointer_button_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_pointer_button_messages_system
                     })),
-                    write_window_touch_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_window_touch_events_system
+                    write_window_touch_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_window_touch_messages_system
                     })),
                 )
                     .in_set(EguiInputSet::FocusContext),
                 (
-                    write_non_window_pointer_moved_events_system.run_if(input_system_is_enabled(
-                        |s| s.run_write_non_window_pointer_moved_events_system,
+                    write_non_window_pointer_moved_messages_system.run_if(input_system_is_enabled(
+                        |s| s.run_write_non_window_pointer_moved_messages_system,
                     )),
-                    write_non_window_touch_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_non_window_touch_events_system
+                    write_non_window_touch_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_non_window_touch_messages_system
                     })),
-                    write_mouse_wheel_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_mouse_wheel_events_system
+                    write_mouse_wheel_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_mouse_wheel_messages_system
                     })),
-                    write_keyboard_input_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_keyboard_input_events_system
+                    write_keyboard_input_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_keyboard_input_messages_system
                     })),
-                    write_ime_events_system
-                        .run_if(input_system_is_enabled(|s| s.run_write_ime_events_system)),
-                    write_file_dnd_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_file_dnd_events_system
+                    write_ime_messages_system
+                        .run_if(input_system_is_enabled(|s| s.run_write_ime_messages_system)),
+                    write_file_dnd_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_file_dnd_messages_system
                     })),
                 )
                     .in_set(EguiInputSet::ReadBevyEvents),
@@ -1167,9 +1177,7 @@ impl Plugin for EguiPlugin {
             (
                 process_output_system,
                 write_egui_wants_input_system,
-                #[cfg(any(target_os = "ios", target_os = "android"))]
-                // show the virtual keyboard on mobile devices
-                set_ime_allowed_system,
+                process_ime_system.after(process_output_system),
             )
                 .in_set(EguiPostUpdateSet::ProcessOutput),
         );
@@ -1279,6 +1287,9 @@ impl Plugin for EguiPlugin {
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
+                .insert_resource(render::EguiRenderSettings {
+                    bindless_mode_array_size: self.bindless_mode_array_size,
+                })
                 .init_resource::<render::EguiPipeline>()
                 .init_resource::<SpecializedRenderPipelines<render::EguiPipeline>>()
                 .init_resource::<render::systems::EguiTransforms>()

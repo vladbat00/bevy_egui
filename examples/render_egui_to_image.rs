@@ -1,10 +1,10 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
+use bevy_camera::{RenderTarget, visibility::RenderLayers};
 use bevy_egui::{
     BevyEguiEntityCommandsExt, EguiContext, EguiContexts, EguiGlobalSettings,
     EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
     picking::PickableEguiContext,
 };
-use bevy_render::{camera::RenderTarget, view::RenderLayers};
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
@@ -178,7 +178,7 @@ fn handle_over_system(
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
-    let Ok(mut material) = mesh_material_query.get_mut(over.target()) else {
+    let Ok(mut material) = mesh_material_query.get_mut(over.entity) else {
         return;
     };
     *material = MeshMaterial3d(material_handles.hovered.clone());
@@ -189,7 +189,7 @@ fn handle_out_system(
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
-    let Ok(mut material) = mesh_material_query.get_mut(out.target()) else {
+    let Ok(mut material) = mesh_material_query.get_mut(out.entity) else {
         return;
     };
     *material = MeshMaterial3d(material_handles.normal.clone());

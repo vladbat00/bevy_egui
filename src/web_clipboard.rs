@@ -52,7 +52,7 @@ pub fn write_web_clipboard_events_system(
         let (_, context_settings) = egui_contexts.get(context_entity)?;
         if !context_settings
             .input_system_settings
-            .run_write_web_clipboard_events_system
+            .run_write_web_clipboard_messages_system
         {
             continue;
         }

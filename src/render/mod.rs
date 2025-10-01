@@ -50,13 +50,14 @@ use bevy_render::{
     sync_world::{RenderEntity, TemporaryRenderEntity},
     view::{ExtractedView, Hdr, RetainedViewEntity, ViewTarget},
 };
-use bevy_shader::Shader;
+use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
+use std::num::NonZero;
 use systems::{EguiTextureId, EguiTransform};
 use wgpu_types::{
     BlendState, ColorTargetState, ColorWrites, Extent3d, MultisampleState, PrimitiveState,
-    SamplerBindingType, ShaderStages, TextureDimension, TextureFormat, TextureSampleType,
-    VertexFormat, VertexStepMode,
+    PushConstantRange, SamplerBindingType, ShaderStages, TextureDimension, TextureFormat,
+    TextureSampleType, VertexFormat, VertexStepMode,
 };
 
 mod render_pass;
@@ -208,6 +209,13 @@ pub fn extract_egui_camera_view_system(
 /// Egui shader.
 pub const EGUI_SHADER_HANDLE: Handle<Shader> = uuid_handle!("05a4d7a0-4f24-4d7f-b606-3f399074261f");
 
+/// Egui render settings.
+#[derive(Resource)]
+pub struct EguiRenderSettings {
+    /// See [`super::EguiPlugin`] for setting description.
+    pub bindless_mode_array_size: Option<NonZero<u32>>,
+}
+
 /// Egui render pipeline.
 #[derive(Resource)]
 pub struct EguiPipeline {
@@ -215,11 +223,29 @@ pub struct EguiPipeline {
     pub transform_bind_group_layout: BindGroupLayout,
     /// Texture bind group layout.
     pub texture_bind_group_layout: BindGroupLayout,
+    /// Is bindless rendering mode enabled
+    /// and how many textures can be rendered in one bind group.
+    pub bindless: Option<NonZero<u32>>,
 }
 
 impl FromWorld for EguiPipeline {
     fn from_world(render_world: &mut World) -> Self {
         let render_device = render_world.resource::<RenderDevice>();
+        let settings = render_world.resource::<EguiRenderSettings>();
+
+        let features = render_device.features();
+
+        // TODO: In wgpu 0.26
+        // Check: max_binding_array_elements_per_shader_stage and
+        // max_binding_array_sampler_elements-per_shader_stage
+        // to be sure that device support provided limits
+        let bindless = if features.contains(wgpu_types::Features::TEXTURE_BINDING_ARRAY)
+            && features.contains(wgpu_types::Features::PUSH_CONSTANTS)
+        {
+            settings.bindless_mode_array_size
+        } else {
+            None
+        };
 
         let transform_bind_group_layout = render_device.create_bind_group_layout(
             "egui_transform_layout",
@@ -229,20 +255,34 @@ impl FromWorld for EguiPipeline {
             ),
         );
 
-        let texture_bind_group_layout = render_device.create_bind_group_layout(
-            "egui_texture_layout",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::FRAGMENT,
-                (
-                    texture_2d(TextureSampleType::Float { filterable: true }),
-                    sampler(SamplerBindingType::Filtering),
+        let texture_bind_group_layout = if let Some(bindless) = bindless {
+            render_device.create_bind_group_layout(
+                "egui_texture_layout",
+                &BindGroupLayoutEntries::sequential(
+                    ShaderStages::FRAGMENT,
+                    (
+                        texture_2d(TextureSampleType::Float { filterable: true }).count(bindless),
+                        sampler(SamplerBindingType::Filtering).count(bindless),
+                    ),
                 ),
-            ),
-        );
+            )
+        } else {
+            render_device.create_bind_group_layout(
+                "egui_texture_layout",
+                &BindGroupLayoutEntries::sequential(
+                    ShaderStages::FRAGMENT,
+                    (
+                        texture_2d(TextureSampleType::Float { filterable: true }),
+                        sampler(SamplerBindingType::Filtering),
+                    ),
+                ),
+            )
+        };
 
         EguiPipeline {
             transform_bind_group_layout,
             texture_bind_group_layout,
+            bindless,
         }
     }
 }
@@ -258,6 +298,17 @@ impl SpecializedRenderPipeline for EguiPipeline {
     type Key = EguiPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        let mut shader_defs = Vec::new();
+        let mut push_constant_ranges = Vec::new();
+
+        if let Some(bindless) = self.bindless {
+            shader_defs.push(ShaderDefVal::UInt("BINDLESS".into(), u32::from(bindless)));
+            push_constant_ranges.push(PushConstantRange {
+                stages: ShaderStages::FRAGMENT,
+                range: 0..4,
+            });
+        }
+
         RenderPipelineDescriptor {
             label: Some("egui_pipeline".into()),
             layout: vec![
@@ -266,7 +317,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             ],
             vertex: VertexState {
                 shader: EGUI_SHADER_HANDLE,
-                shader_defs: Vec::new(),
+                shader_defs: shader_defs.clone(),
                 entry_point: Some("vs_main".into()),
                 buffers: vec![VertexBufferLayout::from_vertex_formats(
                     VertexStepMode::Vertex,
@@ -279,7 +330,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             },
             fragment: Some(FragmentState {
                 shader: EGUI_SHADER_HANDLE,
-                shader_defs: Vec::new(),
+                shader_defs,
                 entry_point: Some("fs_main".into()),
                 targets: vec![Some(ColorTargetState {
                     format: if key.hdr {
@@ -294,7 +345,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            push_constant_ranges: vec![],
+            push_constant_ranges,
             zero_initialize_workgroup_memory: false,
         }
     }

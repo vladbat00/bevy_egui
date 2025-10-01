@@ -16,7 +16,7 @@ use bevy_render::{
     sync_world::RenderEntity,
     view::{ExtractedView, ViewTarget},
 };
-use wgpu_types::IndexFormat;
+use wgpu_types::{IndexFormat, ShaderStages};
 
 /// Egui pass node.
 pub struct EguiPassNode {
@@ -115,6 +115,7 @@ impl Node for EguiPassNode {
 
         let mut requires_reset = true;
         let mut last_scissor_rect = None;
+        let mut last_bindless_offset = None;
 
         let pipeline_id = egui_pipelines
             .get(&view.retained_view_entity.main_entity)
@@ -155,6 +156,9 @@ impl Node for EguiPassNode {
                     ..Default::default()
                 });
                 requires_reset = false;
+
+                last_bindless_offset = None;
+                last_scissor_rect = None;
             }
 
             let clip_urect = URect {
@@ -194,17 +198,31 @@ impl Node for EguiPassNode {
             };
             match &draw_command.primitive {
                 DrawPrimitive::Egui(command) => {
-                    let texture_bind_group = match bind_groups.get(&command.egui_texture) {
-                        Some(texture_resource) => texture_resource,
-                        None => {
-                            vertex_offset += command.vertices_count as u32;
-                            continue;
-                        }
+                    let Some((texture_bind_group, bindless_offset)) =
+                        bind_groups.get(&command.egui_texture)
+                    else {
+                        vertex_offset += command.vertices_count as u32;
+                        continue;
                     };
 
                     render_pass.set_bind_group(1, texture_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                     render_pass.set_index_buffer(index_buffer.slice(..), 0, IndexFormat::Uint32);
+
+                    if let Some(bindless_offset) = bindless_offset {
+                        if last_bindless_offset != Some(bindless_offset) {
+                            last_bindless_offset = Some(bindless_offset);
+
+                            // Use push constant to cheaply provide which texture to use inside
+                            // binding array. This is used to avoid costly set_bind_group operations
+                            // when frequent switching between textures is being done
+                            render_pass.set_push_constants(
+                                ShaderStages::FRAGMENT,
+                                0,
+                                bytemuck::bytes_of(bindless_offset),
+                            );
+                        }
+                    }
 
                     render_pass.draw_indexed(
                         vertex_offset..(vertex_offset + command.vertices_count as u32),
