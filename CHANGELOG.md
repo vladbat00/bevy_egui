@@ -5,13 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0] - 1-Oct-2025
+
+### Added
+
+- Bindless texture support ([#416](https://github.com/vladbat00/bevy_egui/pull/416) by @PPakalns).
+
+### Changed
+
+- Update Bevy to 0.17 ([#410](https://github.com/vladbat00/bevy_egui/pull/410) by @fundon and @villor, [#422](https://github.com/vladbat00/bevy_egui/pull/422)).
+
+### Fixed
+
+- Fixed IME support ([#420](https://github.com/vladbat00/bevy_egui/pull/420)).
+
 ## [0.36.0] - 4-Aug-2025
 
-## Added
+### Added
 
 - Make it configurable whether to render egui on top of bevy_ui or not ([#405](https://github.com/vladbat00/bevy_egui/pull/405) by @nightkr).
 
-## Changed
+### Changed
 
 - Update Egui to 0.32 ([#402](https://github.com/vladbat00/bevy_egui/pull/402), [#399](https://github.com/vladbat00/bevy_egui/pull/399) by @globin and @hacknus).
 
