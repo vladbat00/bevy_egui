@@ -787,14 +787,9 @@ impl EguiContexts<'_, '_> {
         self.q.get(entity).map(|(context, _primary)| context.get())
     }
 
-    /// Can accept either a strong or a weak handle.
+    /// Registers an image as an egui user texture ([`egui::TextureId::User`]).
     ///
-    /// You may want to pass a weak handle if you control removing texture assets in your
-    /// application manually and don't want to bother with cleaning up textures in Egui.
-    /// (The cleanup happens in [`free_egui_textures_system`].)
-    ///
-    /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
-    /// handle copies stored anywhere else.
+    /// Note that `bevy_egui` will store your strong handles, so make sure to call [`EguiContexts::remove_image`] once you need to remove an asset.
     #[cfg(feature = "render")]
     pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
         self.user_textures.add_image(image)
@@ -836,14 +831,9 @@ impl Default for EguiUserTextures {
 
 #[cfg(feature = "render")]
 impl EguiUserTextures {
-    /// Can accept either a strong or a weak handle.
+    /// Registers an image as an egui user texture ([`egui::TextureId::User`]).
     ///
-    /// You may want to pass a weak handle if you control removing texture assets in your
-    /// application manually and don't want to bother with cleaning up textures in Egui.
-    /// (The cleanup happens in [`free_egui_textures_system`].)
-    ///
-    /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
-    /// handle copies stored anywhere else.
+    /// Note that `bevy_egui` will store your strong handles, so make sure to call [`EguiUserTextures::remove_image`] once you need to remove an asset.
     pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
         let id = *self.textures.entry(image.clone()).or_insert_with(|| {
             let id = self
@@ -1647,9 +1637,6 @@ pub fn update_egui_textures_system(
 }
 
 /// This system is responsible for deleting image assets of freed Egui-managed textures and deleting Egui user textures of removed Bevy image assets.
-///
-/// If you add textures via [`EguiContexts::add_image`] or [`EguiUserTextures::add_image`] by passing a weak handle,
-/// the systems ensures that corresponding Egui textures are cleaned up as well.
 #[cfg(feature = "render")]
 pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
