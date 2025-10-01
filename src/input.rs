@@ -167,7 +167,6 @@ pub struct WindowToEguiContextMap {
     pub context_to_window: bevy_platform::collections::HashMap<Entity, Entity>,
 }
 
-#[cfg(feature = "render")]
 impl WindowToEguiContextMap {
     /// Adds a context to the map on creation.
     pub fn on_egui_context_added_system(

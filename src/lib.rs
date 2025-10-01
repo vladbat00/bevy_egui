@@ -1018,7 +1018,6 @@ impl Plugin for EguiPlugin {
         {
             app.add_systems(PreStartup, web_clipboard::startup_setup_web_events_system);
         }
-        #[cfg(feature = "render")]
         app.add_systems(
             PreStartup,
             (
@@ -1031,7 +1030,6 @@ impl Plugin for EguiPlugin {
         );
 
         // PreUpdate systems.
-        #[cfg(feature = "render")]
         app.add_systems(
             PreUpdate,
             (
@@ -1399,7 +1397,6 @@ pub struct EguiManagedTexture {
 ///
 /// To disable this behavior, set [`EguiGlobalSettings::auto_create_primary_context`] to `false` before you create your first camera.
 /// When spawning a camera to which you want to attach the primary Egui context, insert the [`EguiPrimaryContextPass`] component into the respective camera entity.
-#[cfg(feature = "render")]
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
@@ -1741,7 +1738,6 @@ impl SubscribedEvents {
 #[derive(QueryData)]
 #[query_data(mutable)]
 #[allow(missing_docs)]
-#[cfg(feature = "render")]
 pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
@@ -1749,7 +1745,6 @@ pub struct UpdateUiSizeAndScaleQuery {
     camera: &'static bevy_camera::Camera,
 }
 
-#[cfg(feature = "render")]
 /// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
 pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
