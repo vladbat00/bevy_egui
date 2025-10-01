@@ -1,9 +1,12 @@
-use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
+use bevy::{
+    camera::{Viewport, visibility::RenderLayers},
+    prelude::*,
+    window::PrimaryWindow,
+};
 use bevy_egui::{
     EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext, egui,
 };
-use bevy_render::view::RenderLayers;
 
 fn main() {
     App::new()

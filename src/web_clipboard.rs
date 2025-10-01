@@ -27,7 +27,7 @@ pub fn write_web_clipboard_events_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     egui_contexts: Query<(Entity, &EguiContextSettings), With<EguiContext>>,
     mut egui_clipboard: ResMut<EguiClipboard>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
+    mut egui_input_event_writer: MessageWriter<EguiInputEvent>,
 ) -> Result {
     let mut processed_entities = HashSet::new();
 
@@ -52,7 +52,7 @@ pub fn write_web_clipboard_events_system(
         let (_, context_settings) = egui_contexts.get(context_entity)?;
         if !context_settings
             .input_system_settings
-            .run_write_web_clipboard_events_system
+            .run_write_web_clipboard_messages_system
         {
             continue;
         }

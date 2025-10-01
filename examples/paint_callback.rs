@@ -1,10 +1,10 @@
 use bevy::{
     asset::{AssetPath, embedded_asset},
     ecs::schedule::ScheduleLabel,
+    mesh::PrimitiveTopology,
     prelude::*,
     render::{
         RenderApp,
-        mesh::PrimitiveTopology,
         render_resource::{
             BlendState, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
             MultisampleState, PipelineCache, PolygonMode, PrimitiveState, RenderPipelineDescriptor,
@@ -13,12 +13,13 @@ use bevy::{
         sync_world::RenderEntity,
     },
 };
+use bevy_camera::RenderTarget;
 use bevy_egui::{
     EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext,
     render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
 };
-use bevy_render::{camera::RenderTarget, view::ViewTarget};
+use bevy_render::view::ViewTarget;
 use std::path::Path;
 use wgpu_types::{Extent3d, TextureFormat, TextureUsages};
 
@@ -141,7 +142,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
             vertex: bevy::render::render_resource::VertexState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],
-                entry_point: "vertex".into(),
+                entry_point: Some("vertex".into()),
                 buffers: vec![],
             },
             primitive: PrimitiveState {
@@ -158,7 +159,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
             fragment: Some(FragmentState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],
-                entry_point: "fragment".into(),
+                entry_point: Some("fragment".into()),
                 targets: vec![Some(ColorTargetState {
                     format: if key.hdr {
                         ViewTarget::TEXTURE_FORMAT_HDR

@@ -1,10 +1,10 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
+use bevy_camera::{RenderTarget, visibility::RenderLayers};
 use bevy_egui::{
     BevyEguiEntityCommandsExt, EguiContext, EguiContexts, EguiGlobalSettings,
     EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
     picking::PickableEguiContext,
 };
-use bevy_render::{camera::RenderTarget, view::RenderLayers};
 use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
@@ -174,22 +174,22 @@ fn draw_gizmos_system(
 }
 
 fn handle_over_system(
-    over: Trigger<Pointer<Over>>,
+    over: On<Pointer<Over>>,
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
-    let Ok(mut material) = mesh_material_query.get_mut(over.target) else {
+    let Ok(mut material) = mesh_material_query.get_mut(over.entity) else {
         return;
     };
     *material = MeshMaterial3d(material_handles.hovered.clone());
 }
 
 fn handle_out_system(
-    out: Trigger<Pointer<Out>>,
+    out: On<Pointer<Out>>,
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
-    let Ok(mut material) = mesh_material_query.get_mut(out.target) else {
+    let Ok(mut material) = mesh_material_query.get_mut(out.entity) else {
         return;
     };
     *material = MeshMaterial3d(material_handles.normal.clone());
@@ -197,7 +197,7 @@ fn handle_out_system(
 
 #[allow(clippy::type_complexity)]
 fn handle_drag_system(
-    drag: Trigger<Pointer<Drag>>,
+    drag: On<Pointer<Drag>>,
     window: Single<&Window, With<PrimaryWindow>>,
     mut egui_mesh_transform: Single<&mut Transform, With<PickableEguiContext>>,
     // Need to specify `Without<PickableEguiContext>` for `camera_query` and `egui_mesh_transform` to be disjoint.

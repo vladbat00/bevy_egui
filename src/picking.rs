@@ -3,38 +3,36 @@ use crate::{
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
 use bevy_asset::Assets;
+use bevy_camera::{Camera, NormalizedRenderTarget};
 use bevy_ecs::{
     change_detection::Res,
     component::Component,
     entity::Entity,
     error::Result,
-    observer::Trigger,
+    observer::On,
     prelude::{AnyOf, Commands, Query, With},
 };
 use bevy_math::{Ray3d, Vec2};
+use bevy_mesh::{Indices, Mesh, Mesh2d, Mesh3d, VertexAttributeValues};
 use bevy_picking::{
     Pickable,
     events::{Move, Out, Over, Pointer},
     mesh_picking::ray_cast::RayMeshHit,
     prelude::{MeshRayCast, MeshRayCastSettings, RayCastVisibility},
 };
-use bevy_render::{
-    camera::{Camera, NormalizedRenderTarget},
-    mesh::{Indices, Mesh, Mesh2d, Mesh3d, VertexAttributeValues},
-};
 use bevy_transform::components::GlobalTransform;
 use bevy_window::PrimaryWindow;
 use wgpu_types::PrimitiveTopology;
 
 /// This component marks an Entity that displays Egui as an image for [`bevy_picking`] integration
-/// (currently, only [`bevy_render::mesh::Mesh2d`] or [`bevy_render::mesh::Mesh3d`] are supported for picking).
+/// (currently, only [`bevy_mesh::Mesh2d`] or [`bevy_mesh::Mesh3d`] are supported for picking).
 #[derive(Component)]
 #[require(Pickable)]
 pub struct PickableEguiContext(pub Entity);
 
 /// Ray-casts a mesh rendering a pickable Egui context and updates its [`EguiContextPointerPosition`] component.
 pub fn handle_move_system(
-    trigger: Trigger<Pointer<Move>>,
+    event: On<Pointer<Move>>,
     mut mesh_ray_cast: MeshRayCast,
     mut egui_pointers: Query<&mut EguiContextPointerPosition>,
     egui_contexts: Query<(&Camera, &GlobalTransform), With<EguiContext>>,
@@ -42,13 +40,13 @@ pub fn handle_move_system(
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
     meshes: Res<Assets<Mesh>>,
 ) -> Result {
-    let NormalizedRenderTarget::Window(_) = trigger.pointer_location.target else {
+    let NormalizedRenderTarget::Window(_) = event.pointer_location.target else {
         return Ok(());
     };
 
     // Ray-cast attempting to find the context again.
     // TODO: track https://github.com/bevyengine/bevy/issues/19883 - once it's fixed, we can avoid the double-work with ray-casting again.
-    let Ok((context_camera, global_transform)) = egui_contexts.get(trigger.hit.camera) else {
+    let Ok((context_camera, global_transform)) = egui_contexts.get(event.hit.camera) else {
         return Ok(());
     };
     let settings = MeshRayCastSettings {
@@ -61,7 +59,7 @@ pub fn handle_move_system(
         context_camera,
         global_transform,
         &bevy_picking::pointer::PointerLocation {
-            location: Some(trigger.pointer_location.clone()),
+            location: Some(event.pointer_location.clone()),
         },
     ) else {
         return Ok(());
@@ -97,7 +95,7 @@ pub fn handle_move_system(
     if mesh.primitive_topology() != PrimitiveTopology::TriangleList {
         panic!(
             "Unexpected primitive topology for a picked mesh ({:?}): {:?}",
-            trigger.target,
+            event.observer(),
             mesh.primitive_topology()
         );
     }
@@ -136,23 +134,23 @@ pub fn handle_move_system(
 
 /// Inserts the [`HoveredNonWindowEguiContext`] resource containing the hovered Egui context.
 pub fn handle_over_system(
-    trigger: Trigger<Pointer<Over>>,
+    event: On<Pointer<Over>>,
     pickable_egui_context_query: Query<&PickableEguiContext>,
     mut commands: Commands,
 ) {
-    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(trigger.target) {
+    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer()) {
         commands.insert_resource(HoveredNonWindowEguiContext(context));
     }
 }
 
 /// Removes the [`HoveredNonWindowEguiContext`] resource if it contains the Egui context that the pointer has left.
 pub fn handle_out_system(
-    trigger: Trigger<Pointer<Out>>,
+    event: On<Pointer<Out>>,
     pickable_egui_context_query: Query<&PickableEguiContext>,
     mut commands: Commands,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
 ) {
-    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(trigger.target) {
+    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer()) {
         if hovered_non_window_egui_context
             .as_deref()
             .is_some_and(|&HoveredNonWindowEguiContext(hovered_context)| hovered_context == context)

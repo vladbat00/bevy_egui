@@ -1,6 +1,4 @@
-use bevy::{
-    ecs::schedule::ScheduleLabel, prelude::*, render::camera::Viewport, window::WindowResized,
-};
+use bevy::{camera::Viewport, ecs::schedule::ScheduleLabel, prelude::*, window::WindowResized};
 use bevy_egui::{
     EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
     EguiPrimaryContextPass, PrimaryEguiContext, egui,
@@ -85,6 +83,7 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 1,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -95,6 +94,7 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 2,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -105,15 +105,17 @@ fn setup_system(
         Camera3d::default(),
         Camera {
             order: 3,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
         PrimaryEguiContext,
-        Camera2d,
+        Camera3d::default(),
         Camera {
             order: 10,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
     ));
@@ -145,7 +147,7 @@ fn camera_position_and_size(index: u8, count: u32, window_size: UVec2) -> (UVec2
 fn update_camera_viewports_system(
     players_count: Res<PlayersCount>,
     window: Single<&Window>,
-    mut resize_events: EventReader<WindowResized>,
+    mut window_resized_reader: MessageReader<WindowResized>,
     mut query: Query<(
         &mut Camera,
         AnyOf<(
@@ -158,14 +160,14 @@ fn update_camera_viewports_system(
 ) -> Result {
     // We need to dynamically resize the camera's viewports whenever the window size changes.
     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
-    if resize_events.is_empty() && !players_count.is_changed() {
+    if window_resized_reader.is_empty() && !players_count.is_changed() {
         return Ok(());
     }
-    resize_events.clear();
+    window_resized_reader.clear();
 
     let mut result: Vec<_> = query.iter_mut().collect();
 
-    for (ref mut camera, _) in &mut result {
+    for (camera, _) in &mut result {
         camera.is_active = (camera.order as u8) < players_count.0;
         if !camera.is_active {
             continue;

@@ -80,7 +80,7 @@ impl ExtractedEguiTextures<'_> {
                 self.user_textures
                     .textures
                     .iter()
-                    .map(|(handle, id)| (EguiTextureId::User(*id), handle.id())),
+                    .map(|(handle, (_, id))| (EguiTextureId::User(*id), *handle)),
             )
     }
 }
@@ -182,7 +182,7 @@ pub fn queue_bind_groups_system(
     egui_pipeline: Res<EguiPipeline>,
 ) {
     let egui_texture_iterator = egui_textures.handles().filter_map(|(texture, handle_id)| {
-        let gpu_image = gpu_images.get(&Handle::Weak(handle_id))?;
+        let gpu_image = gpu_images.get(handle_id)?;
         Some((texture, gpu_image))
     });
 

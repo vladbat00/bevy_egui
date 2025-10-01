@@ -44,8 +44,8 @@ Here's a minimal usage example:
 ```toml
 # Cargo.toml
 [dependencies]
-bevy = "0.16.0"
-bevy_egui = "0.36.0"
+bevy = "0.17.0"
+bevy_egui = "0.37.0"
 ```
 
 ```rust
@@ -173,6 +173,7 @@ The same minimal example demonstrating running Egui passes manually.
 
 | bevy | bevy_egui |
 |------|-----------|
+| 0.17 | 0.37      |
 | 0.16 | 0.34-0.36 |
 | 0.15 | 0.31-0.33 |
 | 0.14 | 0.28-0.30 |

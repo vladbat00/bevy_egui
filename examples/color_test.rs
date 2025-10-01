@@ -5,7 +5,8 @@ use bevy::{
 };
 use bevy_egui::{
     EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
-    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
+    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, EguiTextureHandle,
+    PrimaryEguiContext,
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
@@ -127,9 +128,9 @@ fn setup_system(
         EguiTextureImageEguiContext,
         EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
     ));
-    app_state.egui_texture_image_handle = egui_texture_image_handle.clone_weak();
+    app_state.egui_texture_image_handle = egui_texture_image_handle.clone();
     app_state.egui_texture_image_id =
-        egui_contexts.add_image(egui_texture_image_handle.clone_weak());
+        egui_contexts.add_image(EguiTextureHandle::Weak(egui_texture_image_handle.id()));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -183,7 +184,7 @@ fn update_image_size_system(
 fn update_egui_hovered_context(
     mut commands: Commands,
     app_state: Res<AppState>,
-    mut cursor_moved_reader: EventReader<CursorMoved>,
+    mut cursor_moved_reader: MessageReader<CursorMoved>,
     mut egui_contexts: Query<(
         Entity,
         &mut EguiContextPointerPosition,
@@ -204,9 +205,9 @@ fn update_egui_hovered_context(
         }
 
         // We expect to reach this code only once since we can have only 1 active context matching the conditions.
-        for event in cursor_moved_reader.read() {
+        for message in cursor_moved_reader.read() {
             let scale_factor = settings.scale_factor;
-            let pointer_position = vec2_into_egui_pos2(event.position / scale_factor)
+            let pointer_position = vec2_into_egui_pos2(message.position / scale_factor)
                 - Vec2::new(0.0, app_state.top_panel_height as f32);
             if pointer_position.y < 0.0 {
                 commands.remove_resource::<HoveredNonWindowEguiContext>();
@@ -294,8 +295,8 @@ fn render_to_image_ui_system<C: Component>(
 // Copy-pasted from https://github.com/emilk/egui/blob/0.30.0/crates/egui_demo_lib/src/rendering_test.rs.
 //
 
+use bevy_camera::RenderTarget;
 use bevy_ecs::schedule::ScheduleLabel;
-use bevy_render::camera::RenderTarget;
 use egui::{
     Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
     Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding, epaint, lerp, pos2, vec2,

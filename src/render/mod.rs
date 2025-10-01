@@ -21,10 +21,12 @@ use crate::{
     render::graph::{NodeEgui, SubGraphEgui},
 };
 use bevy_app::SubApp;
-use bevy_asset::{Handle, RenderAssetUsages, weak_handle};
+use bevy_asset::{Handle, RenderAssetUsages, uuid_handle};
+use bevy_camera::Camera;
 use bevy_ecs::{
     component::Component,
     entity::Entity,
+    query::Has,
     resource::Resource,
     system::{Commands, Local, ResMut},
     world::{FromWorld, World},
@@ -33,23 +35,22 @@ use bevy_image::{
     BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
 };
 use bevy_math::{Mat4, UVec4};
+use bevy_mesh::VertexBufferLayout;
 use bevy_platform::collections::HashSet;
 use bevy_render::{
     MainWorld,
-    camera::Camera,
-    mesh::VertexBufferLayout,
-    prelude::Shader,
     render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
         BindGroupLayout, BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor,
-        ShaderDefVal, SpecializedRenderPipeline, VertexState,
+        SpecializedRenderPipeline, VertexState,
         binding_types::{sampler, texture_2d, uniform_buffer},
     },
     renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
-    view::{ExtractedView, RetainedViewEntity, ViewTarget},
+    view::{ExtractedView, Hdr, RetainedViewEntity, ViewTarget},
 };
+use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
 use std::num::NonZero;
 use systems::{EguiTextureId, EguiTransform};
@@ -129,9 +130,10 @@ pub fn extract_egui_camera_view_system(
         &Camera,
         &mut EguiRenderOutput,
         &EguiContextSettings,
+        Has<Hdr>,
     )>();
 
-    for (main_entity, render_entity, camera, mut egui_render_output, settings) in
+    for (main_entity, render_entity, camera, mut egui_render_output, settings, hdr) in
         &mut q.iter_mut(&mut world)
     {
         // Move Egui shapes and textures out of the main world into the render one.
@@ -176,7 +178,7 @@ pub fn extract_egui_camera_view_system(
                             UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
                         ),
                         clip_from_world: None,
-                        hdr: camera.hdr,
+                        hdr,
                         viewport: UVec4::from((
                             physical_viewport_rect.min,
                             physical_viewport_rect.size(),
@@ -205,7 +207,7 @@ pub fn extract_egui_camera_view_system(
 }
 
 /// Egui shader.
-pub const EGUI_SHADER_HANDLE: Handle<Shader> = weak_handle!("05a4d7a0-4f24-4d7f-b606-3f399074261f");
+pub const EGUI_SHADER_HANDLE: Handle<Shader> = uuid_handle!("05a4d7a0-4f24-4d7f-b606-3f399074261f");
 
 /// Egui render settings.
 #[derive(Resource)]
@@ -288,7 +290,7 @@ impl FromWorld for EguiPipeline {
 /// Key for specialized pipeline.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct EguiPipelineKey {
-    /// Reflects the value of [`Camera::hdr`].
+    /// Equals `true` for cameras that have the [`Hdr`] component.
     pub hdr: bool,
 }
 
@@ -316,7 +318,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             vertex: VertexState {
                 shader: EGUI_SHADER_HANDLE,
                 shader_defs: shader_defs.clone(),
-                entry_point: "vs_main".into(),
+                entry_point: Some("vs_main".into()),
                 buffers: vec![VertexBufferLayout::from_vertex_formats(
                     VertexStepMode::Vertex,
                     [
@@ -329,7 +331,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             fragment: Some(FragmentState {
                 shader: EGUI_SHADER_HANDLE,
                 shader_defs,
-                entry_point: "fs_main".into(),
+                entry_point: Some("fs_main".into()),
                 targets: vec![Some(ColorTargetState {
                     format: if key.hdr {
                         ViewTarget::TEXTURE_FORMAT_HDR

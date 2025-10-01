@@ -83,8 +83,8 @@ pub fn write_text_agent_channel_events_system(
     channel: Res<TextAgentChannel>,
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     egui_contexts: Query<(Entity, &EguiContextSettings)>,
-    mut egui_input_event_writer: EventWriter<EguiInputEvent>,
-    mut redraw_event: EventWriter<RequestRedraw>,
+    mut egui_input_writer: MessageWriter<EguiInputEvent>,
+    mut request_redraw_writer: MessageWriter<RequestRedraw>,
 ) -> Result {
     let mut processed_entities = HashSet::new();
 
@@ -102,17 +102,17 @@ pub fn write_text_agent_channel_events_system(
 
         if !context_settings
             .input_system_settings
-            .run_write_text_agent_channel_events_system
+            .run_write_text_agent_channel_messages_system
         {
             continue;
         }
 
         while let Ok(event) = channel.receiver.try_recv() {
             redraw = true;
-            egui_input_event_writer.write(EguiInputEvent { context, event });
+            egui_input_writer.write(EguiInputEvent { context, event });
         }
         if redraw {
-            redraw_event.write(RequestRedraw);
+            request_redraw_writer.write(RequestRedraw);
         }
     }
 
@@ -186,7 +186,7 @@ pub fn install_text_agent_system(
         let input_clone = input.clone();
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!(
                 "Input event: is_composing={}, data={:?}",
                 event.is_composing(),
@@ -218,7 +218,7 @@ pub fn install_text_agent_system(
         let input_clone = input.clone();
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!("Composition start: data={:?}", _event.data());
             input_clone.set_value("");
             let _ = sender_clone.send(egui::Event::Ime(egui::ImeEvent::Enabled));
@@ -239,7 +239,7 @@ pub fn install_text_agent_system(
 
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!("Composition update: data={:?}", event.data());
             let Some(text) = event.data() else { return };
             let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
@@ -262,7 +262,7 @@ pub fn install_text_agent_system(
         let input_clone = input.clone();
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!("Composition end: data={:?}", event.data());
             let Some(text) = event.data() else { return };
             input_clone.set_value("");
@@ -287,7 +287,7 @@ pub fn install_text_agent_system(
         if is_mobile_safari() {
             let safari_sender = safari_virtual_keyboard_touch_state.sender.clone();
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
-                #[cfg(feature = "log_input_events")]
+                #[cfg(feature = "log_input_messages")]
                 log::warn!("Touch start: {:?}", _event);
                 let _ = safari_sender.send(());
             }) as Box<dyn FnMut(_)>);
@@ -305,7 +305,7 @@ pub fn install_text_agent_system(
 
             let safari_touch_info_lock = safari_virtual_keyboard_touch_state.touch_info;
             let closure = Closure::wrap(Box::new(move |_event: web_sys::TouchEvent| {
-                #[cfg(feature = "log_input_events")]
+                #[cfg(feature = "log_input_messages")]
                 log::warn!("Touch end: {:?}", _event);
                 match safari_touch_info_lock.lock() {
                     Ok(touch_info) => {
@@ -331,7 +331,7 @@ pub fn install_text_agent_system(
 
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!("Keyboard event: {:?}", event);
             if event.is_composing() || event.key_code() == 229 {
                 // https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
@@ -364,7 +364,7 @@ pub fn install_text_agent_system(
         let input_clone = input.clone();
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!("{:?}", event);
             input_clone.focus().ok();
             if "Backspace" == event.key() {

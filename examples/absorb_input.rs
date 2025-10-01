@@ -67,7 +67,7 @@ impl Default for LoremIpsum {
 }
 
 #[derive(Default)]
-struct LastEvents {
+struct LastMessages {
     keyboard_input: Option<KeyboardInput>,
     mouse_button_input: Option<MouseButtonInput>,
     mouse_wheel: Option<MouseWheel>,
@@ -78,19 +78,19 @@ fn ui_system(
     mut contexts: EguiContexts,
     mut egui_global_settings: ResMut<EguiGlobalSettings>,
     mut text: Local<LoremIpsum>,
-    mut last_events: Local<LastEvents>,
-    mut keyboard_input_events: EventReader<KeyboardInput>,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
-    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut last_messages: Local<LastMessages>,
+    mut keyboard_input_reader: MessageReader<KeyboardInput>,
+    mut mouse_button_input_reader: MessageReader<MouseButtonInput>,
+    mut mouse_wheel_reader: MessageReader<MouseWheel>,
 ) -> Result {
-    if let Some(ev) = keyboard_input_events.read().last() {
-        last_events.keyboard_input = Some(ev.clone());
+    if let Some(message) = keyboard_input_reader.read().last() {
+        last_messages.keyboard_input = Some(message.clone());
     }
-    if let Some(ev) = mouse_button_input_events.read().last() {
-        last_events.mouse_button_input = Some(*ev);
+    if let Some(message) = mouse_button_input_reader.read().last() {
+        last_messages.mouse_button_input = Some(*message);
     }
-    if let Some(ev) = mouse_wheel_events.read().last() {
-        last_events.mouse_wheel = Some(*ev);
+    if let Some(message) = mouse_wheel_reader.read().last() {
+        last_messages.mouse_wheel = Some(*message);
     }
 
     egui::Window::new("Absorb Input")
@@ -99,27 +99,27 @@ fn ui_system(
         .show(contexts.ctx_mut()?, |ui| {
             ui.checkbox(
                 &mut egui_global_settings.enable_absorb_bevy_input_system,
-                "Absorb all input events",
+                "Absorb all input messages",
             );
 
             ui.separator();
 
             ui.label(format!(
-                "Last keyboard button event: {:?}",
-                last_events.keyboard_input
+                "Last keyboard button message: {:?}",
+                last_messages.keyboard_input
             ));
             ui.label(format!(
-                "Last mouse button event: {:?}",
-                last_events.mouse_button_input
+                "Last mouse button message: {:?}",
+                last_messages.mouse_button_input
             ));
             ui.label(format!(
-                "Last mouse wheel event: {:?}",
-                last_events.mouse_wheel
+                "Last mouse wheel message: {:?}",
+                last_messages.mouse_wheel
             ));
 
             ui.separator();
 
-            ui.label("A text field to test absorbing keyboard events");
+            ui.label("A text field to test absorbing keyboard inputs");
             ui.text_edit_multiline(&mut text.0);
         });
 
@@ -150,7 +150,7 @@ fn pointer_input_system(
     materials: Res<Materials>,
     mesh: Single<(&mut Transform, &mut MeshMaterial2d<ColorMaterial>), Without<Camera2d>>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
-    mut mouse_wheel_event_reader: EventReader<MouseWheel>,
+    mut mouse_wheel_reader: MessageReader<MouseWheel>,
 ) {
     let (mut transform, mut material) = mesh.into_inner();
 
@@ -162,7 +162,7 @@ fn pointer_input_system(
         }
     }
 
-    for ev in mouse_wheel_event_reader.read() {
-        transform.scale += ev.y;
+    for message in mouse_wheel_reader.read() {
+        transform.scale += message.y;
     }
 }

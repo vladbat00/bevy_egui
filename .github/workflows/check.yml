@@ -69,6 +69,8 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --no-default-features --target=wasm32-unknown-unknown --all-targets --features=${{ matrix.features }} -- -D warnings
+        env:
+          RUSTFLAGS: --cfg getrandom_backend="wasm_js"
 
   clippy_android:
     name: Clippy check (android)

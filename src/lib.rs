@@ -148,7 +148,7 @@
 
 /// Helpers for converting Bevy types into Egui ones and vice versa.
 pub mod helpers;
-/// Systems for translating Bevy input events into Egui input.
+/// Systems for translating Bevy input messages into Egui input.
 pub mod input;
 /// Systems for handling Egui output.
 pub mod output;
@@ -181,7 +181,9 @@ use crate::text_agent::{
 use arboard::Clipboard;
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
-use bevy_asset::{AssetEvent, Assets, Handle, load_internal_asset};
+use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
+#[cfg(feature = "picking")]
+use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     prelude::*,
@@ -191,7 +193,7 @@ use bevy_ecs::{
 };
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
-use bevy_input::InputSystem;
+use bevy_input::InputSystems;
 #[allow(unused_imports)]
 use bevy_log as log;
 #[cfg(feature = "picking")]
@@ -203,15 +205,13 @@ use bevy_picking::{
 use bevy_platform::collections::HashMap;
 use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
-#[cfg(feature = "picking")]
-use bevy_render::camera::NormalizedRenderTarget;
 #[cfg(feature = "render")]
 use bevy_render::{
-    ExtractSchedule, Render, RenderApp, RenderSet,
+    ExtractSchedule, Render, RenderApp, RenderSystems,
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
 };
-use bevy_winit::cursor::CursorIcon;
+use bevy_window::CursorIcon;
 use output::process_output_system;
 #[cfg(all(
     feature = "manage_clipboard",
@@ -272,7 +272,7 @@ pub struct EguiPlugin {
     /// ```no_run,rust
     /// # use bevy::{
     /// #    prelude::*,
-    /// #    render::camera::RenderTarget,
+    /// #    camera::RenderTarget,
     /// #    window::{PresentMode, WindowRef, WindowResolution},
     /// # };
     /// # use bevy::ecs::schedule::ScheduleLabel;
@@ -354,7 +354,7 @@ pub struct EguiPlugin {
     )]
     pub enable_multipass_for_primary_context: bool,
 
-    /// Configures whether [`egui`] will be rendered above or below [`bevy_ui`](Bevy UI) GUIs.
+    /// Configures whether [`egui`] will be rendered above or below [`bevy_ui_render`](Bevy UI) GUIs.
     ///
     /// Defaults to [`UiRenderOrder::EguiAboveBevyUi`], on the assumption that games that use both
     /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
@@ -383,15 +383,15 @@ impl Default for EguiPlugin {
     }
 }
 
-/// Configures the rendering order between [`egui`] and [`bevy_ui`](Bevy UI).
+/// Configures the rendering order between [`egui`] and [`bevy_ui_render`](Bevy UI).
 ///
 /// See [`EguiPlugin::ui_render_order`].
 #[cfg(feature = "bevy_ui")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UiRenderOrder {
-    /// [`egui`] UIs are rendered on top of [`bevy_ui`](Bevy UI).
+    /// [`egui`] UIs are rendered on top of [`bevy_ui_render`](Bevy UI).
     EguiAboveBevyUi,
-    /// [`bevy_ui`](Bevy UI) UIs are rendered on top of [`egui`].
+    /// [`bevy_ui_render`](Bevy UI) UIs are rendered on top of [`egui`].
     BevyUiAboveEgui,
 }
 
@@ -415,8 +415,8 @@ pub struct EguiGlobalSettings {
     ///
     /// Enabling this system makes an assumption that `bevy_egui` takes priority in input handling
     /// over other plugins and systems. This should work ok as long as there's no other system
-    /// clearing events the same way that might be in conflict with `bevy_egui`, and there's
-    /// no other system that needs a non-interrupted flow of events.
+    /// clearing messages the same way that might be in conflict with `bevy_egui`, and there's
+    /// no other system that needs a non-interrupted flow of messages.
     ///
     /// ## Alternative
     ///
@@ -512,49 +512,49 @@ impl Default for EguiContextSettings {
 pub struct EguiInputSystemSettings {
     /// Controls running of the [`write_modifiers_keys_state_system`] system.
     pub run_write_modifiers_keys_state_system: bool,
-    /// Controls running of the [`write_window_pointer_moved_events_system`] system.
-    pub run_write_window_pointer_moved_events_system: bool,
-    /// Controls running of the [`write_pointer_button_events_system`] system.
-    pub run_write_pointer_button_events_system: bool,
-    /// Controls running of the [`write_window_touch_events_system`] system.
-    pub run_write_window_touch_events_system: bool,
-    /// Controls running of the [`write_non_window_pointer_moved_events_system`] system.
-    pub run_write_non_window_pointer_moved_events_system: bool,
-    /// Controls running of the [`write_mouse_wheel_events_system`] system.
-    pub run_write_mouse_wheel_events_system: bool,
-    /// Controls running of the [`write_non_window_touch_events_system`] system.
-    pub run_write_non_window_touch_events_system: bool,
-    /// Controls running of the [`write_keyboard_input_events_system`] system.
-    pub run_write_keyboard_input_events_system: bool,
-    /// Controls running of the [`write_ime_events_system`] system.
-    pub run_write_ime_events_system: bool,
-    /// Controls running of the [`write_file_dnd_events_system`] system.
-    pub run_write_file_dnd_events_system: bool,
-    /// Controls running of the [`write_text_agent_channel_events_system`] system.
+    /// Controls running of the [`write_window_pointer_moved_messages_system`] system.
+    pub run_write_window_pointer_moved_messages_system: bool,
+    /// Controls running of the [`write_pointer_button_messages_system`] system.
+    pub run_write_pointer_button_messages_system: bool,
+    /// Controls running of the [`write_window_touch_messages_system`] system.
+    pub run_write_window_touch_messages_system: bool,
+    /// Controls running of the [`write_non_window_pointer_moved_messages_system`] system.
+    pub run_write_non_window_pointer_moved_messages_system: bool,
+    /// Controls running of the [`write_mouse_wheel_messages_system`] system.
+    pub run_write_mouse_wheel_messages_system: bool,
+    /// Controls running of the [`write_non_window_touch_messages_system`] system.
+    pub run_write_non_window_touch_messages_system: bool,
+    /// Controls running of the [`write_keyboard_input_messages_system`] system.
+    pub run_write_keyboard_input_messages_system: bool,
+    /// Controls running of the [`write_ime_messages_system`] system.
+    pub run_write_ime_messages_system: bool,
+    /// Controls running of the [`write_file_dnd_messages_system`] system.
+    pub run_write_file_dnd_messages_system: bool,
+    /// Controls running of the [`write_text_agent_channel_messages_system`] system.
     #[cfg(target_arch = "wasm32")]
-    pub run_write_text_agent_channel_events_system: bool,
-    /// Controls running of the [`web_clipboard::write_web_clipboard_events_system`] system.
+    pub run_write_text_agent_channel_messages_system: bool,
+    /// Controls running of the [`web_clipboard::write_web_clipboard_messages_system`] system.
     #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
-    pub run_write_web_clipboard_events_system: bool,
+    pub run_write_web_clipboard_messages_system: bool,
 }
 
 impl Default for EguiInputSystemSettings {
     fn default() -> Self {
         Self {
             run_write_modifiers_keys_state_system: true,
-            run_write_window_pointer_moved_events_system: true,
-            run_write_pointer_button_events_system: true,
-            run_write_window_touch_events_system: true,
-            run_write_non_window_pointer_moved_events_system: true,
-            run_write_mouse_wheel_events_system: true,
-            run_write_non_window_touch_events_system: true,
-            run_write_keyboard_input_events_system: true,
-            run_write_ime_events_system: true,
-            run_write_file_dnd_events_system: true,
+            run_write_window_pointer_moved_messages_system: true,
+            run_write_pointer_button_messages_system: true,
+            run_write_window_touch_messages_system: true,
+            run_write_non_window_pointer_moved_messages_system: true,
+            run_write_mouse_wheel_messages_system: true,
+            run_write_non_window_touch_messages_system: true,
+            run_write_keyboard_input_messages_system: true,
+            run_write_ime_messages_system: true,
+            run_write_file_dnd_messages_system: true,
             #[cfg(target_arch = "wasm32")]
-            run_write_text_agent_channel_events_system: true,
+            run_write_text_agent_channel_messages_system: true,
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
-            run_write_web_clipboard_events_system: true,
+            run_write_web_clipboard_messages_system: true,
         }
     }
 }
@@ -706,18 +706,16 @@ impl EguiContexts<'_, '_> {
     #[inline]
     pub fn ctx_mut(&mut self) -> Result<&mut egui::Context, QuerySingleError> {
         self.q.iter_mut().fold(
-            Err(QuerySingleError::NoEntities(core::any::type_name::<
-                EguiContextsPrimaryQuery,
-            >())),
+            Err(QuerySingleError::NoEntities(
+                bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+            )),
             |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.into_inner().get_mut()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
-                (Ok(_), Some(_)) => {
-                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
-                        EguiContextsPrimaryQuery,
-                    >()))
-                }
+                (Ok(_), Some(_)) => Err(QuerySingleError::MultipleEntities(
+                    bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+                )),
                 (Ok(_), None) => result,
             },
         )
@@ -759,18 +757,16 @@ impl EguiContexts<'_, '_> {
     #[inline]
     pub fn ctx(&self) -> Result<&egui::Context, QuerySingleError> {
         self.q.iter().fold(
-            Err(QuerySingleError::NoEntities(core::any::type_name::<
-                EguiContextsPrimaryQuery,
-            >())),
+            Err(QuerySingleError::NoEntities(
+                bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+            )),
             |result, (ctx, primary)| match (&result, primary) {
                 (Err(QuerySingleError::MultipleEntities(_)), _) => result,
                 (Err(QuerySingleError::NoEntities(_)), Some(_)) => Ok(ctx.get()),
                 (Err(QuerySingleError::NoEntities(_)), None) => result,
-                (Ok(_), Some(_)) => {
-                    Err(QuerySingleError::MultipleEntities(core::any::type_name::<
-                        EguiContextsPrimaryQuery,
-                    >()))
-                }
+                (Ok(_), Some(_)) => Err(QuerySingleError::MultipleEntities(
+                    bevy_utils::prelude::DebugName::type_name::<EguiContextsPrimaryQuery>(),
+                )),
                 (Ok(_), None) => result,
             },
         )
@@ -800,14 +796,14 @@ impl EguiContexts<'_, '_> {
     /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
     /// handle copies stored anywhere else.
     #[cfg(feature = "render")]
-    pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
+    pub fn add_image(&mut self, image: EguiTextureHandle) -> egui::TextureId {
         self.user_textures.add_image(image)
     }
 
     /// Removes the image handle and an Egui texture id associated with it.
     #[cfg(feature = "render")]
     #[track_caller]
-    pub fn remove_image(&mut self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn remove_image(&mut self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
         self.user_textures.remove_image(image)
     }
 
@@ -815,7 +811,7 @@ impl EguiContexts<'_, '_> {
     #[cfg(feature = "render")]
     #[must_use]
     #[track_caller]
-    pub fn image_id(&self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn image_id(&self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
         self.user_textures.image_id(image)
     }
 }
@@ -824,7 +820,7 @@ impl EguiContexts<'_, '_> {
 #[derive(Clone, Resource, ExtractResource)]
 #[cfg(feature = "render")]
 pub struct EguiUserTextures {
-    textures: HashMap<Handle<Image>, u64>,
+    textures: HashMap<AssetId<Image>, (EguiTextureHandle, u64)>,
     free_list: Vec<u64>,
 }
 
@@ -848,8 +844,8 @@ impl EguiUserTextures {
     ///
     /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
     /// handle copies stored anywhere else.
-    pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
-        let id = *self.textures.entry(image.clone()).or_insert_with(|| {
+    pub fn add_image(&mut self, image: EguiTextureHandle) -> egui::TextureId {
+        let (_, id) = *self.textures.entry(image.asset_id()).or_insert_with(|| {
             let id = self
                 .free_list
                 .pop()
@@ -858,27 +854,60 @@ impl EguiUserTextures {
             if self.free_list.is_empty() {
                 self.free_list.push(id.checked_add(1).expect("out of ids"));
             }
-            id
+            (image, id)
         });
         egui::TextureId::User(id)
     }
 
     /// Removes the image handle and an Egui texture id associated with it.
-    pub fn remove_image(&mut self, image: &Handle<Image>) -> Option<egui::TextureId> {
-        let id = self.textures.remove(image);
+    pub fn remove_image(&mut self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
+        let image = image.into();
+        let id = self.textures.remove(&image);
         log::debug!("Remove image (id: {:?}, handle: {:?})", id, image);
-        if let Some(id) = id {
+        if let Some((_, id)) = id {
             self.free_list.push(id);
         }
-        id.map(egui::TextureId::User)
+        id.map(|(_, id)| egui::TextureId::User(id))
     }
 
     /// Returns an associated Egui texture id.
     #[must_use]
-    pub fn image_id(&self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn image_id(&self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
+        let image = image.into();
         self.textures
-            .get(image)
-            .map(|&id| egui::TextureId::User(id))
+            .get(&image)
+            .map(|&(_, id)| egui::TextureId::User(id))
+    }
+}
+
+#[cfg(feature = "render")]
+/// A wrapper type for an image handle or an asset id to mimic weak handles.
+#[derive(Clone, Debug)]
+pub enum EguiTextureHandle {
+    /// Strong handle to an image.
+    ///
+    /// Passing strong handles to [`EguiUserTextures::add_image`] will imply that egui shares ownership of an image,
+    /// and you'll have to call [`EguiUserTextures::remove_image`] to remove an asset.
+    Strong(Handle<Image>),
+    /// Weak handle to an image.
+    Weak(AssetId<Image>),
+}
+
+#[cfg(feature = "render")]
+impl EguiTextureHandle {
+    /// Returns an [`AssetId`] of a wrapped handle.
+    pub fn asset_id(&self) -> AssetId<Image> {
+        match self {
+            EguiTextureHandle::Strong(handle) => handle.id(),
+            EguiTextureHandle::Weak(asset_id) => *asset_id,
+        }
+    }
+}
+
+#[cfg(feature = "render")]
+impl From<EguiTextureHandle> for AssetId<Image> {
+    fn from(value: EguiTextureHandle) -> Self {
+        value.asset_id()
     }
 }
 
@@ -886,7 +915,7 @@ impl EguiUserTextures {
 /// The component lives only in the Render world.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct RenderComputedScaleFactor {
-    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_render::camera::Camera::target_scaling_factor`]).
+    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_camera::Camera::target_scaling_factor`]).
     pub scale_factor: f32,
 }
 
@@ -925,10 +954,10 @@ pub enum EguiInputSet {
     ///
     /// This is where [`HoveredNonWindowEguiContext`] should get inserted or removed.
     InitReading,
-    /// Processes window mouse button click and touch events, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
+    /// Processes window mouse button click and touch messages, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
     FocusContext,
-    /// Processes rest of the events for both window and non-window contexts.
-    ReadBevyEvents,
+    /// Processes rest of the messages for both window and non-window contexts.
+    ReadBevyMessages,
     /// Feeds all the events into [`EguiInput`].
     WriteEguiEvents,
 }
@@ -952,8 +981,8 @@ impl Plugin for EguiPlugin {
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
         app.init_resource::<WindowToEguiContextMap>();
-        app.add_event::<EguiInputEvent>();
-        app.add_event::<EguiFileDragAndDropEvent>();
+        app.add_message::<EguiInputEvent>();
+        app.add_message::<EguiFileDragAndDropMessage>();
 
         #[allow(deprecated)]
         if self.enable_multipass_for_primary_context {
@@ -980,7 +1009,7 @@ impl Plugin for EguiPlugin {
             PreUpdate,
             (
                 EguiPreUpdateSet::InitContexts,
-                EguiPreUpdateSet::ProcessInput.after(InputSystem),
+                EguiPreUpdateSet::ProcessInput.after(InputSystems),
                 EguiPreUpdateSet::BeginPass,
             )
                 .chain(),
@@ -990,7 +1019,7 @@ impl Plugin for EguiPlugin {
             (
                 EguiInputSet::InitReading,
                 EguiInputSet::FocusContext,
-                EguiInputSet::ReadBevyEvents,
+                EguiInputSet::ReadBevyMessages,
                 EguiInputSet::WriteEguiEvents,
             )
                 .chain(),
@@ -1011,7 +1040,8 @@ impl Plugin for EguiPlugin {
             (
                 EguiPostUpdateSet::EndPass,
                 EguiPostUpdateSet::ProcessOutput,
-                EguiPostUpdateSet::PostProcessOutput.before(bevy_a11y::AccessibilitySystem::Update),
+                EguiPostUpdateSet::PostProcessOutput
+                    .before(bevy_a11y::AccessibilitySystems::Update),
             )
                 .chain(),
         );
@@ -1021,7 +1051,6 @@ impl Plugin for EguiPlugin {
         {
             app.add_systems(PreStartup, web_clipboard::startup_setup_web_events_system);
         }
-        #[cfg(feature = "render")]
         app.add_systems(
             PreStartup,
             (
@@ -1034,7 +1063,6 @@ impl Plugin for EguiPlugin {
         );
 
         // PreUpdate systems.
-        #[cfg(feature = "render")]
         app.add_systems(
             PreUpdate,
             (
@@ -1055,40 +1083,40 @@ impl Plugin for EguiPlugin {
                     write_modifiers_keys_state_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_modifiers_keys_state_system
                     })),
-                    write_window_pointer_moved_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_window_pointer_moved_events_system
-                    })),
+                    write_window_pointer_moved_messages_system.run_if(input_system_is_enabled(
+                        |s| s.run_write_window_pointer_moved_messages_system,
+                    )),
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
-                    write_pointer_button_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_pointer_button_events_system
+                    write_pointer_button_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_pointer_button_messages_system
                     })),
-                    write_window_touch_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_window_touch_events_system
+                    write_window_touch_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_window_touch_messages_system
                     })),
                 )
                     .in_set(EguiInputSet::FocusContext),
                 (
-                    write_non_window_pointer_moved_events_system.run_if(input_system_is_enabled(
-                        |s| s.run_write_non_window_pointer_moved_events_system,
+                    write_non_window_pointer_moved_messages_system.run_if(input_system_is_enabled(
+                        |s| s.run_write_non_window_pointer_moved_messages_system,
                     )),
-                    write_non_window_touch_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_non_window_touch_events_system
+                    write_non_window_touch_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_non_window_touch_messages_system
                     })),
-                    write_mouse_wheel_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_mouse_wheel_events_system
+                    write_mouse_wheel_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_mouse_wheel_messages_system
                     })),
-                    write_keyboard_input_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_keyboard_input_events_system
+                    write_keyboard_input_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_keyboard_input_messages_system
                     })),
-                    write_ime_events_system
-                        .run_if(input_system_is_enabled(|s| s.run_write_ime_events_system)),
-                    write_file_dnd_events_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_file_dnd_events_system
+                    write_ime_messages_system
+                        .run_if(input_system_is_enabled(|s| s.run_write_ime_messages_system)),
+                    write_file_dnd_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_file_dnd_messages_system
                     })),
                 )
-                    .in_set(EguiInputSet::ReadBevyEvents),
+                    .in_set(EguiInputSet::ReadBevyMessages),
                 (
                     write_egui_input_system,
                     absorb_bevy_input_system.run_if(|settings: Res<EguiGlobalSettings>| {
@@ -1141,10 +1169,10 @@ impl Plugin for EguiPlugin {
                     PreUpdate,
                     write_text_agent_channel_events_system
                         .run_if(input_system_is_enabled(|s| {
-                            s.run_write_text_agent_channel_events_system
+                            s.run_write_text_agent_channel_messages_system
                         }))
                         .in_set(EguiPreUpdateSet::ProcessInput)
-                        .in_set(EguiInputSet::ReadBevyEvents),
+                        .in_set(EguiInputSet::ReadBevyMessages),
                 );
 
                 if is_mobile_safari() {
@@ -1161,10 +1189,10 @@ impl Plugin for EguiPlugin {
                 PreUpdate,
                 web_clipboard::write_web_clipboard_events_system
                     .run_if(input_system_is_enabled(|s| {
-                        s.run_write_web_clipboard_events_system
+                        s.run_write_web_clipboard_messages_system
                     }))
                     .in_set(EguiPreUpdateSet::ProcessInput)
-                    .in_set(EguiInputSet::ReadBevyEvents),
+                    .in_set(EguiInputSet::ReadBevyMessages),
             );
         }
 
@@ -1200,15 +1228,15 @@ impl Plugin for EguiPlugin {
         )
         .add_systems(
             Render,
-            render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+            render::systems::prepare_egui_transforms_system.in_set(RenderSystems::Prepare),
         )
         .add_systems(
             Render,
-            render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+            render::systems::queue_bind_groups_system.in_set(RenderSystems::Queue),
         )
         .add_systems(
             Render,
-            render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
+            render::systems::queue_pipelines_system.in_set(RenderSystems::Queue),
         )
         .add_systems(Last, free_egui_textures_system);
 
@@ -1218,7 +1246,7 @@ impl Plugin for EguiPlugin {
                 app,
                 render::EGUI_SHADER_HANDLE,
                 "render/egui.wgsl",
-                bevy_render::render_resource::Shader::from_wgsl
+                bevy_shader::Shader::from_wgsl
             );
 
             let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
@@ -1286,7 +1314,7 @@ impl Plugin for EguiPlugin {
     #[cfg(feature = "render")]
     fn finish(&self, app: &mut App) {
         #[cfg(feature = "bevy_ui")]
-        let bevy_ui_is_enabled = app.is_plugin_added::<bevy_ui::UiPlugin>();
+        let bevy_ui_is_enabled = app.is_plugin_added::<bevy_ui_render::UiRenderPlugin>();
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
@@ -1299,26 +1327,26 @@ impl Plugin for EguiPlugin {
                 .init_resource::<render::systems::EguiRenderData>()
                 .add_systems(
                     // Seems to be just the set to add/remove nodes, as it'll run before
-                    // `RenderSet::ExtractCommands` where render nodes get updated.
+                    // `RenderSystems::ExtractCommands` where render nodes get updated.
                     ExtractSchedule,
                     render::extract_egui_camera_view_system,
                 )
                 .add_systems(
                     Render,
-                    render::systems::prepare_egui_transforms_system.in_set(RenderSet::Prepare),
+                    render::systems::prepare_egui_transforms_system.in_set(RenderSystems::Prepare),
                 )
                 .add_systems(
                     Render,
                     render::systems::prepare_egui_render_target_data_system
-                        .in_set(RenderSet::Prepare),
+                        .in_set(RenderSystems::Prepare),
                 )
                 .add_systems(
                     Render,
-                    render::systems::queue_bind_groups_system.in_set(RenderSet::Queue),
+                    render::systems::queue_bind_groups_system.in_set(RenderSystems::Queue),
                 )
                 .add_systems(
                     Render,
-                    render::systems::queue_pipelines_system.in_set(RenderSet::Queue),
+                    render::systems::queue_pipelines_system.in_set(RenderSystems::Queue),
                 );
 
             // Configure a fixed rendering order between Bevy UI and egui.
@@ -1331,12 +1359,12 @@ impl Plugin for EguiPlugin {
                     .resource_mut::<bevy_render::render_graph::RenderGraph>();
                 let (below, above) = match self.ui_render_order {
                     UiRenderOrder::EguiAboveBevyUi => (
-                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
                         render::graph::NodeEgui::EguiPass.intern(),
                     ),
                     UiRenderOrder::BevyUiAboveEgui => (
                         render::graph::NodeEgui::EguiPass.intern(),
-                        bevy_ui::graph::NodeUi::UiPass.intern(),
+                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
                     ),
                 };
                 if let Some(graph_2d) =
@@ -1346,7 +1374,7 @@ impl Plugin for EguiPlugin {
                     // In theory we could use RenderGraph::try_add_node_edge instead and ignore the result,
                     // but that still seems to end up writing the corrupt edge into the graph,
                     // causing the game to panic down the line.
-                    match graph_2d.get_node_state(bevy_ui::graph::NodeUi::UiPass) {
+                    match graph_2d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
                         Ok(_) => {
                             graph_2d.add_node_edge(below, above);
                         }
@@ -1359,7 +1387,7 @@ impl Plugin for EguiPlugin {
                 if let Some(graph_3d) =
                     graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
                 {
-                    match graph_3d.get_node_state(bevy_ui::graph::NodeUi::UiPass) {
+                    match graph_3d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
                         Ok(_) => {
                             graph_3d.add_node_edge(below, above);
                         }
@@ -1402,10 +1430,9 @@ pub struct EguiManagedTexture {
 ///
 /// To disable this behavior, set [`EguiGlobalSettings::auto_create_primary_context`] to `false` before you create your first camera.
 /// When spawning a camera to which you want to attach the primary Egui context, insert the [`EguiPrimaryContextPass`] component into the respective camera entity.
-#[cfg(feature = "render")]
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
-    new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_render::camera::Camera>>,
+    new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
     #[cfg(feature = "accesskit_placeholder")] adapters: Option<
         NonSend<bevy_winit::accessibility::AccessKitAdapters>,
     >,
@@ -1554,9 +1581,9 @@ pub fn capture_pointer_input_system(
         Entity,
         &mut EguiContext,
         &EguiContextSettings,
-        &bevy_render::camera::Camera,
+        &bevy_camera::Camera,
     )>,
-    mut output: EventWriter<PointerHits>,
+    mut output: MessageWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
 ) {
     use helpers::QueryHelper;
@@ -1662,7 +1689,7 @@ pub fn free_egui_textures_system(
     egui_render_output: Query<(Entity, &EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
-    mut image_events: EventReader<AssetEvent<Image>>,
+    mut image_event_reader: MessageReader<AssetEvent<Image>>,
 ) {
     for (entity, egui_render_output) in egui_render_output.iter() {
         for &texture_id in &egui_render_output.textures_delta.free {
@@ -1675,9 +1702,9 @@ pub fn free_egui_textures_system(
         }
     }
 
-    for image_event in image_events.read() {
-        if let AssetEvent::Removed { id } = image_event {
-            egui_user_textures.remove_image(&Handle::<Image>::Weak(*id));
+    for message in image_event_reader.read() {
+        if let AssetEvent::Removed { id } = message {
+            egui_user_textures.remove_image(EguiTextureHandle::Weak(*id));
         }
     }
 }
@@ -1742,15 +1769,13 @@ impl SubscribedEvents {
 #[derive(QueryData)]
 #[query_data(mutable)]
 #[allow(missing_docs)]
-#[cfg(feature = "render")]
 pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
     egui_settings: &'static EguiContextSettings,
-    camera: &'static bevy_render::camera::Camera,
+    camera: &'static bevy_camera::Camera,
 }
 
-#[cfg(feature = "render")]
 /// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
 pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
@@ -1897,7 +1922,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
 /// Extension for the [`EntityCommands`] trait.
 #[cfg(feature = "picking")]
 pub trait BevyEguiEntityCommandsExt {
-    /// Makes an entity [`bevy_picking::Pickable`] and adds observers to react to pointer events by linking them with an Egui context.
+    /// Makes an entity [`bevy_picking::Pickable`] and adds observers to react to pointer messages by linking them with an Egui context.
     fn add_picking_observers_for_context(&mut self, context: Entity) -> &mut Self;
 }
 
