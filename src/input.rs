@@ -1096,11 +1096,7 @@ pub fn write_egui_input_system(
     windows: Query<&Window>,
     time: Res<Time<Real>>,
 ) {
-    for EguiInputEvent {
-        context,
-        event,
-    } in egui_input_reader.read()
-    {
+    for EguiInputEvent { context, event } in egui_input_reader.read() {
         #[cfg(feature = "log_input_messages")]
         log::warn!("{context:?}: {message:?}");
 
