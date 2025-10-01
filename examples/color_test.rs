@@ -5,7 +5,8 @@ use bevy::{
 };
 use bevy_egui::{
     EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
-    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
+    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, EguiTextureHandle,
+    PrimaryEguiContext,
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
@@ -128,7 +129,8 @@ fn setup_system(
         EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
     ));
     app_state.egui_texture_image_handle = egui_texture_image_handle.clone();
-    app_state.egui_texture_image_id = egui_contexts.add_image(egui_texture_image_handle.clone());
+    app_state.egui_texture_image_id =
+        egui_contexts.add_image(EguiTextureHandle::Weak(egui_texture_image_handle.id()));
 }
 
 #[allow(clippy::too_many_arguments)]

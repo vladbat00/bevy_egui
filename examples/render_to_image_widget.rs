@@ -6,8 +6,8 @@ use bevy::{
     },
 };
 use bevy_egui::{
-    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiUserTextures,
-    PrimaryEguiContext, egui::Widget,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiTextureHandle,
+    EguiUserTextures, PrimaryEguiContext, egui::Widget,
 };
 
 fn main() {
@@ -71,7 +71,7 @@ fn setup_system(
     image.resize(size);
 
     let image_handle = images.add(image);
-    egui_user_textures.add_image(image_handle.clone());
+    egui_user_textures.add_image(EguiTextureHandle::Strong(image_handle.clone()));
     commands.insert_resource(CubePreviewImage(image_handle.clone()));
 
     let cube_handle = meshes.add(Cuboid::new(4.0, 4.0, 4.0));
@@ -153,7 +153,7 @@ fn render_to_image_example_system(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut contexts: EguiContexts,
 ) -> Result {
-    let cube_preview_texture_id = contexts.image_id(&cube_preview_image).unwrap();
+    let cube_preview_texture_id = contexts.image_id(&**cube_preview_image).unwrap();
     let preview_material_handle = preview_cube_query.single()?;
     let preview_material = materials.get_mut(preview_material_handle).unwrap();
 

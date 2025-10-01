@@ -6,7 +6,7 @@ use bevy::{
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_egui::{
     EguiContext, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
-    EguiUserTextures, PrimaryEguiContext,
+    EguiTextureHandle, EguiUserTextures, PrimaryEguiContext,
 };
 
 #[derive(Resource)]
@@ -83,7 +83,8 @@ fn ui_first_window_system(
     images: Res<Images>,
     mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
 ) {
-    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone());
+    let bevy_texture_id =
+        egui_user_textures.add_image(EguiTextureHandle::Weak(images.bevy_icon.id()));
     egui::Window::new("First Window")
         .vscroll(true)
         .show(egui_ctx.get_mut(), |ui| {
@@ -110,7 +111,8 @@ fn ui_second_window_system(
     images: Res<Images>,
     mut egui_ctx: Single<&mut EguiContext, Without<PrimaryEguiContext>>,
 ) {
-    let bevy_texture_id = egui_user_textures.add_image(images.bevy_icon.clone());
+    let bevy_texture_id =
+        egui_user_textures.add_image(EguiTextureHandle::Weak(images.bevy_icon.id()));
     egui::Window::new("Second Window")
         .vscroll(true)
         .show(egui_ctx.get_mut(), |ui| {

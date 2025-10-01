@@ -4,6 +4,7 @@ use bevy::{
 };
 use bevy_egui::{
     EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
+    EguiTextureHandle,
 };
 
 struct Images {
@@ -120,7 +121,8 @@ fn ui_example_system(
 ) -> Result {
     if !*is_initialized {
         *is_initialized = true;
-        *rendered_texture_id = contexts.add_image(images.bevy_icon.clone());
+        *rendered_texture_id =
+            contexts.add_image(EguiTextureHandle::Strong(images.bevy_icon.clone()));
     }
 
     let ctx = contexts.ctx_mut()?;
@@ -238,7 +240,7 @@ fn ui_example_system(
     };
     if load || invert {
         // If an image is already added to the context, it'll return an existing texture id.
-        *rendered_texture_id = contexts.add_image(bevy_icon_handle.clone());
+        *rendered_texture_id = contexts.add_image(EguiTextureHandle::Weak(bevy_icon_handle.id()));
     }
     if copy {
         let image = image_assets

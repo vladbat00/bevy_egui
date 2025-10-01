@@ -80,7 +80,7 @@ impl ExtractedEguiTextures<'_> {
                 self.user_textures
                     .textures
                     .iter()
-                    .map(|(handle, id)| (EguiTextureId::User(*id), handle.id())),
+                    .map(|(handle, (_, id))| (EguiTextureId::User(*id), *handle)),
             )
     }
 }

@@ -787,18 +787,23 @@ impl EguiContexts<'_, '_> {
         self.q.get(entity).map(|(context, _primary)| context.get())
     }
 
-    /// Registers an image as an egui user texture ([`egui::TextureId::User`]).
+    /// Can accept either a strong or a weak handle.
     ///
-    /// Note that `bevy_egui` will store your strong handles, so make sure to call [`EguiContexts::remove_image`] once you need to remove an asset.
+    /// You may want to pass a weak handle if you control removing texture assets in your
+    /// application manually and don't want to bother with cleaning up textures in Egui.
+    /// (The cleanup happens in [`free_egui_textures_system`].)
+    ///
+    /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
+    /// handle copies stored anywhere else.
     #[cfg(feature = "render")]
-    pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
+    pub fn add_image(&mut self, image: EguiTextureHandle) -> egui::TextureId {
         self.user_textures.add_image(image)
     }
 
     /// Removes the image handle and an Egui texture id associated with it.
     #[cfg(feature = "render")]
     #[track_caller]
-    pub fn remove_image(&mut self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn remove_image(&mut self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
         self.user_textures.remove_image(image)
     }
 
@@ -806,7 +811,7 @@ impl EguiContexts<'_, '_> {
     #[cfg(feature = "render")]
     #[must_use]
     #[track_caller]
-    pub fn image_id(&self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn image_id(&self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
         self.user_textures.image_id(image)
     }
 }
@@ -815,7 +820,7 @@ impl EguiContexts<'_, '_> {
 #[derive(Clone, Resource, ExtractResource)]
 #[cfg(feature = "render")]
 pub struct EguiUserTextures {
-    textures: HashMap<Handle<Image>, u64>,
+    textures: HashMap<AssetId<Image>, (EguiTextureHandle, u64)>,
     free_list: Vec<u64>,
 }
 
@@ -831,11 +836,16 @@ impl Default for EguiUserTextures {
 
 #[cfg(feature = "render")]
 impl EguiUserTextures {
-    /// Registers an image as an egui user texture ([`egui::TextureId::User`]).
+    /// Can accept either a strong or a weak handle.
     ///
-    /// Note that `bevy_egui` will store your strong handles, so make sure to call [`EguiUserTextures::remove_image`] once you need to remove an asset.
-    pub fn add_image(&mut self, image: Handle<Image>) -> egui::TextureId {
-        let id = *self.textures.entry(image.clone()).or_insert_with(|| {
+    /// You may want to pass a weak handle if you control removing texture assets in your
+    /// application manually and don't want to bother with cleaning up textures in Egui.
+    /// (The cleanup happens in [`free_egui_textures_system`].)
+    ///
+    /// You'll want to pass a strong handle if a texture is used only in Egui and there are no
+    /// handle copies stored anywhere else.
+    pub fn add_image(&mut self, image: EguiTextureHandle) -> egui::TextureId {
+        let (_, id) = *self.textures.entry(image.asset_id()).or_insert_with(|| {
             let id = self
                 .free_list
                 .pop()
@@ -844,27 +854,60 @@ impl EguiUserTextures {
             if self.free_list.is_empty() {
                 self.free_list.push(id.checked_add(1).expect("out of ids"));
             }
-            id
+            (image, id)
         });
         egui::TextureId::User(id)
     }
 
     /// Removes the image handle and an Egui texture id associated with it.
-    pub fn remove_image(&mut self, image: &Handle<Image>) -> Option<egui::TextureId> {
-        let id = self.textures.remove(image);
+    pub fn remove_image(&mut self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
+        let image = image.into();
+        let id = self.textures.remove(&image);
         log::debug!("Remove image (id: {:?}, handle: {:?})", id, image);
-        if let Some(id) = id {
+        if let Some((_, id)) = id {
             self.free_list.push(id);
         }
-        id.map(egui::TextureId::User)
+        id.map(|(_, id)| egui::TextureId::User(id))
     }
 
     /// Returns an associated Egui texture id.
     #[must_use]
-    pub fn image_id(&self, image: &Handle<Image>) -> Option<egui::TextureId> {
+    pub fn image_id(&self, image: impl Into<AssetId<Image>>) -> Option<egui::TextureId> {
+        let image = image.into();
         self.textures
-            .get(image)
-            .map(|&id| egui::TextureId::User(id))
+            .get(&image)
+            .map(|&(_, id)| egui::TextureId::User(id))
+    }
+}
+
+#[cfg(feature = "render")]
+/// A wrapper type for an image handle or an asset id to mimic weak handles.
+#[derive(Clone, Debug)]
+pub enum EguiTextureHandle {
+    /// Strong handle to an image.
+    ///
+    /// Passing strong handles to [`EguiUserTextures::add_image`] will imply that egui shares ownership of an image,
+    /// and you'll have to call [`EguiUserTextures::remove_image`] to remove an asset.
+    Strong(Handle<Image>),
+    /// Weak handle to an image.
+    Weak(AssetId<Image>),
+}
+
+#[cfg(feature = "render")]
+impl EguiTextureHandle {
+    /// Returns an [`AssetId`] of a wrapped handle.
+    pub fn asset_id(&self) -> AssetId<Image> {
+        match self {
+            EguiTextureHandle::Strong(handle) => handle.id(),
+            EguiTextureHandle::Weak(asset_id) => *asset_id,
+        }
+    }
+}
+
+#[cfg(feature = "render")]
+impl From<EguiTextureHandle> for AssetId<Image> {
+    fn from(value: EguiTextureHandle) -> Self {
+        value.asset_id()
     }
 }
 
@@ -1637,6 +1680,9 @@ pub fn update_egui_textures_system(
 }
 
 /// This system is responsible for deleting image assets of freed Egui-managed textures and deleting Egui user textures of removed Bevy image assets.
+///
+/// If you add textures via [`EguiContexts::add_image`] or [`EguiUserTextures::add_image`] by passing a weak handle,
+/// the systems ensures that corresponding Egui textures are cleaned up as well.
 #[cfg(feature = "render")]
 pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
@@ -1657,10 +1703,8 @@ pub fn free_egui_textures_system(
     }
 
     for message in image_event_reader.read() {
-        if let AssetEvent::Removed { id } = message
-            && let AssetId::Uuid { uuid } = id
-        {
-            egui_user_textures.remove_image(&Handle::Uuid(*uuid, std::marker::PhantomData));
+        if let AssetEvent::Removed { id } = message {
+            egui_user_textures.remove_image(EguiTextureHandle::Weak(*id));
         }
     }
 }
