@@ -290,7 +290,7 @@ impl FromWorld for EguiPipeline {
 /// Key for specialized pipeline.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct EguiPipelineKey {
-    /// Reflects the value of [`Camera::hdr`].
+    /// Equals `true` for cameras that have the [`Hdr`] component.
     pub hdr: bool,
 }
 

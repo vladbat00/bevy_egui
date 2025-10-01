@@ -272,7 +272,7 @@ pub struct EguiPlugin {
     /// ```no_run,rust
     /// # use bevy::{
     /// #    prelude::*,
-    /// #    render::camera::RenderTarget,
+    /// #    camera::RenderTarget,
     /// #    window::{PresentMode, WindowRef, WindowResolution},
     /// # };
     /// # use bevy::ecs::schedule::ScheduleLabel;
@@ -354,7 +354,7 @@ pub struct EguiPlugin {
     )]
     pub enable_multipass_for_primary_context: bool,
 
-    /// Configures whether [`egui`] will be rendered above or below [`bevy_ui`](Bevy UI) GUIs.
+    /// Configures whether [`egui`] will be rendered above or below [`bevy_ui_render`](Bevy UI) GUIs.
     ///
     /// Defaults to [`UiRenderOrder::EguiAboveBevyUi`], on the assumption that games that use both
     /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
@@ -383,15 +383,15 @@ impl Default for EguiPlugin {
     }
 }
 
-/// Configures the rendering order between [`egui`] and [`bevy_ui`](Bevy UI).
+/// Configures the rendering order between [`egui`] and [`bevy_ui_render`](Bevy UI).
 ///
 /// See [`EguiPlugin::ui_render_order`].
 #[cfg(feature = "bevy_ui")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UiRenderOrder {
-    /// [`egui`] UIs are rendered on top of [`bevy_ui`](Bevy UI).
+    /// [`egui`] UIs are rendered on top of [`bevy_ui_render`](Bevy UI).
     EguiAboveBevyUi,
-    /// [`bevy_ui`](Bevy UI) UIs are rendered on top of [`egui`].
+    /// [`bevy_ui_render`](Bevy UI) UIs are rendered on top of [`egui`].
     BevyUiAboveEgui,
 }
 
@@ -882,7 +882,7 @@ impl EguiUserTextures {
 /// The component lives only in the Render world.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct RenderComputedScaleFactor {
-    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_render::camera::Camera::target_scaling_factor`]).
+    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_camera::Camera::target_scaling_factor`]).
     pub scale_factor: f32,
 }
 

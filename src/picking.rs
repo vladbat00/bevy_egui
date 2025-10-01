@@ -25,7 +25,7 @@ use bevy_window::PrimaryWindow;
 use wgpu_types::PrimitiveTopology;
 
 /// This component marks an Entity that displays Egui as an image for [`bevy_picking`] integration
-/// (currently, only [`bevy_render::mesh::Mesh2d`] or [`bevy_render::mesh::Mesh3d`] are supported for picking).
+/// (currently, only [`bevy_mesh::Mesh2d`] or [`bevy_mesh::Mesh3d`] are supported for picking).
 #[derive(Component)]
 #[require(Pickable)]
 pub struct PickableEguiContext(pub Entity);
