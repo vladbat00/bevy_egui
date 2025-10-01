@@ -203,9 +203,9 @@ fn update_egui_hovered_context(
         }
 
         // We expect to reach this code only once since we can have only 1 active context matching the conditions.
-        for event in cursor_moved_reader.read() {
+        for message in cursor_moved_reader.read() {
             let scale_factor = settings.scale_factor;
-            let pointer_position = vec2_into_egui_pos2(event.position / scale_factor)
+            let pointer_position = vec2_into_egui_pos2(message.position / scale_factor)
                 - Vec2::new(0.0, app_state.top_panel_height as f32);
             if pointer_position.y < 0.0 {
                 commands.remove_resource::<HoveredNonWindowEguiContext>();

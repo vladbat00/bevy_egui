@@ -148,7 +148,7 @@
 
 /// Helpers for converting Bevy types into Egui ones and vice versa.
 pub mod helpers;
-/// Systems for translating Bevy input events into Egui input.
+/// Systems for translating Bevy input messages into Egui input.
 pub mod input;
 /// Systems for handling Egui output.
 pub mod output;
@@ -415,8 +415,8 @@ pub struct EguiGlobalSettings {
     ///
     /// Enabling this system makes an assumption that `bevy_egui` takes priority in input handling
     /// over other plugins and systems. This should work ok as long as there's no other system
-    /// clearing events the same way that might be in conflict with `bevy_egui`, and there's
-    /// no other system that needs a non-interrupted flow of events.
+    /// clearing messages the same way that might be in conflict with `bevy_egui`, and there's
+    /// no other system that needs a non-interrupted flow of messages.
     ///
     /// ## Alternative
     ///
@@ -512,28 +512,28 @@ impl Default for EguiContextSettings {
 pub struct EguiInputSystemSettings {
     /// Controls running of the [`write_modifiers_keys_state_system`] system.
     pub run_write_modifiers_keys_state_system: bool,
-    /// Controls running of the [`write_window_pointer_moved_events_system`] system.
+    /// Controls running of the [`write_window_pointer_moved_messages_system`] system.
     pub run_write_window_pointer_moved_messages_system: bool,
-    /// Controls running of the [`write_pointer_button_events_system`] system.
+    /// Controls running of the [`write_pointer_button_messages_system`] system.
     pub run_write_pointer_button_messages_system: bool,
-    /// Controls running of the [`write_window_touch_events_system`] system.
+    /// Controls running of the [`write_window_touch_messages_system`] system.
     pub run_write_window_touch_messages_system: bool,
-    /// Controls running of the [`write_non_window_pointer_moved_events_system`] system.
+    /// Controls running of the [`write_non_window_pointer_moved_messages_system`] system.
     pub run_write_non_window_pointer_moved_messages_system: bool,
-    /// Controls running of the [`write_mouse_wheel_events_system`] system.
+    /// Controls running of the [`write_mouse_wheel_messages_system`] system.
     pub run_write_mouse_wheel_messages_system: bool,
-    /// Controls running of the [`write_non_window_touch_events_system`] system.
+    /// Controls running of the [`write_non_window_touch_messages_system`] system.
     pub run_write_non_window_touch_messages_system: bool,
-    /// Controls running of the [`write_keyboard_input_events_system`] system.
+    /// Controls running of the [`write_keyboard_input_messages_system`] system.
     pub run_write_keyboard_input_messages_system: bool,
-    /// Controls running of the [`write_ime_events_system`] system.
+    /// Controls running of the [`write_ime_messages_system`] system.
     pub run_write_ime_messages_system: bool,
-    /// Controls running of the [`write_file_dnd_events_system`] system.
+    /// Controls running of the [`write_file_dnd_messages_system`] system.
     pub run_write_file_dnd_messages_system: bool,
-    /// Controls running of the [`write_text_agent_channel_events_system`] system.
+    /// Controls running of the [`write_text_agent_channel_messages_system`] system.
     #[cfg(target_arch = "wasm32")]
     pub run_write_text_agent_channel_messages_system: bool,
-    /// Controls running of the [`web_clipboard::write_web_clipboard_events_system`] system.
+    /// Controls running of the [`web_clipboard::write_web_clipboard_messages_system`] system.
     #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
     pub run_write_web_clipboard_messages_system: bool,
 }
@@ -552,9 +552,9 @@ impl Default for EguiInputSystemSettings {
             run_write_ime_messages_system: true,
             run_write_file_dnd_messages_system: true,
             #[cfg(target_arch = "wasm32")]
-            run_write_text_agent_channel_events_system: true,
+            run_write_text_agent_channel_messages_system: true,
             #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32"))]
-            run_write_web_clipboard_events_system: true,
+            run_write_web_clipboard_messages_system: true,
         }
     }
 }
@@ -921,10 +921,10 @@ pub enum EguiInputSet {
     ///
     /// This is where [`HoveredNonWindowEguiContext`] should get inserted or removed.
     InitReading,
-    /// Processes window mouse button click and touch events, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
+    /// Processes window mouse button click and touch messages, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
     FocusContext,
-    /// Processes rest of the events for both window and non-window contexts.
-    ReadBevyEvents,
+    /// Processes rest of the messages for both window and non-window contexts.
+    ReadBevyMessages,
     /// Feeds all the events into [`EguiInput`].
     WriteEguiEvents,
 }
@@ -948,7 +948,7 @@ impl Plugin for EguiPlugin {
         app.init_resource::<ModifierKeysState>();
         app.init_resource::<EguiWantsInput>();
         app.init_resource::<WindowToEguiContextMap>();
-        app.add_message::<EguiEventMessage>();
+        app.add_message::<EguiInputEvent>();
         app.add_message::<EguiFileDragAndDropMessage>();
 
         #[allow(deprecated)]
@@ -986,7 +986,7 @@ impl Plugin for EguiPlugin {
             (
                 EguiInputSet::InitReading,
                 EguiInputSet::FocusContext,
-                EguiInputSet::ReadBevyEvents,
+                EguiInputSet::ReadBevyMessages,
                 EguiInputSet::WriteEguiEvents,
             )
                 .chain(),
@@ -1085,7 +1085,7 @@ impl Plugin for EguiPlugin {
                         s.run_write_file_dnd_messages_system
                     })),
                 )
-                    .in_set(EguiInputSet::ReadBevyEvents),
+                    .in_set(EguiInputSet::ReadBevyMessages),
                 (
                     write_egui_input_system,
                     absorb_bevy_input_system.run_if(|settings: Res<EguiGlobalSettings>| {
@@ -1138,10 +1138,10 @@ impl Plugin for EguiPlugin {
                     PreUpdate,
                     write_text_agent_channel_events_system
                         .run_if(input_system_is_enabled(|s| {
-                            s.run_write_text_agent_channel_events_system
+                            s.run_write_text_agent_channel_messages_system
                         }))
                         .in_set(EguiPreUpdateSet::ProcessInput)
-                        .in_set(EguiInputSet::ReadBevyEvents),
+                        .in_set(EguiInputSet::ReadBevyMessages),
                 );
 
                 if is_mobile_safari() {
@@ -1158,10 +1158,10 @@ impl Plugin for EguiPlugin {
                 PreUpdate,
                 web_clipboard::write_web_clipboard_events_system
                     .run_if(input_system_is_enabled(|s| {
-                        s.run_write_web_clipboard_events_system
+                        s.run_write_web_clipboard_messages_system
                     }))
                     .in_set(EguiPreUpdateSet::ProcessInput)
-                    .in_set(EguiInputSet::ReadBevyEvents),
+                    .in_set(EguiInputSet::ReadBevyMessages),
             );
         }
 
@@ -1659,7 +1659,7 @@ pub fn free_egui_textures_system(
     egui_render_output: Query<(Entity, &EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
-    mut image_events: MessageReader<AssetEvent<Image>>,
+    mut image_event_reader: MessageReader<AssetEvent<Image>>,
 ) {
     for (entity, egui_render_output) in egui_render_output.iter() {
         for &texture_id in &egui_render_output.textures_delta.free {
@@ -1672,8 +1672,8 @@ pub fn free_egui_textures_system(
         }
     }
 
-    for image_event in image_events.read() {
-        if let AssetEvent::Removed { id } = image_event
+    for message in image_event_reader.read() {
+        if let AssetEvent::Removed { id } = message
             && let AssetId::Uuid { uuid } = id
         {
             egui_user_textures.remove_image(&Handle::Uuid(*uuid, std::marker::PhantomData));
@@ -1896,7 +1896,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
 /// Extension for the [`EntityCommands`] trait.
 #[cfg(feature = "picking")]
 pub trait BevyEguiEntityCommandsExt {
-    /// Makes an entity [`bevy_picking::Pickable`] and adds observers to react to pointer events by linking them with an Egui context.
+    /// Makes an entity [`bevy_picking::Pickable`] and adds observers to react to pointer messages by linking them with an Egui context.
     fn add_picking_observers_for_context(&mut self, context: Entity) -> &mut Self;
 }
 

@@ -24,7 +24,7 @@ pub fn process_output_system(
     )>,
     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
     mut egui_clipboard: bevy_ecs::system::ResMut<crate::EguiClipboard>,
-    mut event: MessageWriter<RequestRedraw>,
+    mut request_redraw_writer: MessageWriter<RequestRedraw>,
     mut last_cursor_icon: Local<HashMap<Entity, egui::CursorIcon>>,
     egui_global_settings: Res<EguiGlobalSettings>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
@@ -109,6 +109,6 @@ pub fn process_output_system(
     }
 
     if should_request_redraw {
-        event.write(RequestRedraw);
+        request_redraw_writer.write(RequestRedraw);
     }
 }

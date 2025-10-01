@@ -186,7 +186,7 @@ pub fn install_text_agent_system(
         let input_clone = input.clone();
         let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
-            #[cfg(feature = "log_input_events")]
+            #[cfg(feature = "log_input_messages")]
             log::warn!(
                 "Input event: is_composing={}, data={:?}",
                 event.is_composing(),

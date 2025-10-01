@@ -47,7 +47,7 @@ pub struct EguiContextImeState {
 
 #[derive(Message)]
 /// Wraps Egui messages emitted by [`crate::EguiInputSet`] systems.
-pub struct EguiEventMessage {
+pub struct EguiInputEvent {
     /// Context to pass an message to.
     pub context: Entity,
     /// Wrapped event.
@@ -57,7 +57,7 @@ pub struct EguiEventMessage {
 #[derive(Message)]
 /// Wraps [`bevy::FileDragAndDrop`](bevy_window::FileDragAndDrop) messages emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiFileDragAndDropMessage {
-    /// Context to pass an message to.
+    /// Context to pass an event to.
     pub context: Entity,
     /// Wrapped message.
     pub message: FileDragAndDrop,
@@ -375,10 +375,10 @@ pub fn write_modifiers_keys_state_system(
     }
 }
 
-/// Reads [`MouseButtonInput`] messages and wraps them into [`EguiEventMessage`] (only for window contexts).
+/// Reads [`MouseButtonInput`] messages and wraps them into [`EguiInputEvent`] (only for window contexts).
 pub fn write_window_pointer_moved_messages_system(
     mut cursor_moved_reader: EguiContextMessageReader<CursorMoved>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (&EguiContextSettings, &mut EguiContextPointerPosition),
         With<EguiContext>,
@@ -401,21 +401,21 @@ pub fn write_window_pointer_moved_messages_system(
         let scale_factor = context_settings.scale_factor;
         let pointer_position = vec2_into_egui_pos2(message.position / scale_factor);
         context_pointer_position.position = pointer_position;
-        egui_input_message_writer.write(EguiEventMessage {
+        egui_input_message_writer.write(EguiInputEvent {
             context,
             event: egui::Event::PointerMoved(pointer_position),
         });
     }
 }
 
-/// Reads [`MouseButtonInput`] messages and wraps them into [`EguiEventMessage`], can redirect messages to [`HoveredNonWindowEguiContext`],
+/// Reads [`MouseButtonInput`] messages and wraps them into [`EguiInputEvent`], can redirect messages to [`HoveredNonWindowEguiContext`],
 /// inserts, updates or removes the [`FocusedNonWindowEguiContext`] resource based on a hovered context.
 pub fn write_pointer_button_messages_system(
     egui_global_settings: Res<EguiGlobalSettings>,
     mut commands: Commands,
     modifier_keys_state: Res<ModifierKeysState>,
     mut mouse_button_input_reader: EguiContextMessageReader<MouseButtonInput>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -453,7 +453,7 @@ pub fn write_pointer_button_messages_system(
             ButtonState::Pressed => true,
             ButtonState::Released => false,
         };
-        egui_input_message_writer.write(EguiEventMessage {
+        egui_input_message_writer.write(EguiInputEvent {
             context,
             event: egui::Event::PointerButton {
                 pos: context_pointer_position.position,
@@ -476,11 +476,11 @@ pub fn write_pointer_button_messages_system(
     }
 }
 
-/// Reads [`CursorMoved`] messages and wraps them into [`EguiEventMessage`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
+/// Reads [`CursorMoved`] messages and wraps them into [`EguiInputEvent`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
 pub fn write_non_window_pointer_moved_messages_system(
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
     mut cursor_moved_reader: MessageReader<CursorMoved>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
 ) {
     if cursor_moved_reader.is_empty() {
@@ -507,17 +507,17 @@ pub fn write_non_window_pointer_moved_messages_system(
         return;
     }
 
-    egui_input_message_writer.write(EguiEventMessage {
+    egui_input_message_writer.write(EguiInputEvent {
         context: *hovered_non_window_egui_context,
         event: egui::Event::PointerMoved(context_pointer_position.position),
     });
 }
 
-/// Reads [`MouseWheel`] messages and wraps them into [`EguiEventMessage`], can redirect messages to [`HoveredNonWindowEguiContext`].
+/// Reads [`MouseWheel`] messages and wraps them into [`EguiInputEvent`], can redirect messages to [`HoveredNonWindowEguiContext`].
 pub fn write_mouse_wheel_messages_system(
     modifier_keys_state: Res<ModifierKeysState>,
     mut mouse_wheel_reader: EguiContextMessageReader<MouseWheel>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -541,7 +541,7 @@ pub fn write_mouse_wheel_messages_system(
             continue;
         }
 
-        egui_input_message_writer.write(EguiEventMessage {
+        egui_input_message_writer.write(EguiInputEvent {
             context,
             event: egui::Event::MouseWheel {
                 unit,
@@ -552,7 +552,7 @@ pub fn write_mouse_wheel_messages_system(
     }
 }
 
-/// Reads [`KeyboardInput`] messages and wraps them into [`EguiEventMessage`], can redirect messages to [`FocusedNonWindowEguiContext`].
+/// Reads [`KeyboardInput`] messages and wraps them into [`EguiInputEvent`], can redirect messages to [`FocusedNonWindowEguiContext`].
 pub fn write_keyboard_input_messages_system(
     modifier_keys_state: Res<ModifierKeysState>,
     #[cfg(all(
@@ -562,7 +562,7 @@ pub fn write_keyboard_input_messages_system(
     ))]
     mut egui_clipboard: ResMut<crate::EguiClipboard>,
     mut keyboard_input_reader: EguiContextMessageReader<KeyboardInput>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     egui_contexts: Query<&EguiContextSettings, With<EguiContext>>,
 ) {
     let modifiers = modifier_keys_state.to_egui_modifiers();
@@ -583,13 +583,13 @@ pub fn write_keyboard_input_messages_system(
         if modifier_keys_state.text_input_is_allowed() && message.state.is_pressed() {
             match &message.logical_key {
                 Key::Character(char) if char.matches(char::is_control).count() == 0 => {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Text(char.to_string()),
                     });
                 }
                 Key::Space => {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Text(" ".to_string()),
                     });
@@ -614,7 +614,7 @@ pub fn write_keyboard_input_messages_system(
             modifiers,
             physical_key,
         };
-        egui_input_message_writer.write(EguiEventMessage {
+        egui_input_message_writer.write(EguiInputEvent {
             context,
             event: egui_message,
         });
@@ -629,20 +629,20 @@ pub fn write_keyboard_input_messages_system(
         if modifiers.command && message.state.is_pressed() {
             match key {
                 egui::Key::C => {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Copy,
                     });
                 }
                 egui::Key::X => {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Cut,
                     });
                 }
                 egui::Key::V => {
                     if let Some(contents) = egui_clipboard.get_text() {
-                        egui_input_message_writer.write(EguiEventMessage {
+                        egui_input_message_writer.write(EguiInputEvent {
                             context,
                             event: egui::Event::Text(contents),
                         });
@@ -654,10 +654,10 @@ pub fn write_keyboard_input_messages_system(
     }
 }
 
-/// Reads [`Ime`] messages and wraps them into [`EguiEventMessage`], can redirect messages to [`FocusedNonWindowEguiContext`].
+/// Reads [`Ime`] messages and wraps them into [`EguiInputEvent`], can redirect messages to [`FocusedNonWindowEguiContext`].
 pub fn write_ime_messages_system(
     mut ime_reader: EguiContextMessageReader<Ime>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (
             Entity,
@@ -689,9 +689,9 @@ pub fn write_ime_messages_system(
 
         let ime_message_enable =
             |ime_state: &mut EguiContextImeState,
-             egui_input_message_writer: &mut MessageWriter<EguiEventMessage>| {
+             egui_input_message_writer: &mut MessageWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Ime(egui::ImeEvent::Enabled),
                     });
@@ -701,9 +701,9 @@ pub fn write_ime_messages_system(
 
         let ime_message_disable =
             |ime_state: &mut EguiContextImeState,
-             egui_input_message_writer: &mut MessageWriter<EguiEventMessage>| {
+             egui_input_message_writer: &mut MessageWriter<EguiInputEvent>| {
                 if !ime_state.has_sent_ime_enabled {
-                    egui_input_message_writer.write(EguiEventMessage {
+                    egui_input_message_writer.write(EguiInputEvent {
                         context,
                         event: egui::Event::Ime(egui::ImeEvent::Disabled),
                     });
@@ -722,13 +722,13 @@ pub fn write_ime_messages_system(
                 cursor: Some(_),
             } => {
                 ime_message_enable(&mut ime_state, &mut egui_input_message_writer);
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Preedit(value.clone())),
                 });
             }
             Ime::Commit { value, window: _ } => {
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Commit(value.clone())),
                 });
@@ -857,13 +857,13 @@ pub fn write_file_dnd_messages_system(
     }
 }
 
-/// Reads [`TouchInput`] messages and wraps them into [`EguiEventMessage`].
+/// Reads [`TouchInput`] messages and wraps them into [`EguiInputEvent`].
 pub fn write_window_touch_messages_system(
     mut commands: Commands,
     egui_global_settings: Res<EguiGlobalSettings>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut touch_input_reader: EguiContextMessageReader<TouchInput>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     mut egui_contexts: Query<
         (
             &EguiContextSettings,
@@ -929,11 +929,11 @@ pub fn write_window_touch_messages_system(
     }
 }
 
-/// Reads [`TouchInput`] messages and wraps them into [`EguiEventMessage`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
+/// Reads [`TouchInput`] messages and wraps them into [`EguiInputEvent`] for a [`HoveredNonWindowEguiContext`] context (if one exists).
 pub fn write_non_window_touch_messages_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     mut touch_input_reader: MessageReader<TouchInput>,
-    mut egui_input_message_writer: MessageWriter<EguiEventMessage>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
     modifier_keys_state: Res<ModifierKeysState>,
     mut egui_contexts: Query<
         (
@@ -983,7 +983,7 @@ pub fn write_non_window_touch_messages_system(
 }
 
 fn write_touch_message(
-    egui_input_message_writer: &mut MessageWriter<EguiEventMessage>,
+    egui_input_message_writer: &mut MessageWriter<EguiInputEvent>,
     message: &TouchInput,
     context: Entity,
     _output: &EguiOutput,
@@ -994,7 +994,7 @@ fn write_touch_message(
     let touch_id = egui::TouchId::from(message.id);
 
     // Emit the touch message.
-    egui_input_message_writer.write(EguiEventMessage {
+    egui_input_message_writer.write(EguiInputEvent {
         context,
         event: egui::Event::Touch {
             device_id: egui::TouchDeviceId(message.window.to_bits()),
@@ -1028,12 +1028,12 @@ fn write_touch_message(
             bevy_input::touch::TouchPhase::Started => {
                 context_pointer_touch_id.pointer_touch_id = Some(message.id);
                 // First move the pointer to the right location.
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerMoved(pointer_position),
                 });
                 // Then do mouse button input.
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerButton {
                         pos: pointer_position,
@@ -1044,14 +1044,14 @@ fn write_touch_message(
                 });
             }
             bevy_input::touch::TouchPhase::Moved => {
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerMoved(pointer_position),
                 });
             }
             bevy_input::touch::TouchPhase::Ended => {
                 context_pointer_touch_id.pointer_touch_id = None;
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerButton {
                         pos: pointer_position,
@@ -1060,7 +1060,7 @@ fn write_touch_message(
                         modifiers,
                     },
                 });
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerGone,
                 });
@@ -1075,7 +1075,7 @@ fn write_touch_message(
             }
             bevy_input::touch::TouchPhase::Canceled => {
                 context_pointer_touch_id.pointer_touch_id = None;
-                egui_input_message_writer.write(EguiEventMessage {
+                egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::PointerGone,
                 });
@@ -1084,22 +1084,22 @@ fn write_touch_message(
     }
 }
 
-/// Reads both [`EguiFileDragAndDropMessage`] and [`EguiEventMessage`] messages and feeds them to Egui.
+/// Reads both [`EguiFileDragAndDropMessage`] and [`EguiInputEvent`] messages and feeds them to Egui.
 #[allow(clippy::too_many_arguments)]
 pub fn write_egui_input_system(
     focused_non_window_egui_context: Option<Res<FocusedNonWindowEguiContext>>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
     modifier_keys_state: Res<ModifierKeysState>,
-    mut egui_input_message_reader: MessageReader<EguiEventMessage>,
+    mut egui_input_reader: MessageReader<EguiInputEvent>,
     mut egui_file_dnd_message_reader: MessageReader<EguiFileDragAndDropMessage>,
     mut egui_contexts: Query<(Entity, &mut EguiInput)>,
     windows: Query<&Window>,
     time: Res<Time<Real>>,
 ) {
-    for EguiEventMessage {
+    for EguiInputEvent {
         context,
-        event: message,
-    } in egui_input_message_reader.read()
+        event,
+    } in egui_input_reader.read()
     {
         #[cfg(feature = "log_input_messages")]
         log::warn!("{context:?}: {message:?}");
@@ -1108,13 +1108,13 @@ pub fn write_egui_input_system(
             Ok(egui_input) => egui_input,
             Err(err) => {
                 log::error!(
-                    "Failed to get an Egui context ({context:?}) for an message ({message:?}): {err:?}"
+                    "Failed to get an Egui context ({context:?}) for an event ({event:?}): {err:?}"
                 );
                 continue;
             }
         };
 
-        egui_input.events.push(message.clone());
+        egui_input.events.push(event.clone());
     }
 
     for EguiFileDragAndDropMessage { context, message } in egui_file_dnd_message_reader.read() {

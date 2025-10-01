@@ -143,7 +143,7 @@ fn camera_position_and_size(index: u8, count: u32, window_size: UVec2) -> (UVec2
 fn update_camera_viewports_system(
     players_count: Res<PlayersCount>,
     window: Single<&Window>,
-    mut resize_events: MessageReader<WindowResized>,
+    mut window_resized_reader: MessageReader<WindowResized>,
     mut query: Query<(
         &mut Camera,
         AnyOf<(
@@ -156,10 +156,10 @@ fn update_camera_viewports_system(
 ) -> Result {
     // We need to dynamically resize the camera's viewports whenever the window size changes.
     // A resize_event is sent when the window is first created, allowing us to reuse this system for initial setup.
-    if resize_events.is_empty() && !players_count.is_changed() {
+    if window_resized_reader.is_empty() && !players_count.is_changed() {
         return Ok(());
     }
-    resize_events.clear();
+    window_resized_reader.clear();
 
     let mut result: Vec<_> = query.iter_mut().collect();
 
