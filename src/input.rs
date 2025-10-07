@@ -682,6 +682,7 @@ pub fn write_ime_messages_system(
         if !context_settings
             .input_system_settings
             .run_write_ime_messages_system
+            || !context_settings.enable_ime
         {
             continue;
         }
@@ -761,6 +762,10 @@ pub fn process_ime_system(
     for (entity, egui_output, egui_settings, mut egui_context, mut egui_ime_state) in
         &mut egui_context_query
     {
+        if !egui_settings.enable_ime {
+            continue;
+        }
+
         let Some(window_entity) = window_to_egui_context_map.context_to_window.get(&entity) else {
             continue;
         };

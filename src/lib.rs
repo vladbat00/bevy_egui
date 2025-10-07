@@ -428,6 +428,8 @@ pub struct EguiGlobalSettings {
     /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
     /// overriding the icons.
     pub enable_cursor_icon_updates: bool,
+    /// Controls whether the [`process_ime_system`] and [`write_ime_messages_system`] systems are run, enabled by default.
+    pub enable_ime: bool,
 }
 
 impl Default for EguiGlobalSettings {
@@ -438,6 +440,7 @@ impl Default for EguiGlobalSettings {
             input_system_settings: EguiInputSystemSettings::default(),
             enable_absorb_bevy_input_system: false,
             enable_cursor_icon_updates: true,
+            enable_ime: true,
         }
     }
 }
@@ -479,6 +482,8 @@ pub struct EguiContextSettings {
     /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
     /// overriding the icons.
     pub enable_cursor_icon_updates: bool,
+    /// Controls whether the [`process_ime_system`] and [`write_ime_messages_system`] systems are run, enabled by default.
+    pub enable_ime: bool,
 }
 
 // Just to keep the PartialEq
@@ -503,6 +508,7 @@ impl Default for EguiContextSettings {
             capture_pointer_input: true,
             input_system_settings: EguiInputSystemSettings::default(),
             enable_cursor_icon_updates: true,
+            enable_ime: true,
         }
     }
 }
@@ -1111,7 +1117,8 @@ impl Plugin for EguiPlugin {
                         s.run_write_keyboard_input_messages_system
                     })),
                     write_ime_messages_system
-                        .run_if(input_system_is_enabled(|s| s.run_write_ime_messages_system)),
+                        .run_if(input_system_is_enabled(|s| s.run_write_ime_messages_system))
+                        .run_if(|s: Res<EguiGlobalSettings>| s.enable_ime),
                     write_file_dnd_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_file_dnd_messages_system
                     })),
@@ -1208,7 +1215,9 @@ impl Plugin for EguiPlugin {
             (
                 process_output_system,
                 write_egui_wants_input_system,
-                process_ime_system.after(process_output_system),
+                process_ime_system
+                    .run_if(|s: Res<EguiGlobalSettings>| s.enable_ime)
+                    .after(process_output_system),
             )
                 .in_set(EguiPostUpdateSet::ProcessOutput),
         );
