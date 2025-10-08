@@ -1,7 +1,6 @@
 use crate::{
     EguiContextSettings, EguiManagedTextures, EguiRenderOutput, EguiUserTextures,
     RenderComputedScaleFactor,
-    helpers::QueryHelper,
     render::{
         DrawCommand, DrawPrimitive, EguiBevyPaintCallback, EguiCameraView, EguiDraw, EguiPipeline,
         EguiPipelineKey, EguiViewTarget, PaintCallbackDraw,
@@ -269,7 +268,7 @@ pub fn queue_pipelines_system(
     let pipelines: HashMap<MainEntity, CachedRenderPipelineId> = egui_views
         .iter()
         .filter_map(|egui_camera_view| {
-            let (main_entity, extracted_camera) = camera_views.get_some(egui_camera_view.0)?;
+            let (main_entity, extracted_camera) = camera_views.get(egui_camera_view.0).ok()?;
 
             let pipeline_id = specialized_pipelines.specialize(
                 &pipeline_cache,
@@ -358,7 +357,8 @@ pub fn prepare_egui_render_target_data_system(
 
         // Construct a pipeline key based on a render target.
         let Ok(extracted_camera) = extracted_cameras.get(egui_view_target.0) else {
-            log::warn!("ExtractedCamera entity doesn't exist for the Egui view");
+            // This is ok when a window is minimized.
+            log::trace!("ExtractedCamera entity doesn't exist for the Egui view");
             continue;
         };
         data.key = Some(EguiPipelineKey {
