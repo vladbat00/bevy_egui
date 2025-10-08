@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add an option to disable IME: `ime_enable` in both `EguiContextSettings` and `EguiGlobalSettings`.
 
+## [0.37.1] - 8-Oct-2025
+
+### Fixed
+
+- Fix `queue_pipelines_system` panic on minimizing a window.
+
 ## [0.37.0] - 1-Oct-2025
 
 ### Added
