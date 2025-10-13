@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add an option to disable IME: `ime_enable` in both `EguiContextSettings` and `EguiGlobalSettings`.
-- Re-enabled `accesskit` support, see the `accesskit` feature (disabled by default).
+- Re-enable `accesskit` support, see the `accesskit` feature (disabled by default).
 - Partial texture update support ([#433](https://github.com/vladbat00/bevy_egui/pull/433) by @OwlyCode).
 
 ### Changed
