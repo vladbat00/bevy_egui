@@ -358,6 +358,9 @@ pub struct EguiPlugin {
     ///
     /// Defaults to [`UiRenderOrder::EguiAboveBevyUi`], on the assumption that games that use both
     /// will typically use Bevy UI for the primary game UI, and egui for debug overlays.
+    ///
+    /// Note: this option take effect only if both `bevy_ui` and `bevy_egui` UIs are rendered
+    /// to the same camera.
     #[cfg(feature = "bevy_ui")]
     pub ui_render_order: UiRenderOrder,
 
