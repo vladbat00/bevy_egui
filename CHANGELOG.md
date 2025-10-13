@@ -5,11 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.38.0] - 13-Oct-2025
 
 ### Added
 
 - Add an option to disable IME: `ime_enable` in both `EguiContextSettings` and `EguiGlobalSettings`.
+- Re-enabled `accesskit` support, see the `accesskit` feature (disabled by default).
+- Partial texture update support ([#433](https://github.com/vladbat00/bevy_egui/pull/433) by @OwlyCode).
+
+### Changed
+
+- Update to egui 0.33.
+
+### Misc
+
+- Fix examples that use multiple cameras.
 
 ## [0.37.1] - 8-Oct-2025
 
