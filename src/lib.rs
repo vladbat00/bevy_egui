@@ -1030,7 +1030,7 @@ impl Plugin for EguiPlugin {
             )
                 .chain(),
         );
-        #[cfg(not(feature = "accesskit_placeholder"))]
+        #[cfg(not(feature = "accesskit"))]
         app.configure_sets(
             PostUpdate,
             (
@@ -1040,7 +1040,7 @@ impl Plugin for EguiPlugin {
             )
                 .chain(),
         );
-        #[cfg(feature = "accesskit_placeholder")]
+        #[cfg(feature = "accesskit")]
         app.configure_sets(
             PostUpdate,
             (
@@ -1077,6 +1077,8 @@ impl Plugin for EguiPlugin {
                 WindowToEguiContextMap::on_egui_context_added_system,
                 WindowToEguiContextMap::on_egui_context_removed_system,
                 ApplyDeferred,
+                #[cfg(feature = "accesskit")]
+                setup_accesskit_system,
                 update_ui_size_and_scale_system,
             )
                 .chain()
@@ -1313,7 +1315,7 @@ impl Plugin for EguiPlugin {
             }
         }
 
-        #[cfg(feature = "accesskit_placeholder")]
+        #[cfg(feature = "accesskit")]
         app.add_systems(
             PostUpdate,
             update_accessibility_system.in_set(EguiPostUpdateSet::PostProcessOutput),
@@ -1442,12 +1444,6 @@ pub struct EguiManagedTexture {
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
-    #[cfg(feature = "accesskit_placeholder")] adapters: Option<
-        NonSend<bevy_winit::accessibility::AccessKitAdapters>,
-    >,
-    #[cfg(feature = "accesskit_placeholder")] mut manage_accessibility_updates: ResMut<
-        bevy_a11y::ManageAccessibilityUpdates,
-    >,
     enable_multipass_for_primary_context: Option<Res<EnableMultipassForPrimaryContext>>,
     mut egui_context_exists: Local<bool>,
 ) -> Result {
@@ -1458,14 +1454,6 @@ pub fn setup_primary_egui_context_system(
         }
 
         let context = EguiContext::default();
-        #[cfg(feature = "accesskit_placeholder")]
-        if let Some(adapters) = &adapters {
-            // TODO: before re-enabling accesskit support, move to another system to do this for every context.
-            if adapters.get(&camera_entity).is_some() {
-                context.ctx.enable_accesskit();
-                **manage_accessibility_updates = false;
-            }
-        }
 
         log::debug!("Creating a primary Egui context");
         // See the list of required components to check the full list of components we add.
@@ -1478,6 +1466,29 @@ pub fn setup_primary_egui_context_system(
     }
 
     Ok(())
+}
+
+/// Enables accesskit for newly created egui contexts.
+#[cfg(feature = "accesskit")]
+pub fn setup_accesskit_system(
+    new_contexts: Query<(Entity, &mut EguiContext), Added<EguiContext>>,
+    window_to_egui_context_map: Res<WindowToEguiContextMap>,
+    mut manage_accessibility_updates: ResMut<bevy_a11y::ManageAccessibilityUpdates>,
+    _non_send_marker: bevy_ecs::system::NonSendMarker,
+) {
+    bevy_winit::accessibility::ACCESS_KIT_ADAPTERS.with_borrow(|adapters| {
+        for (new_context_entity, context) in new_contexts.iter() {
+            if let Some(window_entity) = window_to_egui_context_map
+                .context_to_window
+                .get(&new_context_entity)
+            {
+                if adapters.contains_key(window_entity) {
+                    context.ctx.enable_accesskit();
+                    **manage_accessibility_updates = false;
+                }
+            }
+        }
+    });
 }
 
 #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
@@ -1854,24 +1865,30 @@ pub fn end_pass_system(
 }
 
 /// Updates the states of [`ManageAccessibilityUpdates`] and [`AccessKitAdapters`].
-#[cfg(feature = "accesskit_placeholder")]
+#[cfg(feature = "accesskit")]
 pub fn update_accessibility_system(
     requested: Res<bevy_a11y::AccessibilityRequested>,
     mut manage_accessibility_updates: ResMut<bevy_a11y::ManageAccessibilityUpdates>,
+    window_to_egui_context_map: Res<WindowToEguiContextMap>,
     outputs: Query<(Entity, &EguiOutput)>,
-    mut adapters: NonSendMut<bevy_winit::accessibility::AccessKitAdapters>,
+    _non_send_marker: bevy_ecs::system::NonSendMarker,
 ) {
     if requested.get() {
-        for (entity, output) in &outputs {
-            if let Some(adapter) = adapters.get_mut(&entity) {
-                if let Some(update) = &output.platform_output.accesskit_update {
-                    **manage_accessibility_updates = false;
-                    adapter.update_if_active(|| update.clone());
-                } else if !**manage_accessibility_updates {
-                    **manage_accessibility_updates = true;
+        bevy_winit::accessibility::ACCESS_KIT_ADAPTERS.with_borrow_mut(|adapters| {
+            for (entity, output) in &outputs {
+                if let Some(window_entity) =
+                    window_to_egui_context_map.context_to_window.get(&entity)
+                    && let Some(adapter) = adapters.get_mut(window_entity)
+                {
+                    if let Some(update) = &output.platform_output.accesskit_update {
+                        **manage_accessibility_updates = false;
+                        adapter.update_if_active(|| update.clone());
+                    } else if !**manage_accessibility_updates {
+                        **manage_accessibility_updates = true;
+                    }
                 }
             }
-        }
+        });
     }
 }
 
