@@ -1640,6 +1640,8 @@ pub fn update_egui_textures_system(
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
+    use bevy_image::TextureAccessError;
+
     for (entity, egui_render_output) in egui_render_output.iter_mut() {
         for (texture_id, image_delta) in &egui_render_output.textures_delta.set {
             let color_image = render::as_color_image(&image_delta.image);
@@ -1655,12 +1657,14 @@ pub fn update_egui_textures_system(
             if let Some(pos) = image_delta.pos {
                 // Partial update.
                 if let Some(managed_texture) = egui_managed_textures.get_mut(&(entity, texture_id))
+                    && let Some(image) = image_assets.get_mut(managed_texture.handle.id())
                 {
-                    // TODO: when bevy supports it, only update the part of the texture that changes.
-                    update_image_rect(&mut managed_texture.color_image, pos, &color_image);
-                    let image =
-                        render::color_image_as_bevy_image(&managed_texture.color_image, sampler);
-                    managed_texture.handle = image_assets.add(image);
+                    if update_image_rect(image, pos, &color_image).is_err() {
+                        log::error!(
+                            "Failed to write into texture (id: {:?}) for partial update",
+                            texture_id
+                        );
+                    }
                 } else {
                     log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
                 }
@@ -1679,12 +1683,24 @@ pub fn update_egui_textures_system(
         }
     }
 
-    fn update_image_rect(dest: &mut egui::ColorImage, [x, y]: [usize; 2], src: &egui::ColorImage) {
+    fn update_image_rect(
+        dest: &mut Image,
+        [x, y]: [usize; 2],
+        src: &egui::ColorImage,
+    ) -> Result<(), TextureAccessError> {
         for sy in 0..src.height() {
             for sx in 0..src.width() {
-                dest[(x + sx, y + sy)] = src[(sx, sy)];
+                let px = src[(sx, sy)];
+
+                dest.set_color_at(
+                    (x + sx) as u32,
+                    (y + sy) as u32,
+                    bevy_color::Color::srgba_u8(px.r(), px.g(), px.b(), px.a()),
+                )?;
             }
         }
+
+        Ok(())
     }
 }
 
