@@ -108,8 +108,7 @@ fn update_ui_scale_factor_system(
         };
         egui_settings.scale_factor = scale_factor;
     }
-    
-    
+        
     // Handle Ctrl+] (zoom in) and Ctrl+[ (zoom out)
     // Using different keybinds than egui's default Ctrl+Plus/Minus to avoid conflicts
     let ctrl_pressed = keyboard_input.pressed(KeyCode::ControlLeft)
