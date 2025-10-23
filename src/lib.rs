@@ -440,6 +440,8 @@ pub struct EguiContextSettings {
     /// }
     /// ```
     pub scale_factor: f32,
+    /// Consolidated cache of scale factors to detect the source of change and prevent feedback loops.
+    pub scale_factor_cache: ScaleFactorCache,
     /// Is used as a default value for hyperlink [target](https://www.w3schools.com/tags/att_a_target.asp) hints.
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
@@ -474,6 +476,7 @@ impl Default for EguiContextSettings {
         Self {
             run_manually: false,
             scale_factor: 1.0,
+            scale_factor_cache: ScaleFactorCache::default(),
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
             #[cfg(feature = "picking")]
@@ -481,6 +484,28 @@ impl Default for EguiContextSettings {
             input_system_settings: EguiInputSystemSettings::default(),
             enable_cursor_icon_updates: true,
             enable_ime: true,
+        }
+    }
+}
+
+/// Records last known values of the three contributors to the effective pixels-per-point
+/// to make it easy to detect which one changed and to keep them in sync.
+#[derive(Clone, Debug, Reflect)]
+pub struct ScaleFactorCache {
+    /// Last known camera native scale (DPI / devicePixelRatio etc.).
+    last_camera_scale: f32,
+    /// Last known bevy_egui scale factor (user/programmatic override managed by bevy_egui).
+    last_bevy_scale: f32,
+    /// Last known egui zoom factor (driven by egui hotkeys or API calls).
+    last_egui_zoom: f32,
+}
+
+impl Default for ScaleFactorCache {
+    fn default() -> Self {
+        Self {
+            last_camera_scale: 1.0,
+            last_bevy_scale: 1.0,
+            last_egui_zoom: 1.0,
         }
     }
 }
@@ -1180,7 +1205,14 @@ impl Plugin for EguiPlugin {
         // PostUpdate systems.
         app.add_systems(
             PostUpdate,
-            (run_egui_context_pass_loop_system, end_pass_system)
+            (
+                run_egui_context_pass_loop_system,
+                end_pass_system,
+                // Fold any egui-initiated zoom (keyboard shortcuts, etc.) into bevy_egui scale
+                // right after egui has processed input in end_pass. This prevents a one-frame
+                // discrepancy where zoom is applied but the bevy scale hasn't yet been updated.
+                fold_egui_zoom_post_end_pass_system,
+            )
                 .chain()
                 .in_set(EguiPostUpdateSet::EndPass),
         );
@@ -1777,34 +1809,97 @@ impl SubscribedEvents {
 #[derive(QueryData)]
 #[query_data(mutable)]
 #[allow(missing_docs)]
+#[cfg(feature = "render")]
 pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
-    egui_settings: &'static EguiContextSettings,
+    egui_settings: &'static mut EguiContextSettings,
     camera: &'static bevy_camera::Camera,
 }
 
-/// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
+#[cfg(feature = "render")]
+/// Updates UI [`egui::RawInput::screen_rect`] and synchronizes scale factors between Bevy and Egui.
+///
+/// Algorithm overview:
+/// - Read current camera scale, bevy scale, egui zoom
+/// - Detect which source changed since last frame (using `ScaleFactorCache`)
+/// - If ONLY egui zoom changed, fold that delta into `bevy_egui.scale_factor` and reset egui zoom to 1.0
+///   to avoid ping-pong with `native_pixels_per_point`
+/// - Set `RawInput.native_pixels_per_point = camera_scale * bevy_scale`
+/// - Update caches
 pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
-        let Some((scale_factor, viewport_rect)) = context
-            .camera
-            .target_scaling_factor()
-            .map(|scale_factor| scale_factor * context.egui_settings.scale_factor)
-            .zip(context.camera.physical_viewport_rect())
-        else {
+        // 1) Read current contributors
+        let Some(camera_scale) = context.camera.target_scaling_factor() else {
             continue;
         };
+        let bevy_scale_now = context.egui_settings.scale_factor;
+        let egui_zoom_now = context.ctx.get_mut().zoom_factor();
 
+        // Snapshot cache values without holding a borrow to the struct fields
+        let (last_cam, last_bevy, last_zoom) = {
+            let c = &context.egui_settings.scale_factor_cache;
+            (c.last_camera_scale, c.last_bevy_scale, c.last_egui_zoom)
+        };
+
+        // 2) Detect changes vs cache
+        let camera_changed = (camera_scale - last_cam).abs() > f32::EPSILON;
+        let bevy_changed = (bevy_scale_now - last_bevy).abs() > f32::EPSILON;
+        let egui_changed = (egui_zoom_now - last_zoom).abs() > f32::EPSILON;
+
+        // 3) Fold egui-only changes into bevy scale while keeping egui's zoom factor authoritative
+        if egui_changed && !camera_changed && !bevy_changed {
+            let zoom_delta = if last_zoom == 0.0 {
+                1.0
+            } else {
+                egui_zoom_now / last_zoom
+            };
+            let mut new_bevy_scale = (bevy_scale_now * zoom_delta).clamp(0.1, 10.0);
+            if (new_bevy_scale - 1.0).abs() < 0.0001 {
+                new_bevy_scale = 1.0;
+            }
+            // Write back new bevy scale
+            context.egui_settings.scale_factor = new_bevy_scale;
+        }
+
+        // 4) Compute the effective pixels-per-point contribution from camera * bevy override
+        let combined_pixels_per_point =
+            (camera_scale * context.egui_settings.scale_factor).max(0.0001);
+        let current_zoom = context.ctx.get_mut().zoom_factor();
+        let mut native_pixels_per_point = if current_zoom.abs() > f32::EPSILON {
+            combined_pixels_per_point / current_zoom
+        } else {
+            combined_pixels_per_point
+        };
+        native_pixels_per_point = native_pixels_per_point.max(0.0001);
+
+        // Update viewport rect based on the combined_pixels_per_point (so egui's logical size stays stable)
+        let Some(viewport) = context.camera.physical_viewport_rect() else {
+            continue;
+        };
         let viewport_rect = egui::Rect {
-            min: helpers::vec2_into_egui_pos2(viewport_rect.min.as_vec2() / scale_factor),
-            max: helpers::vec2_into_egui_pos2(viewport_rect.max.as_vec2() / scale_factor),
+            min: helpers::vec2_into_egui_pos2(viewport.min.as_vec2() / combined_pixels_per_point),
+            max: helpers::vec2_into_egui_pos2(viewport.max.as_vec2() / combined_pixels_per_point),
         };
         if viewport_rect.width() < 1.0 || viewport_rect.height() < 1.0 {
             continue;
         }
         context.egui_input.screen_rect = Some(viewport_rect);
-        context.ctx.get_mut().set_pixels_per_point(scale_factor);
+
+        // IMPORTANT: set native_pixels_per_point so that egui computes pixels_per_point as zoom * native_ppp
+        // Dividing by the current zoom keeps the effective pixels-per-point stable after keyboard zoom.
+        let root_vp = context
+            .egui_input
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default();
+        root_vp.native_pixels_per_point = Some(native_pixels_per_point);
+
+        // 5) Refresh cache to the accepted truth for next frame
+        context.egui_settings.scale_factor_cache.last_camera_scale = camera_scale;
+        context.egui_settings.scale_factor_cache.last_bevy_scale =
+            context.egui_settings.scale_factor;
+        context.egui_settings.scale_factor_cache.last_egui_zoom = current_zoom;
     }
 }
 
@@ -1833,6 +1928,53 @@ pub fn end_pass_system(
         if !egui_settings.run_manually {
             **full_output = Some(ctx.get_mut().end_pass());
         }
+    }
+}
+
+/// After egui has processed `zoom_with_keyboard` in `end_pass`, fold any zoom delta into
+/// bevy_egui's scale factor so that egui's built-in zoom persists and remains the single source
+/// of truth for that user-initiated change, without causing feedback with native_pixels_per_point.
+pub fn fold_egui_zoom_post_end_pass_system(
+    mut contexts: Query<(
+        &mut EguiContext,
+        &mut EguiContextSettings,
+        &bevy_camera::Camera,
+    )>,
+) {
+    for (mut ctx, mut egui_settings, camera) in contexts.iter_mut() {
+        if egui_settings.run_manually {
+            continue;
+        }
+
+        // Read current values after end_pass applied keyboard zoom
+        let egui_zoom_now = ctx.get_mut().zoom_factor();
+        let bevy_scale_now = egui_settings.scale_factor;
+        let camera_scale_now = camera.target_scaling_factor().unwrap_or(1.0);
+
+        // Compare against cache to see if only egui changed
+        let cache = &egui_settings.scale_factor_cache;
+        let camera_changed = (camera_scale_now - cache.last_camera_scale).abs() > f32::EPSILON;
+        let bevy_changed = (bevy_scale_now - cache.last_bevy_scale).abs() > f32::EPSILON;
+        let egui_changed = (egui_zoom_now - cache.last_egui_zoom).abs() > f32::EPSILON;
+
+        if egui_changed && !camera_changed && !bevy_changed {
+            let last_zoom = cache.last_egui_zoom;
+            let zoom_delta = if last_zoom == 0.0 {
+                1.0
+            } else {
+                egui_zoom_now / last_zoom
+            };
+            let mut new_bevy_scale = (bevy_scale_now * zoom_delta).clamp(0.1, 10.0);
+            if (new_bevy_scale - 1.0).abs() < 0.0001 {
+                new_bevy_scale = 1.0;
+            }
+            egui_settings.scale_factor = new_bevy_scale;
+        }
+
+        // Update cache for next frame
+        egui_settings.scale_factor_cache.last_camera_scale = camera_scale_now;
+        egui_settings.scale_factor_cache.last_bevy_scale = egui_settings.scale_factor;
+        egui_settings.scale_factor_cache.last_egui_zoom = ctx.get_mut().zoom_factor();
     }
 }
 
