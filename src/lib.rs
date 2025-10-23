@@ -440,7 +440,10 @@ pub struct EguiContextSettings {
     /// }
     /// ```
     pub scale_factor: f32,
-    /// Consolidated cache of scale factors to detect the source of change and prevent feedback loops.
+    /// Internal cache of scale factors used to detect the source of changes and prevent feedback loops.
+    /// 
+    /// This cache is maintained automatically by the Egui integration systems. 
+    /// API users typically should not modify this field directly unless implementing custom scale factor logic.
     pub scale_factor_cache: ScaleFactorCache,
     /// Is used as a default value for hyperlink [target](https://www.w3schools.com/tags/att_a_target.asp) hints.
     /// If not specified, `_self` will be used. Only matters in a web browser.
