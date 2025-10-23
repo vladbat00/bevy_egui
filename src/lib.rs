@@ -1963,6 +1963,12 @@ pub fn fold_egui_zoom_post_end_pass_system(
         let bevy_changed = (bevy_scale_now - cache.last_bevy_scale).abs() > f32::EPSILON;
         let egui_changed = (egui_zoom_now - cache.last_egui_zoom).abs() > f32::EPSILON;
 
+        // Whether we updated the bevy scale due to an egui-only zoom change in this system.
+        // If true, we must also update render_applied_bevy_scale to keep render PPP in-sync
+        // with shapes produced by end_pass in the same frame. Otherwise, leave it as set in
+        // PreUpdate so user-initiated bevy scale changes take effect starting next frame.
+        let mut updated_due_to_egui_only = false;
+
         if egui_changed && !camera_changed && !bevy_changed {
             let last_zoom = cache.last_egui_zoom;
             let zoom_delta = if last_zoom == 0.0 {
@@ -1975,11 +1981,18 @@ pub fn fold_egui_zoom_post_end_pass_system(
                 new_bevy_scale = 1.0;
             }
             egui_settings.scale_factor = new_bevy_scale;
+            updated_due_to_egui_only = true;
         }
 
         // Update cache for next frame
         egui_settings.scale_factor_cache.last_camera_scale = camera_scale_now;
         egui_settings.scale_factor_cache.last_bevy_scale = egui_settings.scale_factor;
+        if updated_due_to_egui_only {
+            // Match renderer scale to shapes when egui-only zoom happened this frame
+            egui_settings
+                .scale_factor_cache
+                .render_applied_bevy_scale = egui_settings.scale_factor;
+        }
         egui_settings.scale_factor_cache.last_egui_zoom = ctx.get_mut().zoom_factor();
     }
 }
