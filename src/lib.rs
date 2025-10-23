@@ -493,11 +493,13 @@ impl Default for EguiContextSettings {
 #[derive(Clone, Debug, Reflect)]
 pub struct ScaleFactorCache {
     /// Last known camera native scale (DPI / devicePixelRatio etc.).
-    last_camera_scale: f32,
+    pub last_camera_scale: f32,
     /// Last known bevy_egui scale factor (user/programmatic override managed by bevy_egui).
-    last_bevy_scale: f32,
+    pub last_bevy_scale: f32,
     /// Last known egui zoom factor (driven by egui hotkeys or API calls).
-    last_egui_zoom: f32,
+    pub last_egui_zoom: f32,
+    /// Bevy scale factor applied when building the current frame's raw input/render data.
+    pub render_applied_bevy_scale: f32,
 }
 
 impl Default for ScaleFactorCache {
@@ -506,6 +508,7 @@ impl Default for ScaleFactorCache {
             last_camera_scale: 1.0,
             last_bevy_scale: 1.0,
             last_egui_zoom: 1.0,
+            render_applied_bevy_scale: 1.0,
         }
     }
 }
@@ -1863,6 +1866,9 @@ pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQ
         }
 
         // 4) Compute the effective pixels-per-point contribution from camera * bevy override
+        context.egui_settings
+            .scale_factor_cache
+            .render_applied_bevy_scale = context.egui_settings.scale_factor;
         let combined_pixels_per_point =
             (camera_scale * context.egui_settings.scale_factor).max(0.0001);
         let current_zoom = context.ctx.get_mut().zoom_factor();
