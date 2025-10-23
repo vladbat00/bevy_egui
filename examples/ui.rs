@@ -26,6 +26,7 @@ impl FromWorld for Images {
 /// - rendering loaded assets;
 /// - configuring egui contexts during the startup;
 /// - custom zoom controls via EguiContextSettings (Ctrl+] / Ctrl+[ to zoom in/out).
+/// - toggling hidpi scaling (by pressing '/' button);
 ///
 /// Note: Egui's built-in zoom controls (Ctrl+Plus / Ctrl+Minus / Ctrl+0) now work correctly
 /// and are synchronized with bevy_egui's scale_factor!
