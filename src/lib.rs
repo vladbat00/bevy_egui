@@ -134,6 +134,16 @@ pub mod text_agent;
 #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
 pub mod web_clipboard;
 
+/// Commonly-used items.
+pub mod prelude {
+    pub use crate::{
+        EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule,
+        EguiPlugin, EguiPrimaryContextPass, EguiStartupSet, PrimaryEguiContext, egui,
+    };
+    #[cfg(feature = "render")]
+    pub use crate::{EguiTextureHandle, EguiUserTextures};
+}
+
 pub use egui;
 
 use crate::input::*;
