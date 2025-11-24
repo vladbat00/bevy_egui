@@ -117,13 +117,11 @@ impl Default for ModifierKeysState {
         }
 
         #[cfg(target_arch = "wasm32")]
-        if let Some(window) = web_sys::window() {
-            let nav = window.navigator();
-            if let Ok(user_agent) = nav.user_agent() {
-                if user_agent.to_ascii_lowercase().contains("mac") {
-                    state.is_macos = true;
-                }
-            }
+        if let Some(window) = web_sys::window()
+            && let Ok(user_agent) = window.navigator().user_agent()
+            && user_agent.to_ascii_lowercase().contains("mac")
+        {
+            state.is_macos = true;
         }
 
         state
