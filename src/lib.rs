@@ -1440,7 +1440,7 @@ pub fn setup_primary_egui_context_system(
         log::debug!("Creating a primary Egui context");
         // See the list of required components to check the full list of components we add.
         let mut camera_commands = commands.get_entity(camera_entity)?;
-        camera_commands.insert(context).insert(PrimaryEguiContext);
+        camera_commands.insert((context, PrimaryEguiContext));
         if enable_multipass_for_primary_context.is_some() {
             camera_commands.insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
         }
