@@ -1,8 +1,7 @@
 [package]
 name = "bevy_egui"
 version = "0.38.0"
-# Needed for the 2024 edition.
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 authors = ["vladbat00 <vladyslav.batyrenko@gmail.com>"]
 description = "A plugin for Egui integration into Bevy"
 license = "MIT"
