@@ -249,14 +249,13 @@ impl<'a, M: Message, F: FnMut(&'a M) -> Entity> Iterator for EguiContextsMessage
                 return self.current_message.zip(self.non_window_context);
             }
 
-            if let Some(current) = self.current_message {
-                if let Some(contexts) = self
+            if let Some(current) = self.current_message
+                && let Some(contexts) = self
                     .map
                     .window_to_contexts
                     .get(&(self.map_message_to_window_id_f)(current))
-                {
-                    self.current_message_contexts = contexts.iter().cloned().collect();
-                }
+            {
+                self.current_message_contexts = contexts.iter().cloned().collect();
             }
         }
 
@@ -895,20 +894,20 @@ pub fn write_window_touch_messages_system(
             continue;
         };
 
-        if egui_global_settings.enable_focused_non_window_context_updates {
-            if let bevy_input::touch::TouchPhase::Started = message.phase {
-                if let Some(hovered_non_window_egui_context) = &hovered_non_window_egui_context {
-                    if let bevy_input::touch::TouchPhase::Started = message.phase {
-                        commands.insert_resource(FocusedNonWindowEguiContext(
-                            hovered_non_window_egui_context.0,
-                        ));
-                    }
-
-                    continue;
+        if egui_global_settings.enable_focused_non_window_context_updates
+            && let bevy_input::touch::TouchPhase::Started = message.phase
+        {
+            if let Some(hovered_non_window_egui_context) = &hovered_non_window_egui_context {
+                if let bevy_input::touch::TouchPhase::Started = message.phase {
+                    commands.insert_resource(FocusedNonWindowEguiContext(
+                        hovered_non_window_egui_context.0,
+                    ));
                 }
 
-                commands.remove_resource::<FocusedNonWindowEguiContext>();
+                continue;
             }
+
+            commands.remove_resource::<FocusedNonWindowEguiContext>();
         }
 
         if !context_settings

@@ -1506,10 +1506,10 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_text_impl(&mut self, contents: &str) {
-        if let Some(mut clipboard) = self.get() {
-            if let Err(err) = clipboard.set_text(contents.to_owned()) {
-                log::error!("Failed to set clipboard contents: {:?}", err);
-            }
+        if let Some(mut clipboard) = self.get()
+            && let Err(err) = clipboard.set_text(contents.to_owned())
+        {
+            log::error!("Failed to set clipboard contents: {:?}", err);
         }
     }
 
@@ -1539,14 +1539,14 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_image_impl(&mut self, image: &egui::ColorImage) {
-        if let Some(mut clipboard) = self.get() {
-            if let Err(err) = clipboard.set_image(arboard::ImageData {
+        if let Some(mut clipboard) = self.get()
+            && let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
                 height: image.height(),
                 bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
-            }) {
-                log::error!("Failed to set clipboard contents: {:?}", err);
-            }
+            })
+        {
+            log::error!("Failed to set clipboard contents: {:?}", err);
         }
     }
 

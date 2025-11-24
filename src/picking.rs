@@ -150,13 +150,12 @@ pub fn handle_out_system(
     mut commands: Commands,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
 ) {
-    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer()) {
-        if hovered_non_window_egui_context
+    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer())
+        && hovered_non_window_egui_context
             .as_deref()
             .is_some_and(|&HoveredNonWindowEguiContext(hovered_context)| hovered_context == context)
-        {
-            commands.remove_resource::<HoveredNonWindowEguiContext>();
-        }
+    {
+        commands.remove_resource::<HoveredNonWindowEguiContext>();
     }
 }
 
@@ -165,7 +164,7 @@ fn uv_values_for_triangle<I: TryInto<usize> + Clone + Copy>(
     triangle_index: usize,
     values: &[[f32; 2]],
 ) -> Option<[[f32; 2]; 3]> {
-    if indices.len() % 3 != 0 || triangle_index >= indices.len() {
+    if !indices.len().is_multiple_of(3) || triangle_index >= indices.len() {
         return None;
     }
 

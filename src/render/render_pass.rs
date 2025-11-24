@@ -209,19 +209,19 @@ impl Node for EguiPassNode {
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                     render_pass.set_index_buffer(index_buffer.slice(..), 0, IndexFormat::Uint32);
 
-                    if let Some(bindless_offset) = bindless_offset {
-                        if last_bindless_offset != Some(bindless_offset) {
-                            last_bindless_offset = Some(bindless_offset);
+                    if let Some(bindless_offset) = bindless_offset
+                        && last_bindless_offset != Some(bindless_offset)
+                    {
+                        last_bindless_offset = Some(bindless_offset);
 
-                            // Use push constant to cheaply provide which texture to use inside
-                            // binding array. This is used to avoid costly set_bind_group operations
-                            // when frequent switching between textures is being done
-                            render_pass.set_push_constants(
-                                ShaderStages::FRAGMENT,
-                                0,
-                                bytemuck::bytes_of(bindless_offset),
-                            );
-                        }
+                        // Use push constant to cheaply provide which texture to use inside
+                        // binding array. This is used to avoid costly set_bind_group operations
+                        // when frequent switching between textures is being done
+                        render_pass.set_push_constants(
+                            ShaderStages::FRAGMENT,
+                            0,
+                            bytemuck::bytes_of(bindless_offset),
+                        );
                     }
 
                     render_pass.draw_indexed(
