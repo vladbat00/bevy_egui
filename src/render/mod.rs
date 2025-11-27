@@ -189,7 +189,9 @@ pub fn extract_egui_camera_view_system(
                     EguiViewTarget(render_entity),
                     egui_render_output,
                     RenderComputedScaleFactor {
-                        scale_factor: settings.scale_factor
+                        scale_factor: settings
+                            .scale_factor_cache
+                            .render_applied_bevy_scale
                             * camera.target_scaling_factor().unwrap_or(1.0),
                     },
                     TemporaryRenderEntity,

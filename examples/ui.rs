@@ -24,8 +24,12 @@ impl FromWorld for Images {
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
+/// - configuring egui contexts during the startup;
+/// - custom zoom controls via EguiContextSettings (Ctrl+] / Ctrl+[ to zoom in/out).
 /// - toggling hidpi scaling (by pressing '/' button);
-/// - configuring egui contexts during the startup.
+///
+/// Note: Egui's built-in zoom controls (Ctrl+Plus / Ctrl+Minus / Ctrl+0) now work correctly
+/// and are synchronized with bevy_egui's scale_factor!
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
@@ -103,6 +107,26 @@ fn update_ui_scale_factor_system(
             1.0 / camera.target_scaling_factor().unwrap_or(1.0)
         };
         egui_settings.scale_factor = scale_factor;
+    }
+        
+    // Handle Ctrl+] (zoom in) and Ctrl+[ (zoom out)
+    // Using different keybinds than egui's default Ctrl+Plus/Minus to avoid conflicts
+    let ctrl_pressed = keyboard_input.pressed(KeyCode::ControlLeft)
+        || keyboard_input.pressed(KeyCode::ControlRight);
+    if ctrl_pressed && keyboard_input.just_pressed(KeyCode::BracketRight) {
+        // Ctrl+] (zoom in via scale_factor)
+        egui_settings.scale_factor = (egui_settings.scale_factor * 1.1).min(5.0);
+        info!(
+            "Zoom in (via scale_factor) - scale factor: {}",
+            egui_settings.scale_factor
+        );
+    } else if ctrl_pressed && keyboard_input.just_pressed(KeyCode::BracketLeft) {
+        // Ctrl+[ (zoom out via scale_factor)
+        egui_settings.scale_factor = (egui_settings.scale_factor / 1.1).max(0.1);
+        info!(
+            "Zoom out (via scale_factor) - scale factor: {}",
+            egui_settings.scale_factor
+        );
     }
 }
 
