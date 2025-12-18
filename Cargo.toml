@@ -84,20 +84,20 @@ required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.33", default-features = false }
-bevy_a11y = { version = "0.17.0", optional = true }
-bevy_app = { version = "0.17.0" }
-bevy_camera = { version = "0.17.0" }
-bevy_derive = { version = "0.17.0" }
-bevy_ecs = { version = "0.17.0" }
-bevy_input = { version = "0.17.0" }
-bevy_log = { version = "0.17.0" }
-bevy_math = { version = "0.17.0" }
-bevy_platform = { version = "0.17.0" }
-bevy_reflect = { version = "0.17.0" }
-bevy_time = { version = "0.17.0" }
-bevy_window = { version = "0.17.0" }
-bevy_winit = { version = "0.17.0" }
-bevy_utils = { version = "0.17.0", features = ["debug"] }
+bevy_a11y = { version = "0.17", optional = true }
+bevy_app = { version = "0.17" }
+bevy_camera = { version = "0.17" }
+bevy_derive = { version = "0.17" }
+bevy_ecs = { version = "0.17" }
+bevy_input = { version = "0.17" }
+bevy_log = { version = "0.17" }
+bevy_math = { version = "0.17" }
+bevy_platform = { version = "0.17" }
+bevy_reflect = { version = "0.17" }
+bevy_time = { version = "0.17" }
+bevy_window = { version = "0.17" }
+bevy_winit = { version = "0.17" }
+bevy_utils = { version = "0.17", features = ["debug"] }
 winit = { version = "0.30", default-features = false }
 
 # `open_url` feature
@@ -106,23 +106,23 @@ webbrowser = { version = "1.0.1", optional = true }
 # `render` feature
 bytemuck = { version = "1", optional = true }
 
-bevy_asset = { version = "0.17.0", optional = true }
-bevy_core_pipeline = { version = "0.17.0", optional = true }
-bevy_image = { version = "0.17.0", features = ["zstd_rust"], optional = true }
-bevy_mesh = { version = "0.17.0", optional = true }
-bevy_render = { version = "0.17.0", optional = true }
-bevy_color = { version = "0.17.0", optional = true }
-bevy_shader = { version = "0.17.0", optional = true }
-bevy_transform = { version = "0.17.0", optional = true }
+bevy_asset = { version = "0.17", optional = true }
+bevy_core_pipeline = { version = "0.17", optional = true }
+bevy_image = { version = "0.17", features = ["zstd_rust"], optional = true }
+bevy_mesh = { version = "0.17", optional = true }
+bevy_render = { version = "0.17", optional = true }
+bevy_color = { version = "0.17", optional = true }
+bevy_shader = { version = "0.17", optional = true }
+bevy_transform = { version = "0.17", optional = true }
 encase = { version = "0.11", optional = true }
 itertools = { version = "0.14", optional = true }
 wgpu-types = { version = "26.0", optional = true }
 
 # `bevy_ui` feature
-bevy_ui_render = { version = "0.17.0", optional = true }
+bevy_ui_render = { version = "0.17", optional = true }
 
 # `picking` feature
-bevy_picking = { version = "0.17.0", optional = true, features = ["bevy_mesh_picking_backend"] }
+bevy_picking = { version = "0.17", optional = true, features = ["bevy_mesh_picking_backend"] }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
@@ -131,7 +131,7 @@ thread_local = { version = "1.1.0", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
-bevy = { version = "0.17.0", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",
@@ -153,7 +153,7 @@ bevy = { version = "0.17.0", default-features = false, features = [
 egui = { version = "0.33", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-bevy = { version = "0.17.0", default-features = false, features = ["accesskit_unix"] }
+bevy = { version = "0.17", default-features = false, features = ["accesskit_unix"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dev-dependencies]
 rfd = "0.15"
