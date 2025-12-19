@@ -18,6 +18,7 @@ use bevy_input::{
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window};
+use bevy_winit::WinitUserEvent;
 use egui::Modifiers;
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] messages.
@@ -169,12 +170,15 @@ impl WindowToEguiContextMap {
     /// Adds a context to the map on creation.
     pub fn on_egui_context_added_system(
         mut res: ResMut<Self>,
-        added_contexts: Query<(Entity, &bevy_camera::Camera, &mut EguiContext), Added<EguiContext>>,
+        added_contexts: Query<
+            (Entity, &bevy_camera::RenderTarget, &mut EguiContext),
+            Added<EguiContext>,
+        >,
         primary_window: Query<Entity, With<bevy_window::PrimaryWindow>>,
-        event_loop_proxy: Res<bevy_winit::EventLoopProxyWrapper<bevy_winit::WakeUp>>,
+        event_loop_proxy: Res<bevy_winit::EventLoopProxyWrapper>,
     ) {
-        for (egui_context_entity, camera, mut egui_context) in added_contexts {
-            if let bevy_camera::RenderTarget::Window(window_ref) = camera.target
+        for (egui_context_entity, render_target, mut egui_context) in added_contexts {
+            if let bevy_camera::RenderTarget::Window(window_ref) = render_target
                 && let Some(window_ref) = window_ref.normalize(primary_window.single().ok())
             {
                 res.window_to_contexts
@@ -193,7 +197,7 @@ impl WindowToEguiContextMap {
                         //  to support non-zero wake-ups as well.
                         if repaint_info.delay.is_zero() {
                             log::trace!("Sending the WakeUp message");
-                            let _ = message_loop_proxy.send_event(bevy_winit::WakeUp);
+                            let _ = message_loop_proxy.send_event(WinitUserEvent::WakeUp);
                         }
                     });
             }

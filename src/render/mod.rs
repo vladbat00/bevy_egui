@@ -42,8 +42,8 @@ use bevy_render::{
     render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
-        BindGroupLayout, BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor,
-        SpecializedRenderPipeline, VertexState,
+        BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor, SpecializedRenderPipeline,
+        VertexState,
         binding_types::{sampler, texture_2d, uniform_buffer},
     },
     renderer::{RenderContext, RenderDevice},
@@ -53,11 +53,12 @@ use bevy_render::{
 use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
 use std::num::NonZero;
+use bevy_render::{render_resource::BindGroupLayoutDescriptor, renderer::RenderAdapterInfo};
 use systems::{EguiTextureId, EguiTransform};
 use wgpu_types::{
-    BlendState, ColorTargetState, ColorWrites, Extent3d, MultisampleState, PrimitiveState,
-    PushConstantRange, SamplerBindingType, ShaderStages, TextureDimension, TextureFormat,
-    TextureSampleType, VertexFormat, VertexStepMode,
+    Backend, BlendState, ColorTargetState, ColorWrites, Extent3d, Features, Limits,
+    MultisampleState, PrimitiveState, PushConstantRange, SamplerBindingType, ShaderStages,
+    TextureDimension, TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
 };
 
 mod render_pass;
@@ -112,7 +113,7 @@ impl Node for RunEguiSubgraphOnEguiViewNode {
         };
 
         // Run the subgraph on the Egui view.
-        graph.run_sub_graph(SubGraphEgui, vec![], Some(default_camera_view.0))?;
+        graph.run_sub_graph(SubGraphEgui, vec![], Some(default_camera_view.0), None)?;
         Ok(())
     }
 }
@@ -184,6 +185,7 @@ pub fn extract_egui_camera_view_system(
                             physical_viewport_rect.size(),
                         )),
                         color_grading: Default::default(),
+                        invert_culling: false,
                     },
                     // Link to the main camera view.
                     EguiViewTarget(render_entity),
@@ -220,9 +222,9 @@ pub struct EguiRenderSettings {
 #[derive(Resource)]
 pub struct EguiPipeline {
     /// Transform bind group layout.
-    pub transform_bind_group_layout: BindGroupLayout,
+    pub transform_bind_group_layout: BindGroupLayoutDescriptor,
     /// Texture bind group layout.
-    pub texture_bind_group_layout: BindGroupLayout,
+    pub texture_bind_group_layout: BindGroupLayoutDescriptor,
     /// Is bindless rendering mode enabled
     /// and how many textures can be rendered in one bind group.
     pub bindless: Option<NonZero<u32>>,
@@ -248,6 +250,7 @@ impl FromWorld for EguiPipeline {
         };
 
         let transform_bind_group_layout = render_device.create_bind_group_layout(
+        let transform_bind_group_layout = BindGroupLayoutDescriptor::new(
             "egui_transform_layout",
             &BindGroupLayoutEntries::single(
                 ShaderStages::VERTEX,
@@ -256,7 +259,7 @@ impl FromWorld for EguiPipeline {
         );
 
         let texture_bind_group_layout = if let Some(bindless) = bindless {
-            render_device.create_bind_group_layout(
+            BindGroupLayoutDescriptor::new(
                 "egui_texture_layout",
                 &BindGroupLayoutEntries::sequential(
                     ShaderStages::FRAGMENT,
@@ -267,7 +270,7 @@ impl FromWorld for EguiPipeline {
                 ),
             )
         } else {
-            render_device.create_bind_group_layout(
+            BindGroupLayoutDescriptor::new(
                 "egui_texture_layout",
                 &BindGroupLayoutEntries::sequential(
                     ShaderStages::FRAGMENT,
@@ -411,8 +414,8 @@ pub(crate) fn texture_options_as_sampler_descriptor(
 ) -> ImageSamplerDescriptor {
     fn convert_filter(filter: &TextureFilter) -> ImageFilterMode {
         match filter {
-            egui::TextureFilter::Nearest => ImageFilterMode::Nearest,
-            egui::TextureFilter::Linear => ImageFilterMode::Linear,
+            TextureFilter::Nearest => ImageFilterMode::Nearest,
+            TextureFilter::Linear => ImageFilterMode::Linear,
         }
     }
     let address_mode = match options.wrap_mode {
