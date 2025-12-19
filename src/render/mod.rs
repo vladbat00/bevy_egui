@@ -1,4 +1,8 @@
 pub use render_pass::*;
+use std::{
+    cmp::min,
+    num::{NonZero, NonZeroU32},
+};
 
 /// Defines Egui node graph.
 pub mod graph {
@@ -52,7 +56,8 @@ use bevy_render::{
 };
 use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
-use std::num::NonZero;
+
+use bevy_log::{error, info, warn};
 use bevy_render::{render_resource::BindGroupLayoutDescriptor, renderer::RenderAdapterInfo};
 use systems::{EguiTextureId, EguiTransform};
 use wgpu_types::{
@@ -235,21 +240,13 @@ impl FromWorld for EguiPipeline {
         let render_device = render_world.resource::<RenderDevice>();
         let settings = render_world.resource::<EguiRenderSettings>();
 
-        let features = render_device.features();
+        let bindless = Self::get_bindless_array_size(
+            settings,
+            render_world.resource::<RenderAdapterInfo>(),
+            render_device.features(),
+            render_device.limits(),
+        );
 
-        // TODO: In wgpu 0.26
-        // Check: max_binding_array_elements_per_shader_stage and
-        // max_binding_array_sampler_elements-per_shader_stage
-        // to be sure that device support provided limits
-        let bindless = if features.contains(wgpu_types::Features::TEXTURE_BINDING_ARRAY)
-            && features.contains(wgpu_types::Features::PUSH_CONSTANTS)
-        {
-            settings.bindless_mode_array_size
-        } else {
-            None
-        };
-
-        let transform_bind_group_layout = render_device.create_bind_group_layout(
         let transform_bind_group_layout = BindGroupLayoutDescriptor::new(
             "egui_transform_layout",
             &BindGroupLayoutEntries::single(
@@ -287,6 +284,62 @@ impl FromWorld for EguiPipeline {
             texture_bind_group_layout,
             bindless,
         }
+    }
+}
+
+impl EguiPipeline {
+    fn get_bindless_array_size(
+        settings: &EguiRenderSettings,
+        adapter_info: &RenderAdapterInfo,
+        device_features: Features,
+        device_limits: Limits,
+    ) -> Option<NonZero<u32>> {
+        settings.bindless_mode_array_size.and_then(|desired_size| {
+            // Don't enable bindless mode on Metal because it is not supported by bevy yet.
+            // See: https://github.com/bevyengine/bevy/issues/18149
+            if adapter_info.backend.eq(&Backend::Metal) {
+                warn!("Bindless textures are not yet supported on metal. Disabling bindless mode. See https://github.com/bevyengine/bevy/issues/18149 for more information");
+                None
+            } else if !device_features.contains(Features::TEXTURE_BINDING_ARRAY) {
+                warn!("Feature TEXTURE_BINDING_ARRAY is not supported on this device.");
+                None
+            } else if !device_features.contains(Features::PUSH_CONSTANTS) {
+                warn!("Feature PUSH_CONSTANTS is not supported on this device.");
+                None
+            } else {
+                match NonZeroU32::new(min(
+                    device_limits.max_binding_array_elements_per_shader_stage,
+                    device_limits.max_binding_array_sampler_elements_per_shader_stage
+                )) {
+                    Some(max_size) if max_size >= desired_size => {
+                        info!(
+                            "Using bindless_mode_array_size {} (Device maximum {})",
+                            desired_size.get(),
+                            max_size.get(),
+                        );
+                        Some(desired_size)
+                    }
+                    Some(max_size) => {
+                        warn!(
+                            "Desired bindless_mode_array_size {} is too large for this devices maximums (elements: {}, sampler_elements: {}). Using {} instead",
+                            desired_size.get(),
+                            device_limits.max_binding_array_elements_per_shader_stage,
+                            device_limits.max_binding_array_sampler_elements_per_shader_stage,
+                            max_size.get(),
+                        );
+                        Some(max_size)
+                    },
+                    None => {
+                        error!(
+                            "Failed to determine maximum bindless_mode_array_size using (elements: {}, sampler_elements: {}). Disabling bindless mode",
+                            device_limits.max_binding_array_elements_per_shader_stage,
+                            device_limits.max_binding_array_sampler_elements_per_shader_stage,
+                        );
+                        None
+                    }
+                }
+            }
+        })
     }
 }
 
