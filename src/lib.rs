@@ -165,10 +165,12 @@ use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
 use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
+    lifecycle::HookContext,
     prelude::*,
     query::{QueryData, QueryEntityError, QuerySingleError},
     schedule::{InternedScheduleLabel, ScheduleLabel},
     system::SystemParam,
+    world::DeferredWorld,
 };
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
@@ -554,8 +556,18 @@ pub struct EguiPrimaryContextPass;
 
 /// A marker component for a primary Egui context.
 #[derive(Component, Clone)]
-#[require(EguiMultipassSchedule::new(EguiPrimaryContextPass))]
+#[require(EguiContext)]
+#[component(on_insert = insert_schedule_if_multipass)]
 pub struct PrimaryEguiContext;
+
+fn insert_schedule_if_multipass(mut world: DeferredWorld, context: HookContext) {
+    if world.contains_resource::<EnableMultipassForPrimaryContext>() {
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
+    }
+}
 
 /// Add this component to your additional Egui contexts (e.g. when rendering to a new window or an image),
 /// to enable multi-pass support. Note that each Egui context running in the multi-pass mode must use a unique schedule.
@@ -1440,7 +1452,6 @@ pub struct EguiManagedTexture {
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
-    enable_multipass_for_primary_context: Option<Res<EnableMultipassForPrimaryContext>>,
     mut egui_context_exists: Local<bool>,
 ) -> Result {
     for (camera_entity, context) in new_cameras {
@@ -1455,9 +1466,6 @@ pub fn setup_primary_egui_context_system(
         // See the list of required components to check the full list of components we add.
         let mut camera_commands = commands.get_entity(camera_entity)?;
         camera_commands.insert((context, PrimaryEguiContext));
-        if enable_multipass_for_primary_context.is_some() {
-            camera_commands.insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
-        }
         *egui_context_exists = true;
     }
 
