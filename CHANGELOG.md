@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.38.1] - 20-Dec-2025
+
+### Fixed
+
+- Fix primary context always running in the multi-pass mode regardless of the settings ([#455](https://github.com/vladbat00/bevy_egui/pull/455)).
+- Fix `PointerHits` order, set it based on `UiRenderOrder` ([#443](https://github.com/vladbat00/bevy_egui/pull/443])).
+- The context component and `PrimaryEguiContext` are now inserted within a single bundle.
+- Workaround missing support of struct push constant in DX12 ([#440](https://github.com/vladbat00/bevy_egui/pull/440) by @rbnelr). 
+
+### Added
+
+- Add `prelude` module ([#438](https://github.com/vladbat00/bevy_egui/pull/438) by @musjj).
+
+### Misc
+
+- Fix imports in the `side_panel` example ([#449](https://github.com/vladbat00/bevy_egui/pull/449) by @TimeTravelPenguin).
+
 ## [0.38.0] - 13-Oct-2025
 
 ### Added
