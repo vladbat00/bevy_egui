@@ -1214,6 +1214,20 @@ impl Plugin for EguiPlugin {
             );
         }
 
+        // The constants are set to be larger or lower than bevy_ui's ones:
+        // https://github.com/bevyengine/bevy/blob/16a6a96a80aab50dcc14c8bb73ef09520f77c09d/crates/bevy_ui/src/picking_backend.rs#L260-L264.
+        #[cfg(all(feature = "bevy_ui", feature = "bevy_picking"))]
+        match self.ui_render_order {
+            UiRenderOrder::EguiAboveBevyUi => {
+                app.insert_resource(EguiPickingOrder(0.6));
+            }
+            UiRenderOrder::BevyUiAboveEgui => {
+                app.insert_resource(EguiPickingOrder(0.4));
+            }
+        }
+        #[cfg(all(not(feature = "bevy_ui"), feature = "bevy_picking"))]
+        app.insert_resource(crate::EguiPickingOrder(0.6));
+
         #[cfg(feature = "render")]
         app.add_systems(
             PostUpdate,
@@ -1573,7 +1587,21 @@ impl EguiClipboard {
 
 /// The ordering value used for [`bevy_picking`].
 #[cfg(feature = "picking")]
+#[deprecated(
+    since = "0.38.1",
+    note = "picking order is now set dynamically based on the `EguiPickingOrder` resource"
+)]
 pub const PICKING_ORDER: f32 = 1_000_000.0;
+
+/// Contains the order value that we add to [`bevy_camera::Camera::order`] for [`PointerHits`]
+/// messages.
+///
+/// Defaults to `0.6` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::EguiAboveBevyUi`]
+/// or the `bevy_ui` feature of `bevy_egui` is disabled.
+/// Defaults to `0.4` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::BevyUiAboveEgui`].
+#[cfg(feature = "picking")]
+#[derive(Resource, Debug, Deref)]
+pub struct EguiPickingOrder(pub f32);
 
 /// Captures pointers on Egui windows for [`bevy_picking`].
 #[cfg(feature = "picking")]
@@ -1587,6 +1615,7 @@ pub fn capture_pointer_input_system(
     )>,
     mut output: MessageWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
+    picking_order: Res<EguiPickingOrder>,
 ) {
     use helpers::QueryHelper;
 
@@ -1618,7 +1647,7 @@ pub fn capture_pointer_input_system(
                     output.write(PointerHits::new(
                         *pointer,
                         Vec::from([entry]),
-                        PICKING_ORDER,
+                        camera.order as f32 + **picking_order,
                     ));
                 }
             }
