@@ -1225,6 +1225,8 @@ impl Plugin for EguiPlugin {
                 app.insert_resource(EguiPickingOrder(0.4));
             }
         }
+        #[cfg(all(not(feature = "bevy_ui"), feature = "bevy_picking"))]
+        app.insert_resource(crate::EguiPickingOrder(0.6));
 
         #[cfg(feature = "render")]
         app.add_systems(
@@ -1595,7 +1597,8 @@ pub const PICKING_ORDER: f32 = 1_000_000.0;
 /// messages.
 ///
 /// Defaults to `0.6` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::EguiAboveBevyUi`]
-/// or `0.4` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::BevyUiAboveEgui`].
+/// or the `bevy_ui` feature of `bevy_egui` is disabled.
+/// Defaults to `0.4` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::BevyUiAboveEgui`].
 #[cfg(feature = "picking")]
 #[derive(Resource, Debug, Deref)]
 pub struct EguiPickingOrder(pub f32);
