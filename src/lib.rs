@@ -192,7 +192,6 @@ use bevy_render::{
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
 };
-use bevy_window::CursorIcon;
 use output::process_output_system;
 #[cfg(all(
     feature = "manage_clipboard",
@@ -641,7 +640,6 @@ pub struct EguiOutput {
     EguiFullOutput,
     EguiRenderOutput,
     EguiOutput,
-    CursorIcon
 )]
 pub struct EguiContext {
     ctx: egui::Context,
