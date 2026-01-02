@@ -111,10 +111,10 @@ fn setup_system(
             Camera {
                 // render before the "main pass" camera
                 order: -1,
-                target: RenderTarget::Image(image_handle.into()),
                 clear_color: ClearColorConfig::Custom(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                 ..default()
             },
+            RenderTarget::Image(image_handle.into()),
             Transform::from_translation(Vec3::new(0.0, 0.0, 15.0))
                 .looking_at(Vec3::default(), Vec3::Y),
         ))

@@ -111,9 +111,9 @@ fn setup_system(
         Camera2d,
         Camera {
             order: 1,
-            target: RenderTarget::Image(mesh_image_handle.clone().into()),
             ..default()
         },
+        RenderTarget::Image(mesh_image_handle.clone().into()),
         MeshImageEguiContext,
         EguiMultipassSchedule::new(RenderToMeshImageContextPass),
     ));
@@ -122,9 +122,9 @@ fn setup_system(
         Camera2d,
         Camera {
             order: 2,
-            target: RenderTarget::Image(egui_texture_image_handle.clone().into()),
             ..default()
         },
+        RenderTarget::Image(egui_texture_image_handle.clone().into()),
         EguiTextureImageEguiContext,
         EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
     ));
@@ -142,7 +142,7 @@ fn update_image_size_system(
     mut images: ResMut<Assets<bevy::image::Image>>,
     mut meshes: ResMut<Assets<bevy::prelude::Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    egui_camera_query: Query<&Camera, With<EguiContext>>,
+    egui_render_target_query: Query<&RenderTarget, With<EguiContext>>,
     egui_mesh: Single<(&Mesh2d, &MeshMaterial2d<ColorMaterial>, &mut Transform)>,
 ) {
     if *prev_window_size == window.physical_size()
@@ -156,8 +156,8 @@ fn update_image_size_system(
 
     let new_height = window.physical_height() - app_state.top_panel_height;
 
-    for egui_camera in egui_camera_query.iter() {
-        let Some(image_handle) = egui_camera.target.as_image() else {
+    for egui_render_target in egui_render_target_query.iter() {
+        let Some(image_handle) = egui_render_target.as_image() else {
             continue;
         };
 

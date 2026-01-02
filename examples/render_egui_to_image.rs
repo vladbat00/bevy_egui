@@ -113,10 +113,8 @@ fn setup_system(
         .spawn((
             Camera3d::default(),
             RenderLayers::none(),
-            Camera {
-                target: RenderTarget::Image(image.clone().into()),
-                ..default()
-            },
+            Camera::default(),
+            RenderTarget::Image(image.clone().into()),
             EguiMultipassSchedule::new(WorldspaceContextPass),
         ))
         .id();

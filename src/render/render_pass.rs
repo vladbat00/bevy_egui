@@ -207,7 +207,7 @@ impl Node for EguiPassNode {
 
                     render_pass.set_bind_group(1, texture_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                    render_pass.set_index_buffer(index_buffer.slice(..), 0, IndexFormat::Uint32);
+                    render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint32);
 
                     if let Some(bindless_offset) = bindless_offset
                         && last_bindless_offset != Some(bindless_offset)

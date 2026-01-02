@@ -283,10 +283,8 @@ pub struct EguiPlugin {
     ///     commands.spawn((
     ///         EguiMultipassSchedule::new(SecondWindowContextPass),
     ///         Camera3d::default(),
-    ///         Camera {
-    ///             target: RenderTarget::Window(WindowRef::Entity(second_window_id)),
-    ///             ..Default::default()
-    ///         },
+    ///         Camera::default(),
+    ///         RenderTarget::Window(WindowRef::Entity(second_window_id)),
     ///     ));
     /// }
     ///
