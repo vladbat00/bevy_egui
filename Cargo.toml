@@ -144,7 +144,6 @@ bevy = { version = "0.18.0", default-features = false, features = [
     "bevy_winit",
     "mouse",
     "keyboard",
-    "gamepad",
     "touch",
     "gestures",
     "android-game-activity",
