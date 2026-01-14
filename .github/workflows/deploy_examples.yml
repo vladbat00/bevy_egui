@@ -39,7 +39,7 @@ jobs:
       - name: Build paint_callback
         run: bevy build --example paint_callback web --bundle
       - name: Build render_egui_to_image
-        run: bevy build --example render_egui_to_image --features="render bevy/bevy_gizmos" web --bundle
+        run: bevy build --example render_egui_to_image --features="render bevy/bevy_gizmos bevy/bevy_gizmos_render" web --bundle
       - name: Build render_to_image_widget
         run: bevy build --example render_to_image_widget web --bundle
       - name: Build side_panel
