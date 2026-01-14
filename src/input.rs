@@ -175,7 +175,7 @@ impl WindowToEguiContextMap {
             Added<EguiContext>,
         >,
         primary_window: Query<Entity, With<bevy_window::PrimaryWindow>>,
-        event_loop_proxy: Res<bevy_winit::EventLoopProxyWrapper>,
+        event_loop_proxy: Option<Res<bevy_winit::EventLoopProxyWrapper>>,
     ) {
         for (egui_context_entity, render_target, mut egui_context) in added_contexts {
             if let bevy_camera::RenderTarget::Window(window_ref) = render_target
@@ -188,7 +188,12 @@ impl WindowToEguiContextMap {
                 res.context_to_window
                     .insert(egui_context_entity, window_ref.entity());
 
-                // The resource doesn't exist in the headless mode.
+                // The resource doesn't exist in the headless mode
+                // or if the EventLoopProxy uses another event.
+                let Some(event_loop_proxy) = &event_loop_proxy else {
+                    continue;
+                };
+
                 let message_loop_proxy = (*event_loop_proxy).clone();
                 egui_context
                     .get_mut()
