@@ -3,7 +3,7 @@ use crate::{
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
 use bevy_asset::Assets;
-use bevy_camera::{Camera, NormalizedRenderTarget};
+use bevy_camera::{Camera, NormalizedRenderTarget, RenderTarget};
 use bevy_ecs::{
     change_detection::Res,
     component::Component,
@@ -35,7 +35,7 @@ pub fn handle_move_system(
     event: On<Pointer<Move>>,
     mut mesh_ray_cast: MeshRayCast,
     mut egui_pointers: Query<&mut EguiContextPointerPosition>,
-    egui_contexts: Query<(&Camera, &GlobalTransform), With<EguiContext>>,
+    egui_contexts: Query<(&Camera, &GlobalTransform, &RenderTarget), With<EguiContext>>,
     pickable_egui_context_query: Query<(&PickableEguiContext, AnyOf<(&Mesh2d, &Mesh3d)>)>,
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
     meshes: Res<Assets<Mesh>>,
@@ -46,7 +46,8 @@ pub fn handle_move_system(
 
     // Ray-cast attempting to find the context again.
     // TODO: track https://github.com/bevyengine/bevy/issues/19883 - once it's fixed, we can avoid the double-work with ray-casting again.
-    let Ok((context_camera, global_transform)) = egui_contexts.get(event.hit.camera) else {
+    let Ok((context_camera, global_transform, render_target)) = egui_contexts.get(event.hit.camera)
+    else {
         return Ok(());
     };
     let settings = MeshRayCastSettings {
@@ -58,6 +59,7 @@ pub fn handle_move_system(
         &primary_window_query,
         context_camera,
         global_transform,
+        render_target,
         &bevy_picking::pointer::PointerLocation {
             location: Some(event.pointer_location.clone()),
         },
@@ -80,7 +82,7 @@ pub fn handle_move_system(
 
     // At this point, we expect that the context exists, since we checked that with the ray cast filter.
     let (&PickableEguiContext(context), mesh) = pickable_egui_context_query.get(hit_entity)?;
-    let (egui_mesh_camera, _) = egui_contexts.get(context)?;
+    let (egui_mesh_camera, _, _) = egui_contexts.get(context)?;
 
     // Read triangle indices and the respective UVs of the mesh.
     let handle = match mesh {
@@ -179,10 +181,11 @@ fn make_ray(
     primary_window_entity: &Query<Entity, With<PrimaryWindow>>,
     camera: &Camera,
     camera_tfm: &GlobalTransform,
+    render_target: &RenderTarget,
     pointer_loc: &bevy_picking::pointer::PointerLocation,
 ) -> Option<Ray3d> {
     let pointer_loc = pointer_loc.location()?;
-    if !pointer_loc.is_in_viewport(camera, primary_window_entity) {
+    if !pointer_loc.is_in_viewport(camera, render_target, primary_window_entity) {
         return None;
     }
     let mut viewport_pos = pointer_loc.position;

@@ -51,10 +51,8 @@ fn create_new_window_system(
         .id();
     commands.spawn((
         Camera3d::default(),
-        Camera {
-            target: RenderTarget::Window(WindowRef::Entity(second_window_id)),
-            ..Default::default()
-        },
+        Camera::default(),
+        RenderTarget::Window(WindowRef::Entity(second_window_id)),
         EguiMultipassSchedule::new(SecondWindowContextPass),
         Transform::from_xyz(6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
