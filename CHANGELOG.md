@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0] - 14-Jan-2026
+
+### Changed
+
+- Update to Bevy 0.18.
+- Remove the deprecated `PICKING_ORDER` constant (picking order is now calculated dynamically, see `EguiPickingOrder`).
+
+### Fixed
+
+- Fix broken inputs when using custom EventLoop events ([#460](https://github.com/vladbat00/bevy_egui/pull/461) by @RobinKellnerVector).
+- Fix IME breaking backspace and arrow buttons on Linux.
+- No longer insert the `CursorIcon` component into context entities.
+- Fix some unresolved doc links.
+
 ## [0.38.1] - 20-Dec-2025
 
 ### Fixed
