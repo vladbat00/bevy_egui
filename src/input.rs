@@ -720,7 +720,13 @@ pub fn write_ime_messages_system(
         // Aligned with the egui-winit implementation: https://github.com/emilk/egui/blob/0f2b427ff4c0a8c68f6622ec7d0afb7ba7e71bba/crates/egui-winit/src/lib.rs#L348
         match message {
             Ime::Enabled { window: _ } => {
-                ime_message_enable(&mut ime_state, &mut egui_input_message_writer);
+                if cfg!(target_os = "linux") {
+                    // This event means different things in X11 and Wayland, but we can just
+                    // ignore it and enable IME on the preedit event.
+                    // See <https://github.com/rust-windowing/winit/issues/2498>
+                } else {
+                    ime_message_enable(&mut ime_state, &mut egui_input_message_writer);
+                }
             }
             Ime::Preedit {
                 value,
