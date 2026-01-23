@@ -1840,6 +1840,15 @@ pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQ
         }
         context.egui_input.screen_rect = Some(viewport_rect);
         context.ctx.get_mut().set_pixels_per_point(scale_factor);
+
+        // Set inner_rect in ViewportInfo for proper hit testing on HiDPI displays.
+        // Without this, egui's cached hit testing (InteractionSnapshot) fails because
+        // it uses inner_rect to validate pointer positions within the viewport.
+        let viewport_id = context.egui_input.viewport_id;
+        if let Some(viewport_info) = context.egui_input.viewports.get_mut(&viewport_id) {
+            viewport_info.inner_rect = Some(viewport_rect);
+            viewport_info.native_pixels_per_point = Some(scale_factor);
+        }
     }
 }
 
