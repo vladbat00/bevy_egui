@@ -7,6 +7,7 @@ use bevy_egui::{
     EguiTextureHandle,
 };
 
+#[derive(Resource)]
 struct Images {
     bevy_icon: Handle<Image>,
     bevy_icon_inverted: Handle<Image>,
@@ -28,8 +29,6 @@ impl FromWorld for Images {
 /// - configuring egui contexts during the startup.
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::BLACK))
-        .init_resource::<UiState>()
         .add_plugins(
             DefaultPlugins
                 .set(LogPlugin {
@@ -47,6 +46,9 @@ fn main() {
                 }),
         )
         .add_plugins(EguiPlugin::default())
+        .insert_resource(ClearColor(Color::BLACK))
+        .init_resource::<Images>()
+        .init_resource::<UiState>()
         .add_systems(
             PreStartup,
             setup_camera_system.before(EguiStartupSet::InitContexts),
@@ -55,6 +57,7 @@ fn main() {
             Startup,
             (configure_visuals_system, configure_ui_state_system),
         )
+        .add_systems(Update, premultiply_alpha_for_images_system)
         .add_systems(
             EguiPrimaryContextPass,
             (ui_example_system, update_ui_scale_factor_system),
@@ -64,6 +67,35 @@ fn main() {
 
 fn setup_camera_system(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+fn premultiply_alpha_for_images_system(
+    mut messages: MessageReader<AssetEvent<Image>>,
+    mut assets: ResMut<Assets<Image>>,
+    images: Res<Images>,
+) {
+    for asset_event in messages.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = asset_event
+            && (*id == images.bevy_icon.id() || *id == images.bevy_icon_inverted.id())
+        {
+            let image = assets.get_mut(*id).expect("should have loaded image");
+            for x in 0..image.width() {
+                for y in 0..image.height() {
+                    let mut color = image
+                        .get_color_at(x, y)
+                        .expect("should have existing pixel")
+                        .to_linear();
+                    color.red *= color.alpha;
+                    color.green *= color.alpha;
+                    color.blue *= color.alpha;
+
+                    image
+                        .set_color_at(x, y, Color::LinearRgba(color))
+                        .expect("should set color");
+                }
+            }
+        }
+    }
 }
 
 #[derive(Default, Resource)]
@@ -113,9 +145,7 @@ fn ui_example_system(
     // making bevy_egui panic.
     mut rendered_texture_id: Local<egui::TextureId>,
     mut is_initialized: Local<bool>,
-    // If you need to access the ids from multiple systems, you can also initialize the `Images`
-    // resource while building the app and use `Res<Images>` instead.
-    images: Local<Images>,
+    images: Res<Images>,
     image_assets: ResMut<Assets<Image>>,
     mut contexts: EguiContexts,
 ) -> Result {

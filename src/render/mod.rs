@@ -443,7 +443,7 @@ pub(crate) fn color_image_as_bevy_image(
         // We unmultiply Egui textures to premultiply them later in the fragment shader.
         // As user textures loaded as Bevy assets are not premultiplied (and there seems to be no
         // convenient way to convert them to premultiplied ones), we do this with Egui ones.
-        .flat_map(|color| color.to_srgba_unmultiplied())
+        .flat_map(|color| color.to_array())
         .collect();
 
     Image {
