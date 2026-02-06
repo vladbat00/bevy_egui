@@ -111,7 +111,7 @@ fn setup_system(
             Camera {
                 // render before the "main pass" camera
                 order: -1,
-                clear_color: ClearColorConfig::Custom(Color::srgba(1.0, 1.0, 1.0, 0.0)),
+                clear_color: ClearColorConfig::Custom(Color::BLACK),
                 ..default()
             },
             RenderTarget::Image(image_handle.into()),
