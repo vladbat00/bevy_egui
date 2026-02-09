@@ -183,4 +183,4 @@ js-sys = "0.3.63"
 wasm-bindgen = "0.2.93"
 wasm-bindgen-futures = "0.4.36"
 crossbeam-channel = "0.5.8"
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
