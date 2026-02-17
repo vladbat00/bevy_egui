@@ -509,6 +509,8 @@ pub struct EguiInputSystemSettings {
     pub run_write_non_window_pointer_moved_messages_system: bool,
     /// Controls running of the [`write_mouse_wheel_messages_system`] system.
     pub run_write_mouse_wheel_messages_system: bool,
+    /// Controls running of the [`write_pinch_gesture_messages_system`] system.
+    pub run_write_pinch_gesture_messages_system: bool,
     /// Controls running of the [`write_non_window_touch_messages_system`] system.
     pub run_write_non_window_touch_messages_system: bool,
     /// Controls running of the [`write_keyboard_input_messages_system`] system.
@@ -534,6 +536,7 @@ impl Default for EguiInputSystemSettings {
             run_write_window_touch_messages_system: true,
             run_write_non_window_pointer_moved_messages_system: true,
             run_write_mouse_wheel_messages_system: true,
+            run_write_pinch_gesture_messages_system: true,
             run_write_non_window_touch_messages_system: true,
             run_write_keyboard_input_messages_system: true,
             run_write_ime_messages_system: true,
@@ -1104,6 +1107,9 @@ impl Plugin for EguiPlugin {
                     })),
                     write_mouse_wheel_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_mouse_wheel_messages_system
+                    })),
+                    write_pinch_gesture_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_pinch_gesture_messages_system
                     })),
                     write_keyboard_input_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_keyboard_input_messages_system

@@ -11,6 +11,7 @@ use bevy_ecs::{
 };
 use bevy_input::{
     ButtonInput, ButtonState,
+    gestures::PinchGesture,
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
@@ -554,6 +555,40 @@ pub fn write_mouse_wheel_messages_system(
                 modifiers,
             },
         });
+    }
+}
+
+/// Reads [`PinchGesture`] messages and wraps them into [`EguiInputEvent`] with [`egui::Event::Zoom`].
+///
+/// Bevy's `PinchGesture` doesn't carry a window entity, so this broadcasts to all window contexts
+/// (or the hovered non-window context if one exists).
+pub fn write_pinch_gesture_messages_system(
+    mut pinch_reader: MessageReader<PinchGesture>,
+    hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
+    map: Res<WindowToEguiContextMap>,
+) {
+    for message in pinch_reader.read() {
+        // Match egui-winit: positive delta = magnification, negative = shrink
+        let zoom_factor = message.0.exp();
+
+        if let Some(HoveredNonWindowEguiContext(context)) =
+            hovered_non_window_egui_context.as_deref()
+        {
+            egui_input_message_writer.write(EguiInputEvent {
+                context: *context,
+                event: egui::Event::Zoom(zoom_factor),
+            });
+        } else {
+            for contexts in map.window_to_contexts.values() {
+                for &context in contexts {
+                    egui_input_message_writer.write(EguiInputEvent {
+                        context,
+                        event: egui::Event::Zoom(zoom_factor),
+                    });
+                }
+            }
+        }
     }
 }
 
