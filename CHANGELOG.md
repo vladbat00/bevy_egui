@@ -5,12 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.1] - 6-Feb-2026
+
+### Fixed
+
+- Fix text AA by no longer re-premultiplying alpha for egui textures ([#465](https://github.com/vladbat00/bevy_egui/pull/465)).
+  - **Potentially breaking**: even though it's not a breaking change API-wise, it will change
+    rendering of user textures. See the PR for the details and migration notes.
+
+## [0.39.0] - 14-Jan-2026
+
+### Changed
+
+- Update to Bevy 0.18.
+- Remove the deprecated `PICKING_ORDER` constant (picking order is now calculated dynamically, see `EguiPickingOrder`).
+
+### Fixed
+
+- Fix broken inputs when using custom EventLoop events ([#460](https://github.com/vladbat00/bevy_egui/pull/461) by @RobinKellnerVector).
+- Fix IME breaking backspace and arrow buttons on Linux.
+- No longer insert the `CursorIcon` component into context entities.
+- Fix some unresolved doc links.
+
+## [0.38.1] - 20-Dec-2025
+
+### Fixed
+
+- Fix primary context always running in the multi-pass mode regardless of the settings ([#455](https://github.com/vladbat00/bevy_egui/pull/455)).
+- Fix `PointerHits` order, set it based on `UiRenderOrder` ([#443](https://github.com/vladbat00/bevy_egui/pull/443])).
+- The context component and `PrimaryEguiContext` are now inserted within a single bundle.
+- Workaround missing support of struct push constant in DX12 ([#440](https://github.com/vladbat00/bevy_egui/pull/440) by @rbnelr). 
+
+### Added
+
+- Add `prelude` module ([#438](https://github.com/vladbat00/bevy_egui/pull/438) by @musjj).
+
+### Misc
+
+- Fix imports in the `side_panel` example ([#449](https://github.com/vladbat00/bevy_egui/pull/449) by @TimeTravelPenguin).
+
 ## [0.38.0] - 13-Oct-2025
 
 ### Added
 
 - Add an option to disable IME: `ime_enable` in both `EguiContextSettings` and `EguiGlobalSettings`.
-- Re-enabled `accesskit` support, see the `accesskit` feature (disabled by default).
+- Re-enable `accesskit` support, see the `accesskit` feature (disabled by default).
 - Partial texture update support ([#433](https://github.com/vladbat00/bevy_egui/pull/433) by @OwlyCode).
 
 ### Changed

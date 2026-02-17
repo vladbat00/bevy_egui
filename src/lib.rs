@@ -67,47 +67,47 @@
 //! cargo run --example ui
 //! ```
 //!
-//! ### ui ([live page](https://vladbat00.github.io/bevy_egui/ui), source: [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/ui.rs))
+//! ### ui ([live page](https://vladbat00.github.io/bevy_egui/ui), source: [examples/ui.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/ui.rs))
 //!
 //! Showcasing some more advanced UI, rendering images, hidpi scaling.
 //!
-//! ### absorb_input ([live page](https://vladbat00.github.io/bevy_egui/absorb_input), source: [examples/absorb_input.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/absorb_input.rs))
+//! ### absorb_input ([live page](https://vladbat00.github.io/bevy_egui/absorb_input), source: [examples/absorb_input.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/absorb_input.rs))
 //!
 //! Demonstrating the available options for absorbing input when Egui is using pointer or keyboard.
 //!
-//! ### color_test ([live page](https://vladbat00.github.io/bevy_egui/color_test), source: [examples/color_test.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/color_test.rs))
+//! ### color_test ([live page](https://vladbat00.github.io/bevy_egui/color_test), source: [examples/color_test.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/color_test.rs))
 //!
 //! Rendering test from [egui.rs](https://egui.rs). We don't fully pass it, help is wanted ([#291](https://github.com/vladbat00/bevy_egui/issues/291)).
 //!
-//! ### side_panel ([live page](https://vladbat00.github.io/bevy_egui/side_panel), source: [examples/side_panel.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/side_panel.rs))
+//! ### side_panel ([live page](https://vladbat00.github.io/bevy_egui/side_panel), source: [examples/side_panel.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/side_panel.rs))
 //!
 //! Showing how to display an Egui side panel and transform a camera with a perspective projection to make rendering centered relative to the remaining screen area.
 //!
-//! ### split_screen ([live page](https://vladbat00.github.io/bevy_egui/split_screen), source: [examples/split_screen.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/split_screen.rs))
+//! ### split_screen ([live page](https://vladbat00.github.io/bevy_egui/split_screen), source: [examples/split_screen.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/split_screen.rs))
 //!
 //! Demonstrating how to render multiple Egui contexts, attaching them to several cameras that target the same window.
 //!
-//! ### render_egui_to_image ([live page](https://vladbat00.github.io/bevy_egui/render_egui_to_image), source: [examples/render_egui_to_image.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/render_egui_to_image.rs))
+//! ### render_egui_to_image ([live page](https://vladbat00.github.io/bevy_egui/render_egui_to_image), source: [examples/render_egui_to_image.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/render_egui_to_image.rs))
 //!
 //! Rendering UI to an image (texture) and then using it as a mesh material texture.
 //!
-//! ### render_to_image_widget ([live page](https://vladbat00.github.io/bevy_egui/render_to_image_widget), source: [examples/render_to_image_widget.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/render_to_image_widget.rs))
+//! ### render_to_image_widget ([live page](https://vladbat00.github.io/bevy_egui/render_to_image_widget), source: [examples/render_to_image_widget.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/render_to_image_widget.rs))
 //!
 //! Rendering to a texture with Bevy and showing it as an Egui image widget.
 //!
-//! ### two_windows (source: [examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/two_windows.rs))
+//! ### two_windows (source: [examples/two_windows.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/two_windows.rs))
 //!
 //! Setting up two windows with an Egui context for each.
 //!
-//! ### paint_callback ([live page](https://vladbat00.github.io/bevy_egui/paint_callback), source: [examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/paint_callback.rs))
+//! ### paint_callback ([live page](https://vladbat00.github.io/bevy_egui/paint_callback), source: [examples/paint_callback.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/paint_callback.rs))
 //!
 //! Using Egui paint callbacks.
 //!
-//! ### simple ([live page](https://vladbat00.github.io/bevy_egui/simple), source: [examples/simple.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/simple.rs))
+//! ### simple ([live page](https://vladbat00.github.io/bevy_egui/simple), source: [examples/simple.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/simple.rs))
 //!
 //! The minimal usage example from this readme.
 //!
-//! ### run_manually ([live page](https://vladbat00.github.io/bevy_egui/run_manually), source: [examples/run_manually.rs](https://github.com/vladbat00/bevy_egui/blob/v0.38.0/examples/run_manually.rs))
+//! ### run_manually ([live page](https://vladbat00.github.io/bevy_egui/run_manually), source: [examples/run_manually.rs](https://github.com/vladbat00/bevy_egui/blob/v0.39.1/examples/run_manually.rs))
 //!
 //! The same minimal example demonstrating running Egui passes manually.
 //!
@@ -134,6 +134,16 @@ pub mod text_agent;
 #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
 pub mod web_clipboard;
 
+/// Commonly-used items.
+pub mod prelude {
+    pub use crate::{
+        EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule,
+        EguiPlugin, EguiPrimaryContextPass, EguiStartupSet, PrimaryEguiContext, egui,
+    };
+    #[cfg(feature = "render")]
+    pub use crate::{EguiTextureHandle, EguiUserTextures};
+}
+
 pub use egui;
 
 use crate::input::*;
@@ -155,10 +165,12 @@ use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
 use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
+    lifecycle::HookContext,
     prelude::*,
     query::{QueryData, QueryEntityError, QuerySingleError},
     schedule::{InternedScheduleLabel, ScheduleLabel},
     system::SystemParam,
+    world::DeferredWorld,
 };
 #[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
@@ -180,7 +192,6 @@ use bevy_render::{
     extract_resource::{ExtractResource, ExtractResourcePlugin},
     render_resource::SpecializedRenderPipelines,
 };
-use bevy_window::CursorIcon;
 use output::process_output_system;
 #[cfg(all(
     feature = "manage_clipboard",
@@ -272,10 +283,8 @@ pub struct EguiPlugin {
     ///     commands.spawn((
     ///         EguiMultipassSchedule::new(SecondWindowContextPass),
     ///         Camera3d::default(),
-    ///         Camera {
-    ///             target: RenderTarget::Window(WindowRef::Entity(second_window_id)),
-    ///             ..Default::default()
-    ///         },
+    ///         Camera::default(),
+    ///         RenderTarget::Window(WindowRef::Entity(second_window_id)),
     ///     ));
     /// }
     ///
@@ -395,7 +404,7 @@ pub struct EguiGlobalSettings {
     /// Apply `run_if(not(egui_wants_any_pointer_input))` or `run_if(not(egui_wants_any_keyboard_input))` to your systems
     /// that need to be disabled while Egui is using input (see the [`egui_wants_any_pointer_input`], [`egui_wants_any_keyboard_input`] run conditions).
     pub enable_absorb_bevy_input_system: bool,
-    /// Controls whether `bevy_egui` updates [`CursorIcon`], enabled by default.
+    /// Controls whether `bevy_egui` updates [`bevy_window::CursorIcon`], enabled by default.
     ///
     /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
     /// overriding the icons.
@@ -449,7 +458,7 @@ pub struct EguiContextSettings {
     pub capture_pointer_input: bool,
     /// Controls running of the input systems.
     pub input_system_settings: EguiInputSystemSettings,
-    /// Controls whether `bevy_egui` updates [`CursorIcon`], enabled by default.
+    /// Controls whether `bevy_egui` updates [`bevy_window::CursorIcon`], enabled by default.
     ///
     /// If you want to have custom cursor icons in your app, set this to `false` to avoid Egui
     /// overriding the icons.
@@ -547,8 +556,18 @@ pub struct EguiPrimaryContextPass;
 
 /// A marker component for a primary Egui context.
 #[derive(Component, Clone)]
-#[require(EguiMultipassSchedule::new(EguiPrimaryContextPass))]
+#[require(EguiContext)]
+#[component(on_insert = insert_schedule_if_multipass)]
 pub struct PrimaryEguiContext;
+
+fn insert_schedule_if_multipass(mut world: DeferredWorld, context: HookContext) {
+    if world.contains_resource::<EnableMultipassForPrimaryContext>() {
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
+    }
+}
 
 /// Add this component to your additional Egui contexts (e.g. when rendering to a new window or an image),
 /// to enable multi-pass support. Note that each Egui context running in the multi-pass mode must use a unique schedule.
@@ -621,8 +640,7 @@ pub struct EguiOutput {
     EguiContextImeState,
     EguiFullOutput,
     EguiRenderOutput,
-    EguiOutput,
-    CursorIcon
+    EguiOutput
 )]
 pub struct EguiContext {
     ctx: egui::Context,
@@ -1210,6 +1228,20 @@ impl Plugin for EguiPlugin {
             );
         }
 
+        // The constants are set to be larger or lower than bevy_ui's ones:
+        // https://github.com/bevyengine/bevy/blob/16a6a96a80aab50dcc14c8bb73ef09520f77c09d/crates/bevy_ui/src/picking_backend.rs#L260-L264.
+        #[cfg(all(feature = "bevy_ui", feature = "bevy_picking"))]
+        match self.ui_render_order {
+            UiRenderOrder::EguiAboveBevyUi => {
+                app.insert_resource(EguiPickingOrder(0.6));
+            }
+            UiRenderOrder::BevyUiAboveEgui => {
+                app.insert_resource(EguiPickingOrder(0.4));
+            }
+        }
+        #[cfg(all(not(feature = "bevy_ui"), feature = "bevy_picking"))]
+        app.insert_resource(crate::EguiPickingOrder(0.6));
+
         #[cfg(feature = "render")]
         app.add_systems(
             PostUpdate,
@@ -1422,7 +1454,6 @@ pub struct EguiManagedTexture {
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
-    enable_multipass_for_primary_context: Option<Res<EnableMultipassForPrimaryContext>>,
     mut egui_context_exists: Local<bool>,
 ) -> Result {
     for (camera_entity, context) in new_cameras {
@@ -1436,10 +1467,7 @@ pub fn setup_primary_egui_context_system(
         log::debug!("Creating a primary Egui context");
         // See the list of required components to check the full list of components we add.
         let mut camera_commands = commands.get_entity(camera_entity)?;
-        camera_commands.insert(context).insert(PrimaryEguiContext);
-        if enable_multipass_for_primary_context.is_some() {
-            camera_commands.insert(EguiMultipassSchedule::new(EguiPrimaryContextPass));
-        }
+        camera_commands.insert((context, PrimaryEguiContext));
         *egui_context_exists = true;
     }
 
@@ -1502,10 +1530,10 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_text_impl(&mut self, contents: &str) {
-        if let Some(mut clipboard) = self.get() {
-            if let Err(err) = clipboard.set_text(contents.to_owned()) {
-                log::error!("Failed to set clipboard contents: {:?}", err);
-            }
+        if let Some(mut clipboard) = self.get()
+            && let Err(err) = clipboard.set_text(contents.to_owned())
+        {
+            log::error!("Failed to set clipboard contents: {:?}", err);
         }
     }
 
@@ -1535,14 +1563,14 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_image_impl(&mut self, image: &egui::ColorImage) {
-        if let Some(mut clipboard) = self.get() {
-            if let Err(err) = clipboard.set_image(arboard::ImageData {
+        if let Some(mut clipboard) = self.get()
+            && let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
                 height: image.height(),
                 bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
-            }) {
-                log::error!("Failed to set clipboard contents: {:?}", err);
-            }
+            })
+        {
+            log::error!("Failed to set clipboard contents: {:?}", err);
         }
     }
 
@@ -1567,9 +1595,15 @@ impl EguiClipboard {
     }
 }
 
-/// The ordering value used for [`bevy_picking`].
+/// Contains the order value that we add to [`bevy_camera::Camera::order`] for [`PointerHits`]
+/// messages.
+///
+/// Defaults to `0.6` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::EguiAboveBevyUi`]
+/// or the `bevy_ui` feature of `bevy_egui` is disabled.
+/// Defaults to `0.4` if [`EguiPlugin::ui_render_order`] is [`UiRenderOrder::BevyUiAboveEgui`].
 #[cfg(feature = "picking")]
-pub const PICKING_ORDER: f32 = 1_000_000.0;
+#[derive(Resource, Debug, Deref)]
+pub struct EguiPickingOrder(pub f32);
 
 /// Captures pointers on Egui windows for [`bevy_picking`].
 #[cfg(feature = "picking")]
@@ -1583,6 +1617,7 @@ pub fn capture_pointer_input_system(
     )>,
     mut output: MessageWriter<PointerHits>,
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
+    picking_order: Res<EguiPickingOrder>,
 ) {
     use helpers::QueryHelper;
 
@@ -1614,7 +1649,7 @@ pub fn capture_pointer_input_system(
                     output.write(PointerHits::new(
                         *pointer,
                         Vec::from([entry]),
-                        PICKING_ORDER,
+                        camera.order as f32 + **picking_order,
                     ));
                 }
             }
@@ -1842,7 +1877,7 @@ pub fn end_pass_system(
     }
 }
 
-/// Updates the states of [`ManageAccessibilityUpdates`] and [`AccessKitAdapters`].
+/// Updates the states of [`bevy_a11y::ManageAccessibilityUpdates`] and [`bevy_winit::accessibility::AccessKitAdapters`].
 #[cfg(feature = "accesskit")]
 pub fn update_accessibility_system(
     requested: Res<bevy_a11y::AccessibilityRequested>,

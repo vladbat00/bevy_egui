@@ -91,20 +91,19 @@ pub fn process_output_system(
             }
         }
 
-        if egui_global_settings.enable_cursor_icon_updates && settings.enable_cursor_icon_updates {
-            if let Some(window_entity) = window_to_egui_context_map.context_to_window.get(&entity) {
-                let last_cursor_icon = last_cursor_icon.entry(entity).or_default();
-                if *last_cursor_icon != egui_output.platform_output.cursor_icon {
-                    commands
-                        .entity(*window_entity)
-                        .try_insert(CursorIcon::System(
-                            helpers::egui_to_winit_cursor_icon(
-                                egui_output.platform_output.cursor_icon,
-                            )
+        if egui_global_settings.enable_cursor_icon_updates
+            && settings.enable_cursor_icon_updates
+            && let Some(window_entity) = window_to_egui_context_map.context_to_window.get(&entity)
+        {
+            let last_cursor_icon = last_cursor_icon.entry(entity).or_default();
+            if *last_cursor_icon != egui_output.platform_output.cursor_icon {
+                commands
+                    .entity(*window_entity)
+                    .try_insert(CursorIcon::System(
+                        helpers::egui_to_winit_cursor_icon(egui_output.platform_output.cursor_icon)
                             .unwrap_or(bevy_window::SystemCursorIcon::Default),
-                        ));
-                    *last_cursor_icon = egui_output.platform_output.cursor_icon;
-                }
+                    ));
+                *last_cursor_icon = egui_output.platform_output.cursor_icon;
             }
         }
 

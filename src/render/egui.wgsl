@@ -20,7 +20,13 @@ struct VertexOutput {
 #ifdef BINDLESS
 @group(1) @binding(0) var image_texture: binding_array<texture_2d<f32>>;
 @group(1) @binding(1) var image_sampler: binding_array<sampler>;
-var<push_constant> offset: u32;
+
+// Fix for DX12 backend in wgpu which appears to only support struct push constants
+// wgpu::backend::wgpu_core: Shader translation error for stage ShaderStages(FRAGMENT): HLSL: Unimplemented("push-constant 'offset' has non-struct type; tracked by: https://github.com/gfx-rs/wgpu/issues/5683")
+struct BindlessOffset {
+    offset: u32,
+};
+var<push_constant> offset: BindlessOffset;
 
 #else //BINDLESS
 @group(1) @binding(0) var image_texture: texture_2d<f32>;
@@ -58,18 +64,15 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     #ifdef BINDLESS
-    let image_texture = image_texture[offset];
-    let image_sampler = image_sampler[offset];
+    let image_texture = image_texture[offset.offset];
+    let image_sampler = image_sampler[offset.offset];
     #endif
-
-    let texture_color_linear = textureSample(image_texture, image_sampler, in.uv);
-    // We un-premultiply Egui-managed textures on CPU, because Bevy doesn't premultiply it's own images, so here we pre-multiply everything.
-    let texture_color_linear_premultiplied = vec4<f32>(texture_color_linear.rgb * texture_color_linear.a, texture_color_linear.a);
-    let texture_color_gamma_premultiplied = gamma_from_linear_rgba(texture_color_linear_premultiplied);
 
     // Quoting the Egui's glsl shader:
     // "We multiply the colors in gamma space, because that's the only way to get text to look right."
-    let color_gamma = texture_color_gamma_premultiplied * in.color;
+    let texture_color_linear = textureSample(image_texture, image_sampler, in.uv);
+    let texture_color_gamma = gamma_from_linear_rgba(texture_color_linear);
+    let color_gamma = texture_color_gamma * in.color;
 
     return vec4<f32>(linear_from_gamma_rgb(color_gamma.rgb), color_gamma.a);
 }

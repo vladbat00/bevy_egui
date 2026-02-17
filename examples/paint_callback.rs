@@ -243,9 +243,9 @@ fn setup_worldspace_system(
         .spawn(Camera2d)
         .insert(Camera {
             order: 1,
-            target: RenderTarget::Image(output_texture.into()),
             ..default()
         })
+        .insert(RenderTarget::Image(output_texture.into()))
         .insert(EguiMultipassSchedule::new(WorldspaceContextPass));
 }
 

@@ -1,5 +1,5 @@
 use bevy::{
-    camera::{Viewport, visibility::RenderLayers},
+    camera::{CameraOutputMode, Viewport, visibility::RenderLayers},
     prelude::*,
     window::PrimaryWindow,
 };
@@ -163,7 +163,7 @@ fn setup_system(
         RenderLayers::none(),
         Camera {
             order: 1,
-            output_mode: bevy_camera::CameraOutputMode::Write {
+            output_mode: CameraOutputMode::Write {
                 blend_state: Some(BlendState::ALPHA_BLENDING),
                 clear_color: ClearColorConfig::None,
             },
