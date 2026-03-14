@@ -161,7 +161,7 @@ fn update_image_size_system(
             continue;
         };
 
-        let image = images
+        let mut image = images
             .get_mut(image_handle)
             .expect("Expected a created image");
         (image.data.as_mut().expect("image data"))

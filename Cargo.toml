@@ -88,8 +88,8 @@ bevy_a11y = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", o
 bevy_app = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
 bevy_camera = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
 bevy_derive = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e"}
-bevy_input = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e"}
+bevy_ecs = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
+bevy_input = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
 bevy_log = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
 bevy_math = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
 bevy_platform = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
@@ -135,11 +135,13 @@ bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", defaul
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",
+    "bevy_gizmos",
     "bevy_pbr",
     "mesh_picking",
     "bevy_sprite",
     "bevy_sprite_render",
     "bevy_text",
+    "bevy_ui_render",
     "bevy_window",
     "bevy_winit",
     "mouse",

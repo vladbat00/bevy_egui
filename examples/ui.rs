@@ -78,7 +78,7 @@ fn premultiply_alpha_for_images_system(
         if let AssetEvent::LoadedWithDependencies { id } = asset_event
             && (*id == images.bevy_icon.id() || *id == images.bevy_icon_inverted.id())
         {
-            let image = assets.get_mut(*id).expect("should have loaded image");
+            let mut image = assets.get_mut(*id).expect("should have loaded image");
             for x in 0..image.width() {
                 for y in 0..image.height() {
                     let mut color = image
