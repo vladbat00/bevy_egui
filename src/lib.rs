@@ -160,7 +160,7 @@ use crate::text_agent::{
 use arboard::Clipboard;
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
-use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
+use bevy_asset::{AssetEvent, AssetId, AssetMut, Assets, Handle, load_internal_asset};
 #[cfg(feature = "picking")]
 use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
@@ -1702,7 +1702,7 @@ pub fn update_egui_textures_system(
     }
 
     fn update_image_rect(
-        dest: &mut Image,
+        mut dest: AssetMut<Image>,
         [x, y]: [usize; 2],
         src: &egui::ColorImage,
     ) -> Result<(), TextureAccessError> {
