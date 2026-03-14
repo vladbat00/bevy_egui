@@ -26,7 +26,7 @@ use crate::{
 };
 use bevy_app::SubApp;
 use bevy_asset::{Handle, RenderAssetUsages, uuid_handle};
-use bevy_camera::Camera;
+use bevy_camera::{Camera, Hdr};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
@@ -52,7 +52,7 @@ use bevy_render::{
     },
     renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
-    view::{ExtractedView, Hdr, RetainedViewEntity, ViewTarget},
+    view::{ExtractedView, RetainedViewEntity, ViewTarget},
 };
 use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
