@@ -214,11 +214,10 @@ impl Node for EguiPassNode {
                     {
                         last_bindless_offset = Some(bindless_offset);
 
-                        // Use push constant to cheaply provide which texture to use inside
+                        // Use immediates to cheaply provide which texture to use inside
                         // binding array. This is used to avoid costly set_bind_group operations
                         // when frequent switching between textures is being done
-                        render_pass.set_push_constants(
-                            ShaderStages::FRAGMENT,
+                        render_pass.set_immediates(
                             0,
                             bytemuck::bytes_of(bindless_offset),
                         );

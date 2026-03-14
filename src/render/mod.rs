@@ -62,7 +62,7 @@ use bevy_render::{render_resource::BindGroupLayoutDescriptor, renderer::RenderAd
 use systems::{EguiTextureId, EguiTransform};
 use wgpu_types::{
     Backend, BlendState, ColorTargetState, ColorWrites, Extent3d, Features, Limits,
-    MultisampleState, PrimitiveState, PushConstantRange, SamplerBindingType, ShaderStages,
+    MultisampleState, PrimitiveState, SamplerBindingType, ShaderStages,
     TextureDimension, TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
 };
 
@@ -303,8 +303,8 @@ impl EguiPipeline {
             } else if !device_features.contains(Features::TEXTURE_BINDING_ARRAY) {
                 warn!("Feature TEXTURE_BINDING_ARRAY is not supported on this device.");
                 None
-            } else if !device_features.contains(Features::PUSH_CONSTANTS) {
-                warn!("Feature PUSH_CONSTANTS is not supported on this device.");
+            } else if !device_features.contains(Features::IMMEDIATES) {
+                warn!("Feature IMMEDIATES is not supported on this device.");
                 None
             } else {
                 match NonZeroU32::new(min(
@@ -355,14 +355,11 @@ impl SpecializedRenderPipeline for EguiPipeline {
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let mut shader_defs = Vec::new();
-        let mut push_constant_ranges = Vec::new();
+        let mut immediate_size = 0;
 
         if let Some(bindless) = self.bindless {
             shader_defs.push(ShaderDefVal::UInt("BINDLESS".into(), u32::from(bindless)));
-            push_constant_ranges.push(PushConstantRange {
-                stages: ShaderStages::FRAGMENT,
-                range: 0..4,
-            });
+            immediate_size = 4;
         }
 
         RenderPipelineDescriptor {
@@ -401,7 +398,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            push_constant_ranges,
+            immediate_size,
             zero_initialize_workgroup_memory: false,
         }
     }

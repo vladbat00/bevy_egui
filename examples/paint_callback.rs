@@ -138,7 +138,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
         RenderPipelineDescriptor {
             label: Some("custom pipeline".into()),
             layout: vec![],
-            push_constant_ranges: Vec::new(),
+            immediate_size: 0,
             vertex: bevy::render::render_resource::VertexState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],

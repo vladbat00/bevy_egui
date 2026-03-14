@@ -116,7 +116,7 @@ bevy_shader = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e",
 bevy_transform = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
 encase = { version = "0.12", optional = true }
 itertools = { version = "0.14", optional = true }
-wgpu-types = { version = "27.0", optional = true }
+wgpu-types = { version = "28.0", optional = true }
 
 # `bevy_ui` feature
 bevy_ui_render = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
