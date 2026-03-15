@@ -1,5 +1,5 @@
 use crate::render::{
-    DrawPrimitive,
+    DrawPrimitive, EguiCameraView, EguiViewTarget,
     systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
 };
 use bevy_camera::Viewport;
@@ -15,7 +15,6 @@ use bevy_render::{
     sync_world::RenderEntity,
     view::{ExtractedView, ViewTarget},
 };
-use bevy_ui_render::{UiCameraView, UiViewTarget};
 use wgpu_types::IndexFormat;
 
 pub fn prepare_egui_pass(world: &mut World) {
@@ -44,19 +43,19 @@ pub fn prepare_egui_pass(world: &mut World) {
 
 pub fn egui_pass(
     world: &World,
-    view: ViewQuery<&UiCameraView>,
-    ui_view_query: Query<(&ExtractedView, &UiViewTarget)>,
+    view: ViewQuery<&EguiCameraView>,
+    ui_view_query: Query<(&ExtractedView, &EguiViewTarget)>,
     ui_view_target_query: Query<(&ViewTarget, &ExtractedCamera)>,
     mut ctx: RenderContext,
 ) {
     let ui_camera_view = view.into_inner();
     let ui_view_entity = ui_camera_view.0;
 
-    let Ok((extracted_view, ui_view_target)) = ui_view_query.get(ui_view_entity) else {
+    let Ok((extracted_view, egui_view_target)) = ui_view_query.get(ui_view_entity) else {
         return;
     };
 
-    let Ok((target, camera)) = ui_view_target_query.get(ui_view_target.0) else {
+    let Ok((target, camera)) = ui_view_target_query.get(egui_view_target.0) else {
         return;
     };
 
