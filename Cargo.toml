@@ -84,20 +84,20 @@ required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.33", default-features = false }
-bevy_a11y = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_app = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_camera = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_derive = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_input = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_log = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_math = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_platform = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_reflect = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_time = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_window = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_winit = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e" }
-bevy_utils = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", features = ["debug"] }
+bevy_a11y = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_app = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_camera = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_derive = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_input = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_log = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_math = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_platform = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_reflect = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_time = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_window = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_winit = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194" }
+bevy_utils = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", features = ["debug"] }
 winit = { version = "0.30", default-features = false }
 
 # `open_url` feature
@@ -106,23 +106,23 @@ webbrowser = { version = "1.0.1", optional = true }
 # `render` feature
 bytemuck = { version = "1", optional = true }
 
-bevy_asset = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_core_pipeline = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_image = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", features = ["zstd_rust"], optional = true }
-bevy_mesh = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_render = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_color = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_shader = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
-bevy_transform = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
+bevy_asset = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_core_pipeline = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_image = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", features = ["zstd_rust"], optional = true }
+bevy_mesh = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_render = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_color = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_shader = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
+bevy_transform = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
 encase = { version = "0.12", optional = true }
 itertools = { version = "0.14", optional = true }
 wgpu-types = { version = "28.0", optional = true }
 
 # `bevy_ui` feature
-bevy_ui_render = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true }
+bevy_ui_render = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true }
 
 # `picking` feature
-bevy_picking = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", optional = true, features = ["mesh_picking"] }
+bevy_picking = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", optional = true, features = ["mesh_picking"] }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
@@ -131,7 +131,7 @@ thread_local = { version = "1.1.0", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
-bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", default-features = false, features = [
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", default-features = false, features = [
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",
@@ -159,7 +159,7 @@ bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", defaul
 egui = { version = "0.33", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1b3b01e", default-features = false, features = ["accesskit_unix"] }
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "2466194", default-features = false, features = ["accesskit_unix"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dev-dependencies]
 rfd = "0.17"
