@@ -1291,9 +1291,8 @@ impl Plugin for EguiPlugin {
                 }
             }
 
-            render_app.add_systems(Render, prepare_egui_pass.in_set(RenderSystems::Prepare));
-            render_app.add_systems(Core2d, egui_pass_2d);
-            render_app.add_systems(Core3d, egui_pass_3d);
+            render_app.add_systems(Core2d, (prepare_egui_pass, egui_pass_2d).chain());
+            render_app.add_systems(Core3d, (prepare_egui_pass, egui_pass_3d).chain());
         }
 
         #[cfg(feature = "accesskit")]
