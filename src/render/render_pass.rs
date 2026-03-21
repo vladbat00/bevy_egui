@@ -17,6 +17,7 @@ use bevy_render::{
 };
 use wgpu_types::IndexFormat;
 
+/// Prepare egui render pass
 pub fn prepare_egui_pass(world: &mut World) {
     world.resource_scope(|world, mut render_data: Mut<EguiRenderData>| {
         for (_main_entity, data) in &mut render_data.0 {
@@ -41,6 +42,7 @@ pub fn prepare_egui_pass(world: &mut World) {
     });
 }
 
+/// Egui render pass
 pub fn egui_pass(
     world: &World,
     view: ViewQuery<&EguiCameraView>,
