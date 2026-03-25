@@ -1114,7 +1114,7 @@ pub fn write_egui_input_system(
 ) {
     for EguiInputEvent { context, event } in egui_input_reader.read() {
         #[cfg(feature = "log_input_messages")]
-        log::warn!("{context:?}: {message:?}");
+        log::warn!("{context:?}: {event:?}");
 
         let (_, mut egui_input) = match egui_contexts.get_mut(*context) {
             Ok(egui_input) => egui_input,
