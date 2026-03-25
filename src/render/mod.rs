@@ -37,13 +37,16 @@ use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
 
 use bevy_log::{error, info, warn};
-use bevy_render::{render_resource::BindGroupLayoutDescriptor, renderer::RenderAdapterInfo};
-use systems::{EguiTextureId, EguiTransform};
-use wgpu_types::{
-    Backend, BlendState, ColorTargetState, ColorWrites, Extent3d, Features, Limits,
-    MultisampleState, PrimitiveState, SamplerBindingType, ShaderStages, TextureDimension,
-    TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
+use bevy_render::{
+    render_resource::{
+        BindGroupLayoutDescriptor, BlendState, ColorTargetState, ColorWrites, Extent3d,
+        MultisampleState, PrimitiveState, SamplerBindingType, ShaderStages, TextureDimension,
+        TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
+    },
+    renderer::RenderAdapterInfo,
 };
+use systems::{EguiTextureId, EguiTransform};
+use wgpu_types::{Backend, Features, Limits};
 
 mod render_pass;
 /// Plugin systems for the render app.

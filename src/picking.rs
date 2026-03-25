@@ -20,9 +20,9 @@ use bevy_picking::{
     mesh_picking::ray_cast::RayMeshHit,
     prelude::{MeshRayCast, MeshRayCastSettings, RayCastVisibility},
 };
+use bevy_render::render_resource::PrimitiveTopology;
 use bevy_transform::components::GlobalTransform;
 use bevy_window::PrimaryWindow;
-use wgpu_types::PrimitiveTopology;
 
 /// This component marks an Entity that displays Egui as an image for [`bevy_picking`] integration
 /// (currently, only [`bevy_mesh::Mesh2d`] or [`bevy_mesh::Mesh3d`] are supported for picking).

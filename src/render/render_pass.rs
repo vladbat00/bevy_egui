@@ -10,12 +10,11 @@ use bevy_ecs::{
 use bevy_math::{URect, UVec2};
 use bevy_render::{
     camera::ExtractedCamera,
-    render_resource::{PipelineCache, RenderPassDescriptor},
+    render_resource::{IndexFormat, PipelineCache, RenderPassDescriptor},
     renderer::{RenderContext, ViewQuery},
     sync_world::RenderEntity,
     view::{ExtractedView, ViewTarget},
 };
-use wgpu_types::IndexFormat;
 
 /// Prepare egui render pass
 pub fn prepare_egui_pass(world: &mut World) {
