@@ -7,6 +7,7 @@ use bevy_egui::{
     EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext, egui,
 };
+use egui::{LayerId, Ui, UiBuilder};
 use wgpu_types::BlendState;
 
 fn main() {
@@ -28,10 +29,18 @@ fn ui_example_system(
     window: Single<&mut Window, With<PrimaryWindow>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
+    let viewport_rect = ctx.viewport_rect();
+    let mut viewport_ui = Ui::new(
+        ctx.clone(),
+        "viewport".into(),
+        UiBuilder::new()
+            .layer_id(LayerId::background())
+            .max_rect(viewport_rect),
+    );
 
-    let mut left = egui::SidePanel::left("left_panel")
+    let mut left = egui::Panel::left("left_panel")
         .resizable(true)
-        .show(ctx, |ui| {
+        .show_inside(&mut viewport_ui, |ui| {
             ui.label("Left resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
@@ -39,9 +48,9 @@ fn ui_example_system(
         .rect
         .width(); // height is ignored, as the panel has a hight of 100% of the screen
 
-    let mut right = egui::SidePanel::right("right_panel")
+    let mut right = egui::Panel::right("right_panel")
         .resizable(true)
-        .show(ctx, |ui| {
+        .show_inside(&mut viewport_ui, |ui| {
             ui.label("Right resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
@@ -49,18 +58,18 @@ fn ui_example_system(
         .rect
         .width(); // height is ignored, as the panel has a height of 100% of the screen
 
-    let mut top = egui::TopBottomPanel::top("top_panel")
+    let mut top = egui::Panel::top("top_panel")
         .resizable(true)
-        .show(ctx, |ui| {
+        .show_inside(&mut viewport_ui, |ui| {
             ui.label("Top resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
         .response
         .rect
         .height(); // width is ignored, as the panel has a width of 100% of the screen
-    let mut bottom = egui::TopBottomPanel::bottom("bottom_panel")
+    let mut bottom = egui::Panel::bottom("bottom_panel")
         .resizable(true)
-        .show(ctx, |ui| {
+        .show_inside(&mut viewport_ui, |ui| {
             ui.label("Bottom resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })

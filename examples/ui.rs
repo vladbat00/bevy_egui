@@ -6,6 +6,7 @@ use bevy_egui::{
     EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
     EguiTextureHandle,
 };
+use egui::{LayerId, Ui, UiBuilder};
 
 #[derive(Resource)]
 struct Images {
@@ -156,6 +157,14 @@ fn ui_example_system(
     }
 
     let ctx = contexts.ctx_mut()?;
+    let viewport_rect = ctx.viewport_rect();
+    let mut viewport_ui = Ui::new(
+        ctx.clone(),
+        "viewport".into(),
+        UiBuilder::new()
+            .layer_id(LayerId::background())
+            .max_rect(viewport_rect),
+    );
 
     let egui_texture_handle = ui_state
         .egui_texture_handle
@@ -173,9 +182,9 @@ fn ui_example_system(
     let mut remove = false;
     let mut invert = false;
 
-    egui::SidePanel::left("side_panel")
-        .default_width(200.0)
-        .show(ctx, |ui| {
+    egui::Panel::left("side_panel")
+        .default_size(200.0)
+        .show_inside(&mut viewport_ui, |ui| {
             ui.heading("Side Panel");
 
             ui.horizontal(|ui| {
@@ -217,7 +226,7 @@ fn ui_example_system(
             });
         });
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    egui::Panel::top("top_panel").show_inside(&mut viewport_ui, |ui| {
         // The top panel is often a good place for a menu bar:
         egui::MenuBar::new().ui(ui, |ui| {
             egui::containers::menu::MenuButton::new("File").ui(ui, |ui| {
@@ -228,7 +237,7 @@ fn ui_example_system(
         });
     });
 
-    egui::CentralPanel::default().show(ctx, |ui| {
+    egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
         ui.heading("Egui Template");
         ui.hyperlink("https://github.com/emilk/egui_template");
         ui.add(egui::github_link_file_line!(

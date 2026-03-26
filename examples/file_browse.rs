@@ -21,6 +21,7 @@ mod foo {
         tasks::{AsyncComputeTaskPool, Task, block_on, poll_once},
     };
     use bevy_egui::{EguiContexts, egui};
+    use egui::{LayerId, Ui, UiBuilder};
 
     #[derive(Default)]
     pub struct MyState {
@@ -37,7 +38,15 @@ mod foo {
         mut file_dialog: Local<Option<Task<DialogResponse>>>,
     ) -> Result {
         let ctx = contexts.ctx_mut()?;
-        egui::CentralPanel::default().show(ctx, |ui| {
+        let viewport_rect = ctx.viewport_rect();
+        let mut viewport_ui = Ui::new(
+            ctx.clone(),
+            "viewport".into(),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(viewport_rect),
+        );
+        egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
             if let Some(file_response) = file_dialog
@@ -138,7 +147,7 @@ mod foo {
                 content_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading.resolve(&ctx.style()),
+                TextStyle::Heading.resolve(&ctx.global_style()),
                 Color32::WHITE,
             );
         }
