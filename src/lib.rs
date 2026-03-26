@@ -434,7 +434,7 @@ pub struct EnableMultipassForPrimaryContext;
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
 pub struct EguiContextSettings {
-    /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
+    /// If set to `true`, a user is expected to call [`egui::Context::run_ui`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
     pub run_manually: bool,
     /// Global scale factor for Egui widgets (`1.0` by default).
     ///
@@ -1400,11 +1400,10 @@ pub fn setup_accesskit_system(
             if let Some(window_entity) = window_to_egui_context_map
                 .context_to_window
                 .get(&new_context_entity)
+                && adapters.contains_key(window_entity)
             {
-                if adapters.contains_key(window_entity) {
-                    context.ctx.enable_accesskit();
-                    **manage_accessibility_updates = false;
-                }
+                context.ctx.enable_accesskit();
+                **manage_accessibility_updates = false;
             }
         }
     });
@@ -1557,7 +1556,7 @@ pub fn capture_pointer_input_system(
                     continue;
                 }
 
-                if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
+                if settings.capture_pointer_input && ctx.get_mut().egui_wants_pointer_input() {
                     let entry = (entity, HitData::new(entity, 0.0, None, None));
                     output.write(PointerHits::new(
                         *pointer,
@@ -1859,7 +1858,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
             );
         }
 
-        let output = ctx.run(input.take(), |_| {
+        let output = ctx.run_ui(input.take(), |_| {
             let _ = world.try_run_schedule(*multipass_schedule);
         });
 

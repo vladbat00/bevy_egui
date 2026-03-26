@@ -15,7 +15,7 @@ features = ["bevy_winit/x11", "immutable_ctx"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["manage_clipboard", "open_url", "default_fonts", "render", "bevy_ui", "picking"]
-accesskit = ["egui/accesskit", "bevy_a11y"]
+accesskit = ["bevy_a11y"]
 immutable_ctx = []
 manage_clipboard = ["arboard", "thread_local", "bytemuck", "egui/bytemuck"]
 open_url = ["webbrowser"]
@@ -83,7 +83,7 @@ name = "file_browse"
 required-features = ["render"]
 
 [dependencies]
-egui = { version = "0.33", default-features = false }
+egui = { version = "0.34", default-features = false }
 bevy_a11y = { git = "https://github.com/bevyengine/bevy.git", rev = "f1f57f6", optional = true }
 bevy_app = { git = "https://github.com/bevyengine/bevy.git", rev = "f1f57f6" }
 bevy_camera = { git = "https://github.com/bevyengine/bevy.git", rev = "f1f57f6" }
@@ -156,7 +156,7 @@ bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "f1f57f6", defaul
     "x11",
     "zstd_rust"
 ] }
-egui = { version = "0.33", default-features = false, features = ["bytemuck"] }
+egui = { version = "0.34", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "f1f57f6", default-features = false, features = ["accesskit_unix"] }
