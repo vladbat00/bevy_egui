@@ -1858,7 +1858,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
             );
         }
 
-        let output = ctx.run_ui(input.take(), |_| {
+        let output = ctx.run(input.take(), |_| {
             let _ = world.try_run_schedule(*multipass_schedule);
         });
 
