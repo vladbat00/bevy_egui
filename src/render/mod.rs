@@ -141,6 +141,7 @@ pub fn extract_egui_camera_view_system(
                         )),
                         color_grading: Default::default(),
                         invert_culling: false,
+                        compositing_space: None,
                     },
                     // Link to the main camera view.
                     EguiViewTarget(render_entity),
