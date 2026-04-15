@@ -551,6 +551,7 @@ pub fn write_mouse_wheel_messages_system(
             event: egui::Event::MouseWheel {
                 unit,
                 delta,
+                phase: egui::TouchPhase::Move,
                 modifiers,
             },
         });
@@ -1329,14 +1330,15 @@ pub fn write_egui_wants_input_system(
     for mut ctx in egui_context_query.iter_mut() {
         let egui_ctx = ctx.get_mut();
         egui_wants_input.is_pointer_over_area =
-            egui_wants_input.is_pointer_over_area || egui_ctx.is_pointer_over_area();
+            egui_wants_input.is_pointer_over_area || egui_ctx.is_pointer_over_egui();
         egui_wants_input.wants_pointer_input =
-            egui_wants_input.wants_pointer_input || egui_ctx.wants_pointer_input();
+            egui_wants_input.wants_pointer_input || egui_ctx.egui_wants_pointer_input();
         egui_wants_input.is_using_pointer =
-            egui_wants_input.is_using_pointer || egui_ctx.is_using_pointer();
+            egui_wants_input.is_using_pointer || egui_ctx.egui_is_using_pointer();
         egui_wants_input.wants_keyboard_input =
-            egui_wants_input.wants_keyboard_input || egui_ctx.wants_keyboard_input();
-        egui_wants_input.is_popup_open = egui_wants_input.is_popup_open || egui_ctx.is_popup_open();
+            egui_wants_input.wants_keyboard_input || egui_ctx.egui_wants_keyboard_input();
+        egui_wants_input.is_popup_open =
+            egui_wants_input.is_popup_open || egui_ctx.any_popup_open();
     }
 }
 
