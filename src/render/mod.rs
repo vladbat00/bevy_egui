@@ -15,9 +15,7 @@ use bevy_ecs::{
     system::{Commands, Local, ResMut},
     world::{FromWorld, World},
 };
-use bevy_image::{
-    BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
-};
+use bevy_image::{Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
 use bevy_math::{Mat4, UVec4};
 use bevy_mesh::VertexBufferLayout;
 use bevy_platform::collections::HashSet;
@@ -31,7 +29,7 @@ use bevy_render::{
     },
     renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
-    view::{ExtractedView, RetainedViewEntity, ViewTarget},
+    view::{ExtractedView, RetainedViewEntity},
 };
 use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
@@ -134,14 +132,17 @@ pub fn extract_egui_camera_view_system(
                             UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
                         ),
                         clip_from_world: None,
-                        hdr,
+                        target_format: if hdr {
+                            TextureFormat::Rgba16Float
+                        } else {
+                            TextureFormat::Rgba8UnormSrgb
+                        },
                         viewport: UVec4::from((
                             physical_viewport_rect.min,
                             physical_viewport_rect.size(),
                         )),
                         color_grading: Default::default(),
                         invert_culling: false,
-                        compositing_space: None,
                     },
                     // Link to the main camera view.
                     EguiViewTarget(render_entity),
@@ -297,8 +298,9 @@ impl EguiPipeline {
 /// Key for specialized pipeline.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct EguiPipelineKey {
-    /// Equals `true` for cameras that have the [`Hdr`] component.
-    pub hdr: bool,
+    /// It uses `TextureFormat::Rgba16Float` for cameras with HDR enabled,
+    /// otherwise it defaults to `TextureFormat::Rgba8UnormSrgb`.
+    pub target_format: TextureFormat,
 }
 
 impl SpecializedRenderPipeline for EguiPipeline {
@@ -337,11 +339,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
                 shader_defs,
                 entry_point: Some("fs_main".into()),
                 targets: vec![Some(ColorTargetState {
-                    format: if key.hdr {
-                        ViewTarget::TEXTURE_FORMAT_HDR
-                    } else {
-                        TextureFormat::bevy_default()
-                    },
+                    format: key.target_format,
                     blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
