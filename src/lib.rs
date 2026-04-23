@@ -153,11 +153,6 @@ use crate::text_agent::{
     is_mobile_safari, process_safari_virtual_keyboard_system,
     write_text_agent_channel_events_system,
 };
-#[cfg(all(
-    feature = "manage_clipboard",
-    not(any(target_arch = "wasm32", target_os = "android"))
-))]
-use arboard::Clipboard;
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
 use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
@@ -198,8 +193,30 @@ use output::process_output_system;
     not(any(target_arch = "wasm32", target_os = "android"))
 ))]
 use std::cell::{RefCell, RefMut};
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "manage_clipboard"
+))]
+use std::sync::{Arc, Mutex};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "manage_clipboard"
+))]
+use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 
 /// Adds all Egui resources and render graph nodes.
 pub struct EguiPlugin {
@@ -596,7 +613,18 @@ pub struct EguiFullOutput(pub Option<egui::FullOutput>);
 #[derive(Default, Resource)]
 pub struct EguiClipboard {
     #[cfg(not(target_arch = "wasm32"))]
-    clipboard: thread_local::ThreadLocal<Option<RefCell<Clipboard>>>,
+    clipboard: thread_local::ThreadLocal<Option<RefCell<arboard::Clipboard>>>,
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "manage_clipboard"
+    ))]
+    wayland_clipboard: Option<Arc<Mutex<smithay_clipboard::Clipboard>>>,
     #[cfg(target_arch = "wasm32")]
     clipboard: web_clipboard::WebClipboard,
 }
@@ -1326,12 +1354,12 @@ impl Plugin for EguiPlugin {
         );
     }
 
-    #[cfg(feature = "render")]
-    fn finish(&self, app: &mut App) {
-        #[cfg(feature = "bevy_ui")]
-        let bevy_ui_is_enabled = app.is_plugin_added::<bevy_ui_render::UiRenderPlugin>();
+    fn finish(&self, _app: &mut App) {
+        #[cfg(all(feature = "bevy_ui", feature = "render"))]
+        let bevy_ui_is_enabled = _app.is_plugin_added::<bevy_ui_render::UiRenderPlugin>();
 
-        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
+        #[cfg(feature = "render")]
+        if let Some(render_app) = _app.get_sub_app_mut(RenderApp) {
             render_app
                 .insert_resource(render::EguiRenderSettings {
                     bindless_mode_array_size: self.bindless_mode_array_size,
@@ -1416,6 +1444,36 @@ impl Plugin for EguiPlugin {
                 log::debug!(
                     "bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order"
                 )
+            }
+        }
+
+        // Init smithay-clipboard: it needs a wayland display handle
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "manage_clipboard"
+        ))]
+        if let Some(display_handle_wrapper) = _app
+            .world_mut()
+            .get_resource::<bevy_winit::DisplayHandleWrapper>()
+        {
+            let raw_display_handle = display_handle_wrapper
+                .0
+                .display_handle()
+                .ok()
+                .map(|h| h.as_raw());
+            if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
+                log::debug!("Initializing smithay clipboard");
+                let mut egui_clipboard = _app.world_mut().resource_mut::<EguiClipboard>();
+                // Safety: display is also stored as a resource and thus has the same lifetime
+                egui_clipboard.wayland_clipboard = Some(Arc::new(Mutex::new(unsafe {
+                    smithay_clipboard::Clipboard::new(display.display.as_ptr())
+                })));
             }
         }
     }
@@ -1524,6 +1582,23 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_text_impl(&mut self, contents: &str) {
+        // Try wayland first
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "manage_clipboard"
+        ))]
+        if let Some(wayland_clipboard) = &self.wayland_clipboard {
+            let wayland_clipboard = wayland_clipboard.lock().unwrap();
+            wayland_clipboard.store(contents);
+            return;
+        }
+
         if let Some(mut clipboard) = self.get()
             && let Err(err) = clipboard.set_text(contents.to_owned())
         {
@@ -1538,6 +1613,28 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn get_text_impl(&mut self) -> Option<String> {
+        // Try wayland first
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "manage_clipboard"
+        ))]
+        if let Some(wayland_clipboard) = &self.wayland_clipboard {
+            let wayland_clipboard = wayland_clipboard.lock().unwrap();
+            return match wayland_clipboard.load() {
+                Ok(text) => Some(text),
+                Err(err) => {
+                    log::error!("Failed to get clipboard content via smithay: {err}");
+                    None
+                }
+            };
+        }
+
         if let Some(mut clipboard) = self.get() {
             match clipboard.get_text() {
                 Ok(contents) => return Some(contents),
@@ -1557,6 +1654,22 @@ impl EguiClipboard {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_image_impl(&mut self, image: &egui::ColorImage) {
+        // Try wayland first
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "manage_clipboard"
+        ))]
+        if self.wayland_clipboard.is_some() {
+            log::error!("Setting image to clipboard via smithay is not supported");
+            return;
+        }
+
         if let Some(mut clipboard) = self.get()
             && let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
@@ -1574,13 +1687,13 @@ impl EguiClipboard {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn get(&self) -> Option<RefMut<'_, Clipboard>> {
+    fn get(&self) -> Option<RefMut<'_, arboard::Clipboard>> {
         self.clipboard
             .get_or(|| {
-                Clipboard::new()
+                arboard::Clipboard::new()
                     .map(RefCell::new)
                     .map_err(|err| {
-                        log::error!("Failed to initialize clipboard: {:?}", err);
+                        log::error!("Failed to initialize arboard clipboard: {:?}", err);
                     })
                     .ok()
             })
