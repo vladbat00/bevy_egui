@@ -1638,7 +1638,7 @@ pub fn capture_pointer_input_system(
                     continue;
                 }
 
-                if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
+                if settings.capture_pointer_input && ctx.get_mut().egui_wants_pointer_input() {
                     let entry = (entity, HitData::new(entity, 0.0, None, None));
                     output.write(PointerHits::new(
                         *pointer,
@@ -1940,7 +1940,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
             );
         }
 
-        let output = ctx.run(input.take(), |_| {
+        let output = ctx.run_ui(input.take(), |_| {
             let _ = world.try_run_schedule(*multipass_schedule);
         });
 
