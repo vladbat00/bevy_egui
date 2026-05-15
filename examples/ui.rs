@@ -309,7 +309,7 @@ impl Default for Painting {
     fn default() -> Self {
         Self {
             lines: Default::default(),
-            stroke: egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
+            stroke: egui::Stroke::new(1.0_f32, egui::Color32::LIGHT_BLUE),
         }
     }
 }

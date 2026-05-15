@@ -939,7 +939,9 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
     rect.max.x = rect.center().x;
 
     rect = rect.shrink(16.0);
-    for width in [0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0] {
+    for width in [
+        0.05_f32, 0.1_f32, 0.25_f32, 0.5_f32, 1.0_f32, 2.0_f32, 4.0_f32,
+    ] {
         painter.text(
             rect.left_top(),
             Align2::CENTER_CENTER,
