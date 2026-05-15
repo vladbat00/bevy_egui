@@ -19,9 +19,8 @@ use bevy_egui::{
     PrimaryEguiContext,
     render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
 };
-use bevy_render::view::ViewTarget;
 use std::path::Path;
-use wgpu_types::{Extent3d, TextureFormat, TextureUsages};
+use wgpu_types::{Extent3d, TextureUsages};
 
 fn main() {
     App::new()
