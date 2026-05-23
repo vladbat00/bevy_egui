@@ -29,13 +29,12 @@ fn ui_example_system(
     window: Single<&mut Window, With<PrimaryWindow>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
-    let viewport_rect = ctx.viewport_rect();
     let mut viewport_ui = Ui::new(
         ctx.clone(),
         "viewport".into(),
         UiBuilder::new()
             .layer_id(LayerId::background())
-            .max_rect(viewport_rect),
+            .max_rect(ctx.viewport_rect()),
     );
 
     let mut left = egui::Panel::left("left_panel")

@@ -226,13 +226,12 @@ fn ui_system(
     images: Res<Assets<bevy::image::Image>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
-    let viewport_rect = ctx.viewport_rect();
     let mut viewport_ui = Ui::new(
         ctx.clone(),
         "viewport".into(),
         UiBuilder::new()
             .layer_id(LayerId::background())
-            .max_rect(viewport_rect),
+            .max_rect(ctx.viewport_rect()),
     );
 
     app_state.top_panel_height = egui::Panel::top("top_panel")
@@ -294,13 +293,12 @@ fn render_to_image_ui_system<C: Component>(
     mut context: Single<&mut EguiContext, With<C>>,
 ) {
     let ctx = context.get_mut();
-    let viewport_rect = ctx.viewport_rect();
     let mut viewport_ui = Ui::new(
         ctx.clone(),
         "viewport".into(),
         UiBuilder::new()
             .layer_id(LayerId::background())
-            .max_rect(viewport_rect),
+            .max_rect(ctx.viewport_rect()),
     );
     egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {

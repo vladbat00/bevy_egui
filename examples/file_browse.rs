@@ -38,13 +38,12 @@ mod foo {
         mut file_dialog: Local<Option<Task<DialogResponse>>>,
     ) -> Result {
         let ctx = contexts.ctx_mut()?;
-        let viewport_rect = ctx.viewport_rect();
         let mut viewport_ui = Ui::new(
             ctx.clone(),
             "viewport".into(),
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(viewport_rect),
+                .max_rect(ctx.viewport_rect()),
         );
         egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");

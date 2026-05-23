@@ -6,7 +6,6 @@ use bevy_egui::{
     EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
     EguiTextureHandle,
 };
-use egui::{LayerId, Ui, UiBuilder};
 
 #[derive(Resource)]
 struct Images {
@@ -157,13 +156,12 @@ fn ui_example_system(
     }
 
     let ctx = contexts.ctx_mut()?;
-    let viewport_rect = ctx.viewport_rect();
-    let mut viewport_ui = Ui::new(
+    let mut viewport_ui = egui::Ui::new(
         ctx.clone(),
         "viewport".into(),
-        UiBuilder::new()
-            .layer_id(LayerId::background())
-            .max_rect(viewport_rect),
+        egui::UiBuilder::new()
+            .layer_id(egui::LayerId::background())
+            .max_rect(ctx.viewport_rect()),
     );
 
     let egui_texture_handle = ui_state
