@@ -1269,27 +1269,25 @@ impl Plugin for EguiPlugin {
                 return;
             };
 
-            let mut egui_pass_2d = render::egui_pass
+            let egui_pass_2d = render::egui_pass
                 .after(Core2dSystems::MainPass)
                 .before(upscaling);
-            let mut egui_pass_3d = render::egui_pass
+            let egui_pass_3d = render::egui_pass
                 .after(Core3dSystems::MainPass)
                 .before(upscaling);
 
             #[cfg(feature = "bevy_ui")]
-            {
+            let (egui_pass_2d, egui_pass_3d) = {
                 use bevy_ui_render::ui_pass;
                 match self.ui_render_order {
                     UiRenderOrder::EguiAboveBevyUi => {
-                        egui_pass_2d = egui_pass_2d.after(ui_pass);
-                        egui_pass_3d = egui_pass_3d.after(ui_pass);
+                        (egui_pass_2d.after(ui_pass), egui_pass_3d.after(ui_pass))
                     }
                     UiRenderOrder::BevyUiAboveEgui => {
-                        egui_pass_2d = egui_pass_2d.before(ui_pass);
-                        egui_pass_3d = egui_pass_3d.before(ui_pass);
+                        (egui_pass_2d.before(ui_pass), egui_pass_3d.before(ui_pass))
                     }
                 }
-            }
+            };
 
             render_app.add_systems(Core2d, (prepare_egui_pass, egui_pass_2d).chain());
             render_app.add_systems(Core3d, (prepare_egui_pass, egui_pass_3d).chain());
