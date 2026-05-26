@@ -2,7 +2,6 @@ use crate::{
     EguiContext, helpers,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
-use bevy_asset::Assets;
 use bevy_camera::{Camera, NormalizedRenderTarget, RenderTarget};
 use bevy_ecs::{
     change_detection::Res,
@@ -10,17 +9,15 @@ use bevy_ecs::{
     entity::Entity,
     error::Result,
     observer::On,
-    prelude::{AnyOf, Commands, Query, With},
+    prelude::{Commands, Query, With},
 };
-use bevy_math::{Ray3d, Vec2};
-use bevy_mesh::{Indices, Mesh, Mesh2d, Mesh3d, VertexAttributeValues};
+use bevy_math::Ray3d;
 use bevy_picking::{
     Pickable,
     events::{Move, Out, Over, Pointer},
     mesh_picking::ray_cast::RayMeshHit,
     prelude::{MeshRayCast, MeshRayCastSettings, RayCastVisibility},
 };
-use bevy_render::render_resource::PrimitiveTopology;
 use bevy_transform::components::GlobalTransform;
 use bevy_window::PrimaryWindow;
 
@@ -36,9 +33,8 @@ pub fn handle_move_system(
     mut mesh_ray_cast: MeshRayCast,
     mut egui_pointers: Query<&mut EguiContextPointerPosition>,
     egui_contexts: Query<(&Camera, &GlobalTransform, &RenderTarget), With<EguiContext>>,
-    pickable_egui_context_query: Query<(&PickableEguiContext, AnyOf<(&Mesh2d, &Mesh3d)>)>,
+    pickable_egui_context_query: Query<&PickableEguiContext>,
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
-    meshes: Res<Assets<Mesh>>,
 ) -> Result {
     let NormalizedRenderTarget::Window(_) = event.pointer_location.target else {
         return Ok(());
@@ -66,63 +62,14 @@ pub fn handle_move_system(
     ) else {
         return Ok(());
     };
-    let &[
-        (
-            hit_entity,
-            RayMeshHit {
-                triangle_index: Some(triangle_index),
-                barycentric_coords,
-                ..
-            },
-        ),
-    ] = mesh_ray_cast.cast_ray(ray, &settings)
+    let &[(hit_entity, RayMeshHit { uv: Some(uv), .. })] = mesh_ray_cast.cast_ray(ray, &settings)
     else {
         return Ok(());
     };
 
     // At this point, we expect that the context exists, since we checked that with the ray cast filter.
-    let (&PickableEguiContext(context), mesh) = pickable_egui_context_query.get(hit_entity)?;
+    let &PickableEguiContext(context) = pickable_egui_context_query.get(hit_entity)?;
     let (egui_mesh_camera, _, _) = egui_contexts.get(context)?;
-
-    // Read triangle indices and the respective UVs of the mesh.
-    let handle = match mesh {
-        (Some(handle), None) => handle.0.clone(),
-        (None, Some(handle)) => handle.0.clone(),
-        _ => unreachable!(),
-    };
-    let Some(mesh) = meshes.get(handle.id()) else {
-        return Ok(());
-    };
-    // The bevy_picking ray cast backend expects only the TriangleList primitive topology (at least that was the case at the moment of writing).
-    if mesh.primitive_topology() != PrimitiveTopology::TriangleList {
-        panic!(
-            "Unexpected primitive topology for a picked mesh ({:?}): {:?}",
-            event.observer(),
-            mesh.primitive_topology()
-        );
-    }
-    let Some(indices) = mesh.indices() else {
-        return Ok(());
-    };
-    let Some(uv_values) =
-        mesh.attribute(Mesh::ATTRIBUTE_UV_0)
-            .and_then(|values| match (values, indices) {
-                (VertexAttributeValues::Float32x2(uvs), Indices::U16(indices)) => {
-                    uv_values_for_triangle(indices, triangle_index, uvs)
-                }
-                (VertexAttributeValues::Float32x2(uvs), Indices::U32(indices)) => {
-                    uv_values_for_triangle(indices, triangle_index, uvs)
-                }
-                _ => None,
-            })
-    else {
-        return Ok(());
-    };
-
-    // Interpolate UVs based on the barycentric coordinates.
-    let uv = Vec2::from_array(uv_values[0]) * barycentric_coords.x
-        + Vec2::from_array(uv_values[1]) * barycentric_coords.y
-        + Vec2::from_array(uv_values[2]) * barycentric_coords.z;
 
     // The only thing we need to do here from the Egui context perspective is to update the `EguiContextPointerPosition` component.
     // Other input systems will take care of the rest.
@@ -140,7 +87,7 @@ pub fn handle_over_system(
     pickable_egui_context_query: Query<&PickableEguiContext>,
     mut commands: Commands,
 ) {
-    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer()) {
+    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.entity) {
         commands.insert_resource(HoveredNonWindowEguiContext(context));
     }
 }
@@ -152,29 +99,13 @@ pub fn handle_out_system(
     mut commands: Commands,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
 ) {
-    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.observer())
+    if let Ok(&PickableEguiContext(context)) = pickable_egui_context_query.get(event.entity)
         && hovered_non_window_egui_context
             .as_deref()
             .is_some_and(|&HoveredNonWindowEguiContext(hovered_context)| hovered_context == context)
     {
         commands.remove_resource::<HoveredNonWindowEguiContext>();
     }
-}
-
-fn uv_values_for_triangle<I: TryInto<usize> + Clone + Copy>(
-    indices: &[I],
-    triangle_index: usize,
-    values: &[[f32; 2]],
-) -> Option<[[f32; 2]; 3]> {
-    if !indices.len().is_multiple_of(3) || triangle_index >= indices.len() {
-        return None;
-    }
-
-    let i0 = indices[triangle_index * 3].try_into().ok()?;
-    let i1 = indices[triangle_index * 3 + 1].try_into().ok()?;
-    let i2 = indices[triangle_index * 3 + 2].try_into().ok()?;
-
-    Some([*values.get(i1)?, *values.get(i2)?, *values.get(i0)?])
 }
 
 fn make_ray(
