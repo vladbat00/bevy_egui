@@ -996,7 +996,7 @@ impl Plugin for EguiPlugin {
         }
 
         #[cfg(target_arch = "wasm32")]
-        app.init_non_send_resource::<SubscribedEvents>();
+        app.init_non_send::<SubscribedEvents>();
 
         #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
         app.init_resource::<EguiClipboard>();
