@@ -78,7 +78,7 @@ fn premultiply_alpha_for_images_system(
         if let AssetEvent::LoadedWithDependencies { id } = asset_event
             && (*id == images.bevy_icon.id() || *id == images.bevy_icon_inverted.id())
         {
-            let image = assets.get_mut(*id).expect("should have loaded image");
+            let mut image = assets.get_mut(*id).expect("should have loaded image");
             for x in 0..image.width() {
                 for y in 0..image.height() {
                     let mut color = image
@@ -156,6 +156,13 @@ fn ui_example_system(
     }
 
     let ctx = contexts.ctx_mut()?;
+    let mut viewport_ui = egui::Ui::new(
+        ctx.clone(),
+        "viewport".into(),
+        egui::UiBuilder::new()
+            .layer_id(egui::LayerId::background())
+            .max_rect(ctx.viewport_rect()),
+    );
 
     let egui_texture_handle = ui_state
         .egui_texture_handle
@@ -173,9 +180,9 @@ fn ui_example_system(
     let mut remove = false;
     let mut invert = false;
 
-    egui::SidePanel::left("side_panel")
-        .default_width(200.0)
-        .show(ctx, |ui| {
+    egui::Panel::left("side_panel")
+        .default_size(200.0)
+        .show_inside(&mut viewport_ui, |ui| {
             ui.heading("Side Panel");
 
             ui.horizontal(|ui| {
@@ -217,7 +224,7 @@ fn ui_example_system(
             });
         });
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    egui::Panel::top("top_panel").show_inside(&mut viewport_ui, |ui| {
         // The top panel is often a good place for a menu bar:
         egui::MenuBar::new().ui(ui, |ui| {
             egui::containers::menu::MenuButton::new("File").ui(ui, |ui| {
@@ -228,7 +235,7 @@ fn ui_example_system(
         });
     });
 
-    egui::CentralPanel::default().show(ctx, |ui| {
+    egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
         ui.heading("Egui Template");
         ui.hyperlink("https://github.com/emilk/egui_template");
         ui.add(egui::github_link_file_line!(
@@ -300,7 +307,7 @@ impl Default for Painting {
     fn default() -> Self {
         Self {
             lines: Default::default(),
-            stroke: egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
+            stroke: egui::Stroke::new(1.0_f32, egui::Color32::LIGHT_BLUE),
         }
     }
 }

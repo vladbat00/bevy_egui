@@ -18,8 +18,9 @@ use bevy_render::{
     extract_resource::ExtractResource,
     render_asset::RenderAssets,
     render_resource::{
-        BindGroup, BindGroupEntry, BindingResource, Buffer, BufferDescriptor, BufferId,
-        CachedRenderPipelineId, DynamicUniformBuffer, PipelineCache, SpecializedRenderPipelines,
+        BindGroup, BindGroupEntry, BindingResource, Buffer, BufferAddress, BufferDescriptor,
+        BufferId, BufferUsages, CachedRenderPipelineId, DynamicUniformBuffer, PipelineCache,
+        SpecializedRenderPipelines,
     },
     renderer::{RenderDevice, RenderQueue},
     sync_world::{MainEntity, RenderEntity},
@@ -28,7 +29,7 @@ use bevy_render::{
 };
 use bytemuck::cast_slice;
 use itertools::Itertools;
-use wgpu_types::{BufferAddress, BufferUsages};
+use wgpu_types::TextureFormat;
 
 /// Extracted Egui settings.
 #[derive(Resource, Deref, DerefMut, Default)]
@@ -277,7 +278,11 @@ pub fn queue_pipelines_system(
                 &pipeline_cache,
                 &egui_pipeline,
                 EguiPipelineKey {
-                    hdr: extracted_camera.hdr,
+                    target_format: if extracted_camera.hdr {
+                        TextureFormat::Rgba16Float
+                    } else {
+                        TextureFormat::Rgba8UnormSrgb
+                    },
                 },
             );
             Some((*main_entity, pipeline_id))
@@ -365,7 +370,7 @@ pub fn prepare_egui_render_target_data_system(
             continue;
         };
         data.key = Some(EguiPipelineKey {
-            hdr: extracted_camera.hdr,
+            target_format: view.target_format,
         });
 
         data.pixels_per_point = computed_scale_factor.scale_factor;

@@ -209,7 +209,7 @@ fn handle_drag_system(
     >,
     mut mesh_egui_context: Single<&mut EguiContext, Without<PrimaryEguiContext>>,
 ) {
-    if mesh_egui_context.get_mut().wants_pointer_input() {
+    if mesh_egui_context.get_mut().egui_wants_pointer_input() {
         return;
     }
 
