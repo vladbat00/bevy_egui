@@ -431,7 +431,7 @@ pub(crate) fn texture_options_as_sampler_descriptor(
     }
 }
 
-/// Callback to execute custom 'wgpu' rendering inside [`EguiPassNode`] render graph node.
+/// Callback to execute custom 'wgpu' rendering inside [`egui_pass`].
 ///
 /// Rendering can be implemented using for example:
 /// * native wgpu rendering libraries,
@@ -456,9 +456,9 @@ impl EguiBevyPaintCallback {
     }
 }
 
-/// Callback that executes custom rendering logic
+/// Callback that executes custom rendering logic.
 pub trait EguiBevyPaintCallbackImpl: Send + Sync {
-    /// Paint callback will be rendered in near future, all data must be finalized for render step
+    /// Paint callback will be rendered in near future, all data must be finalized for render step.
     fn update(
         &self,
         info: egui::PaintCallbackInfo,
@@ -467,11 +467,10 @@ pub trait EguiBevyPaintCallbackImpl: Send + Sync {
         world: &mut World,
     );
 
-    /// Paint callback call before render step
-    ///
+    /// Paint callback call before render step.
     ///
     /// Can be used to implement custom render passes
-    /// or to submit command buffers for execution before egui render pass
+    /// or to submit command buffers for execution before egui render pass.
     fn prepare_render<'w, 's>(
         &self,
         info: egui::PaintCallbackInfo,

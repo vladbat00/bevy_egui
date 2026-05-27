@@ -607,7 +607,7 @@ pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
     /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`])
-    /// and processed during [`render::EguiPassNode`]'s `update`.
+    /// and processed during [`render::systems::prepare_egui_render_target_data_system`].
     pub paint_jobs: Vec<egui::ClippedPrimitive>,
     /// The change in egui textures since last frame.
     pub textures_delta: egui::TexturesDelta,
