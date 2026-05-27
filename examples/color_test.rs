@@ -164,15 +164,16 @@ fn update_image_size_system(
         let mut image = images
             .get_mut(image_handle)
             .expect("Expected a created image");
-        (image.data.as_mut().expect("image data"))
-            .resize((window.physical_width() * new_height * 4) as usize, 0);
-        image.texture_descriptor.size.width = window.physical_width();
-        image.texture_descriptor.size.height = new_height;
+        image.resize(Extent3d {
+            width: window.physical_width(),
+            height: new_height,
+            depth_or_array_layers: 1,
+        });
     }
 
     let (mesh_handle, material, mut transform) = egui_mesh.into_inner();
     // Mark the material as dirty for change detection to react to the image update.
-    materials.get_mut(material.id()).unwrap();
+    materials.get_mut(material.id()).unwrap().deref_mut();
     *meshes
         .get_mut(mesh_handle)
         .expect("Expected a created mesh") =
@@ -318,7 +319,7 @@ use egui::{
     Shape, Stroke, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, emath::GuiRounding, epaint,
     lerp, pos2, vec2, widgets::color_picker::show_color,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::DerefMut};
 use wgpu_types::{Extent3d, TextureUsages};
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
