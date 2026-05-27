@@ -146,13 +146,13 @@ pub mod prelude {
 
 pub use egui;
 
+use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     SafariVirtualKeyboardTouchState, TextAgentChannel, VirtualTouchInfo, install_text_agent_system,
     is_mobile_safari, process_safari_virtual_keyboard_system,
     write_text_agent_channel_events_system,
 };
-use crate::{input::*, render::prepare_egui_pass};
 #[cfg(all(
     feature = "manage_clipboard",
     not(any(target_arch = "wasm32", target_os = "android"))
@@ -163,7 +163,6 @@ use bevy_app::prelude::*;
 use bevy_asset::{AssetEvent, AssetId, AssetMut, Assets, Handle, load_internal_asset};
 #[cfg(feature = "picking")]
 use bevy_camera::NormalizedRenderTarget;
-use bevy_core_pipeline::{Core2d, Core2dSystems, Core3d, Core3dSystems, upscaling::upscaling};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     lifecycle::HookContext,
@@ -1270,11 +1269,11 @@ impl Plugin for EguiPlugin {
             };
 
             let egui_pass_2d = render::egui_pass
-                .after(Core2dSystems::MainPass)
-                .before(upscaling);
+                .after(bevy_core_pipeline::Core2dSystems::MainPass)
+                .before(bevy_core_pipeline::upscaling::upscaling);
             let egui_pass_3d = render::egui_pass
-                .after(Core3dSystems::MainPass)
-                .before(upscaling);
+                .after(bevy_core_pipeline::Core3dSystems::MainPass)
+                .before(bevy_core_pipeline::upscaling::upscaling);
 
             #[cfg(feature = "bevy_ui")]
             let (egui_pass_2d, egui_pass_3d) = {
@@ -1289,8 +1288,14 @@ impl Plugin for EguiPlugin {
                 }
             };
 
-            render_app.add_systems(Core2d, (prepare_egui_pass, egui_pass_2d).chain());
-            render_app.add_systems(Core3d, (prepare_egui_pass, egui_pass_3d).chain());
+            render_app.add_systems(
+                bevy_core_pipeline::Core2d,
+                (render::prepare_egui_pass, egui_pass_2d).chain(),
+            );
+            render_app.add_systems(
+                bevy_core_pipeline::Core3d,
+                (render::prepare_egui_pass, egui_pass_3d).chain(),
+            );
         }
 
         #[cfg(feature = "accesskit")]
