@@ -17,7 +17,7 @@ features = ["bevy_winit/x11", "immutable_ctx"]
 default = ["manage_clipboard", "open_url", "default_fonts", "render", "bevy_ui", "picking"]
 accesskit = ["bevy_a11y"]
 immutable_ctx = []
-manage_clipboard = ["arboard", "thread_local", "bytemuck", "egui/bytemuck"]
+manage_clipboard = ["arboard", "thread_local", "bytemuck", "egui/bytemuck", "smithay-clipboard"]
 open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
 render = [
@@ -37,6 +37,7 @@ render = [
 ]
 bevy_ui = [
     "bevy_ui_render",
+    "render",
 ]
 picking = ["render", "bevy_picking"]
 serde = ["egui/serde"]
@@ -128,6 +129,8 @@ bevy_picking = { version = "0.19.0-rc.2", optional = true, features = ["mesh_pic
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 arboard = { version = "3.2.0", optional = true }
 thread_local = { version = "1.1.0", optional = true }
+[target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
+smithay-clipboard = { version = "0.7.2", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
