@@ -4,9 +4,8 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{
-    EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
-    EguiMultipassSchedule, EguiOutput, EguiPlugin, EguiPrimaryContextPass, EguiRenderOutput,
-    EguiTextureHandle, EguiZoomFactor, PrimaryEguiContext,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiInputSet, EguiMultipassSchedule, EguiPlugin,
+    EguiPrimaryContextPass, EguiTextureHandle, EguiZoomFactor, PrimaryEguiContext,
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
@@ -190,13 +189,10 @@ fn update_egui_hovered_context(
         Entity,
         &mut EguiContextPointerPosition,
         &EguiZoomFactor,
-        &EguiOutput,
         AnyOf<(&MeshImageEguiContext, &EguiTextureImageEguiContext)>,
     )>,
 ) {
-    for (entity, mut context_pointer_position, egui_zoom_factor, egui_output, tag) in
-        egui_contexts.iter_mut()
-    {
+    for (entity, mut context_pointer_position, egui_zoom_factor, tag) in egui_contexts.iter_mut() {
         if !matches!(
             (&app_state.displayed_ui, tag),
             (DisplayedUi::MeshImage, (Some(MeshImageEguiContext), None))
