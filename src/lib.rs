@@ -1386,7 +1386,7 @@ impl Plugin for EguiPlugin {
             ),
             feature = "manage_clipboard"
         ))]
-        if let Some(display_handle_wrapper) = _app
+        if let Some(display_handle_wrapper) = app
             .world_mut()
             .get_resource::<bevy_winit::DisplayHandleWrapper>()
         {
@@ -1397,7 +1397,7 @@ impl Plugin for EguiPlugin {
                 .map(|h| h.as_raw());
             if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
                 log::debug!("Initializing smithay clipboard");
-                let mut egui_clipboard = _app.world_mut().resource_mut::<EguiClipboard>();
+                let mut egui_clipboard = app.world_mut().resource_mut::<EguiClipboard>();
                 // Safety: display is also stored as a resource and thus has the same lifetime
                 egui_clipboard.wayland_clipboard = Some(Arc::new(Mutex::new(unsafe {
                     smithay_clipboard::Clipboard::new(display.display.as_ptr())
