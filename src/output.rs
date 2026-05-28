@@ -53,6 +53,7 @@ pub fn process_output_system(
         render_output.paint_jobs = paint_jobs;
         render_output.textures_delta = textures_delta;
         egui_output.platform_output = platform_output;
+        egui_output.pixels_per_point = pixels_per_point;
 
         for command in &egui_output.platform_output.commands {
             match command {

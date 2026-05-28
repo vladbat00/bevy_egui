@@ -437,24 +437,10 @@ impl Default for EguiGlobalSettings {
 pub struct EnableMultipassForPrimaryContext;
 
 /// A component for storing Egui context settings.
-#[derive(Clone, Debug, Component, Reflect)]
+#[derive(Clone, Debug, Component, PartialEq, Eq, Reflect)]
 pub struct EguiContextSettings {
     /// If set to `true`, a user is expected to call [`egui::Context::run_ui`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
     pub run_manually: bool,
-    /// Global scale factor for Egui widgets (`1.0` by default).
-    ///
-    /// This setting can be used to force the UI to render in physical pixels regardless of DPI as follows:
-    /// ```rust
-    /// use bevy::{prelude::*, window::PrimaryWindow};
-    /// use bevy_egui::EguiContextSettings;
-    ///
-    /// fn update_ui_scale_factor(mut egui_contexts: Query<(&mut EguiContextSettings, &Camera)>) {
-    ///     for (mut egui_settings, camera) in egui_contexts {
-    ///         egui_settings.scale_factor = 1.0 / camera.target_scaling_factor().unwrap_or(1.0);
-    ///     }
-    /// }
-    /// ```
-    pub scale_factor: f32,
     /// Is used as a default value for hyperlink [target](https://www.w3schools.com/tags/att_a_target.asp) hints.
     /// If not specified, `_self` will be used. Only matters in a web browser.
     #[cfg(feature = "open_url")]
@@ -473,22 +459,10 @@ pub struct EguiContextSettings {
     pub enable_ime: bool,
 }
 
-// Just to keep the PartialEq
-impl PartialEq for EguiContextSettings {
-    #[allow(clippy::let_and_return)]
-    fn eq(&self, other: &Self) -> bool {
-        let eq = self.scale_factor == other.scale_factor;
-        #[cfg(feature = "open_url")]
-        let eq = eq && self.default_open_url_target == other.default_open_url_target;
-        eq
-    }
-}
-
 impl Default for EguiContextSettings {
     fn default() -> Self {
         Self {
             run_manually: false,
-            scale_factor: 1.0,
             #[cfg(feature = "open_url")]
             default_open_url_target: None,
             #[cfg(feature = "picking")]
@@ -641,10 +615,24 @@ impl EguiRenderOutput {
 }
 
 /// Stores last Egui output.
-#[derive(Component, Clone, Default)]
+///
+/// The component gets updated during [`process_output_system`]
+/// (in the [`EguiPostUpdateSet::ProcessOutput`] set, belonging to [`PostUpdate`]).
+#[derive(Component, Clone)]
 pub struct EguiOutput {
-    /// The field gets updated during [`process_output_system`] (in the [`EguiPostUpdateSet::ProcessOutput`] set, belonging to [`PostUpdate`]).
+    /// Corresponds to [`egui::FullOutput::platform_output`].
     pub platform_output: egui::PlatformOutput,
+    /// Corresponds to [`egui::FullOutput::pixels_per_point`].
+    pub pixels_per_point: f32,
+}
+
+impl Default for EguiOutput {
+    fn default() -> Self {
+        Self {
+            platform_output: egui::PlatformOutput::default(),
+            pixels_per_point: 1.0,
+        }
+    }
 }
 
 /// A component for storing `bevy_egui` context.
@@ -652,6 +640,7 @@ pub struct EguiOutput {
 #[require(
     EguiContextSettings,
     EguiInput,
+    EguiZoomFactor,
     EguiContextPointerPosition,
     EguiContextPointerTouchId,
     EguiContextImeState,
@@ -927,12 +916,32 @@ impl From<EguiTextureHandle> for AssetId<Image> {
     }
 }
 
-/// Stores physical size and scale factor, is used as a helper to calculate logical size.
-/// The component lives only in the Render world.
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-pub struct RenderComputedScaleFactor {
-    /// Scale factor ([`EguiContextSettings::scale_factor`] multiplied by [`bevy_camera::Camera::target_scaling_factor`]).
-    pub scale_factor: f32,
+/// Reflects the egui's zoom factor value. The component lives in the main world.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct EguiZoomFactor {
+    /// Corresponds to [`egui::Context::zoom_factor`].
+    pub zoom_factor: f32,
+}
+
+impl Default for EguiZoomFactor {
+    fn default() -> Self {
+        Self { zoom_factor: 1.0 }
+    }
+}
+
+/// Reflects the egui's pixels per point value. The component lives only in the render world.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct EguiPixelsPerPoint {
+    /// Corresponds to [`egui::FullOutput::pixels_per_point`].
+    pub pixels_per_point: f32,
+}
+
+impl Default for EguiPixelsPerPoint {
+    fn default() -> Self {
+        Self {
+            pixels_per_point: 1.0,
+        }
+    }
 }
 
 /// The names of `bevy_egui` nodes.
@@ -1072,7 +1081,7 @@ impl Plugin for EguiPlugin {
             (
                 (setup_primary_egui_context_system, ApplyDeferred)
                     .run_if(|s: Res<EguiGlobalSettings>| s.auto_create_primary_context),
-                update_ui_size_and_scale_system,
+                update_ui_screen_rect,
             )
                 .chain()
                 .in_set(EguiStartupSet::InitContexts),
@@ -1089,7 +1098,7 @@ impl Plugin for EguiPlugin {
                 ApplyDeferred,
                 #[cfg(feature = "accesskit")]
                 setup_accesskit_system,
-                update_ui_size_and_scale_system,
+                update_ui_screen_rect,
             )
                 .chain()
                 .in_set(EguiPreUpdateSet::InitContexts),
@@ -1101,9 +1110,12 @@ impl Plugin for EguiPlugin {
                     write_modifiers_keys_state_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_modifiers_keys_state_system
                     })),
-                    write_window_pointer_moved_messages_system.run_if(input_system_is_enabled(
-                        |s| s.run_write_window_pointer_moved_messages_system,
-                    )),
+                    read_egui_zoom_factor_system,
+                    write_window_pointer_moved_messages_system
+                        .run_if(input_system_is_enabled(|s| {
+                            s.run_write_window_pointer_moved_messages_system
+                        }))
+                        .after(read_egui_zoom_factor_system),
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
@@ -1848,30 +1860,29 @@ pub struct UpdateUiSizeAndScaleQuery {
     ctx: &'static mut EguiContext,
     egui_input: &'static mut EguiInput,
     egui_settings: &'static EguiContextSettings,
+    egui_output: &'static EguiOutput,
     camera: &'static bevy_camera::Camera,
 }
 
-/// Updates UI [`egui::RawInput::screen_rect`] and calls [`egui::Context::set_pixels_per_point`].
-pub fn update_ui_size_and_scale_system(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
+/// Updates UI [`egui::RawInput::screen_rect`].
+pub fn update_ui_screen_rect(mut contexts: Query<UpdateUiSizeAndScaleQuery>) {
     for mut context in contexts.iter_mut() {
-        let Some((scale_factor, viewport_rect)) = context
-            .camera
-            .target_scaling_factor()
-            .map(|scale_factor| scale_factor * context.egui_settings.scale_factor)
-            .zip(context.camera.physical_viewport_rect())
-        else {
+        let Some(viewport_rect) = context.camera.physical_viewport_rect() else {
             continue;
         };
 
         let viewport_rect = egui::Rect {
-            min: helpers::vec2_into_egui_pos2(viewport_rect.min.as_vec2() / scale_factor),
-            max: helpers::vec2_into_egui_pos2(viewport_rect.max.as_vec2() / scale_factor),
+            min: helpers::vec2_into_egui_pos2(
+                viewport_rect.min.as_vec2() / context.egui_output.pixels_per_point,
+            ),
+            max: helpers::vec2_into_egui_pos2(
+                viewport_rect.max.as_vec2() / context.egui_output.pixels_per_point,
+            ),
         };
         if viewport_rect.width() < 1.0 || viewport_rect.height() < 1.0 {
             continue;
         }
         context.egui_input.screen_rect = Some(viewport_rect);
-        context.ctx.get_mut().set_pixels_per_point(scale_factor);
     }
 }
 

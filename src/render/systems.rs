@@ -1,6 +1,6 @@
 use crate::{
-    EguiContextSettings, EguiManagedTextures, EguiRenderOutput, EguiUserTextures,
-    RenderComputedScaleFactor,
+    EguiContextSettings, EguiManagedTextures, EguiPixelsPerPoint, EguiRenderOutput,
+    EguiUserTextures,
     render::{
         DrawCommand, DrawPrimitive, EguiBevyPaintCallback, EguiCameraView, EguiDraw, EguiPipeline,
         EguiPipelineKey, EguiViewTarget, PaintCallbackDraw,
@@ -100,14 +100,14 @@ pub struct EguiTransforms {
 /// the screen space with the center at (0, 0) to the normalised viewport space.
 #[derive(encase::ShaderType, Default)]
 pub struct EguiTransform {
-    /// Is affected by render target size, scale factor and [`EguiContextSettings::scale_factor`].
+    /// Is affected by render target size and [`EguiPixelsPerPoint::pixels_per_point`].
     pub scale: Vec2,
     /// Normally equals `Vec2::new(-1.0, 1.0)`.
     pub translation: Vec2,
 }
 
 impl EguiTransform {
-    /// Calculates the transform from target size and target scale factor multiplied by [`EguiContextSettings::scale_factor`].
+    /// Calculates the transform from the target size multiplied by [`EguiPixelsPerPoint::pixels_per_point`].
     pub fn new(target_size: Vec2, scale_factor: f32) -> Self {
         EguiTransform {
             scale: Vec2::new(
@@ -122,7 +122,7 @@ impl EguiTransform {
 /// Prepares Egui transforms.
 pub fn prepare_egui_transforms_system(
     mut egui_transforms: ResMut<EguiTransforms>,
-    views: Query<&RenderComputedScaleFactor>,
+    views: Query<&EguiPixelsPerPoint>,
     render_targets: Query<(&ExtractedView, &ExtractedCamera, &EguiCameraView)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
@@ -137,7 +137,9 @@ pub fn prepare_egui_transforms_system(
             continue;
         };
 
-        let &RenderComputedScaleFactor { scale_factor } = views.get(egui_camera_view.0)?;
+        let &EguiPixelsPerPoint {
+            pixels_per_point: scale_factor,
+        } = views.get(egui_camera_view.0)?;
         let offset = egui_transforms
             .buffer
             .push(&EguiTransform::new(target_size.as_vec2(), scale_factor));
@@ -325,7 +327,7 @@ impl Default for EguiRenderTargetData {
             index_buffer: None,
             draw_commands: Vec::new(),
             postponed_updates: Vec::new(),
-            pixels_per_point: 0.0,
+            pixels_per_point: 1.0,
             target_size: UVec2::ZERO,
             key: None,
         }
@@ -338,7 +340,7 @@ pub fn prepare_egui_render_target_data_system(
     render_targets: Query<(
         Entity,
         &ExtractedView,
-        &RenderComputedScaleFactor,
+        &EguiPixelsPerPoint,
         &EguiViewTarget,
         &EguiRenderOutput,
     )>,
@@ -373,7 +375,7 @@ pub fn prepare_egui_render_target_data_system(
             target_format: view.target_format,
         });
 
-        data.pixels_per_point = computed_scale_factor.scale_factor;
+        data.pixels_per_point = computed_scale_factor.pixels_per_point;
         if extracted_camera
             .physical_viewport_size
             .is_none_or(|size| size.x < 1 || size.y < 1)

@@ -3,7 +3,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_egui::{
-    EguiContextSettings, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
+    EguiContext, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
     EguiTextureHandle,
 };
 
@@ -123,9 +123,9 @@ fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
 fn update_ui_scale_factor_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut toggle_scale_factor: Local<Option<bool>>,
-    egui_context: Single<(&mut EguiContextSettings, &Camera)>,
+    egui_context: Single<(&mut EguiContext, &Camera)>,
 ) {
-    let (mut egui_settings, camera) = egui_context.into_inner();
+    let (mut egui_context, camera) = egui_context.into_inner();
     if keyboard_input.just_pressed(KeyCode::Slash) || toggle_scale_factor.is_none() {
         *toggle_scale_factor = Some(!toggle_scale_factor.unwrap_or(true));
 
@@ -134,7 +134,7 @@ fn update_ui_scale_factor_system(
         } else {
             1.0 / camera.target_scaling_factor().unwrap_or(1.0)
         };
-        egui_settings.scale_factor = scale_factor;
+        egui_context.get_mut().set_zoom_factor(scale_factor);
     }
 }
 

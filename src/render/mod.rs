@@ -4,7 +4,7 @@ use std::{
     num::{NonZero, NonZeroU32},
 };
 
-use crate::{EguiContextSettings, EguiRenderOutput, RenderComputedScaleFactor};
+use crate::{EguiOutput, EguiPixelsPerPoint, EguiRenderOutput};
 use bevy_asset::{Handle, RenderAssetUsages, uuid_handle};
 use bevy_camera::{Camera, Hdr};
 use bevy_ecs::{
@@ -82,12 +82,12 @@ pub fn extract_egui_camera_view_system(
         Entity,
         RenderEntity,
         &Camera,
+        &EguiOutput,
         &mut EguiRenderOutput,
-        &EguiContextSettings,
         Has<Hdr>,
     )>();
 
-    for (main_entity, render_entity, camera, mut egui_render_output, settings, hdr) in
+    for (main_entity, render_entity, camera, egui_output, mut egui_render_output, hdr) in
         &mut q.iter_mut(&mut world)
     {
         // Move Egui shapes and textures out of the main world into the render one.
@@ -120,6 +120,7 @@ pub fn extract_egui_camera_view_system(
             // main 3D or 2D camera or UI view, which will have subview index 0 or 1.
             let retained_view_entity =
                 RetainedViewEntity::new(main_entity.into(), None, EGUI_CAMERA_SUBVIEW);
+            let pixels_per_point = egui_output.pixels_per_point;
             // Creates the UI view.
             let ui_camera_view = commands
                 .spawn((
@@ -147,10 +148,7 @@ pub fn extract_egui_camera_view_system(
                     // Link to the main camera view.
                     EguiViewTarget(render_entity),
                     egui_render_output,
-                    RenderComputedScaleFactor {
-                        scale_factor: settings.scale_factor
-                            * camera.target_scaling_factor().unwrap_or(1.0),
-                    },
+                    EguiPixelsPerPoint { pixels_per_point },
                     TemporaryRenderEntity,
                 ))
                 .id();
