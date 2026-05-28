@@ -161,18 +161,19 @@ fn update_image_size_system(
             continue;
         };
 
-        let image = images
+        let mut image = images
             .get_mut(image_handle)
             .expect("Expected a created image");
-        (image.data.as_mut().expect("image data"))
-            .resize((window.physical_width() * new_height * 4) as usize, 0);
-        image.texture_descriptor.size.width = window.physical_width();
-        image.texture_descriptor.size.height = new_height;
+        image.resize(Extent3d {
+            width: window.physical_width(),
+            height: new_height,
+            depth_or_array_layers: 1,
+        });
     }
 
     let (mesh_handle, material, mut transform) = egui_mesh.into_inner();
     // Mark the material as dirty for change detection to react to the image update.
-    materials.get_mut(material.id()).unwrap();
+    materials.get_mut(material.id()).unwrap().deref_mut();
     *meshes
         .get_mut(mesh_handle)
         .expect("Expected a created mesh") =
@@ -226,8 +227,16 @@ fn ui_system(
     images: Res<Assets<bevy::image::Image>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
-    app_state.top_panel_height = egui::TopBottomPanel::top("top_panel")
-        .show(ctx, |ui| {
+    let mut viewport_ui = Ui::new(
+        ctx.clone(),
+        "viewport".into(),
+        UiBuilder::new()
+            .layer_id(LayerId::background())
+            .max_rect(ctx.viewport_rect()),
+    );
+
+    app_state.top_panel_height = egui::Panel::top("top_panel")
+        .show_inside(&mut viewport_ui, |ui| {
             ui.horizontal(|ui| {
                 ui.selectable_value(
                     &mut app_state.displayed_ui,
@@ -252,7 +261,7 @@ fn ui_system(
 
     match app_state.displayed_ui {
         DisplayedUi::Regular => {
-            egui::CentralPanel::default().show(ctx, |ui| {
+            egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     app_state.color_test.ui(ui);
                 });
@@ -265,7 +274,7 @@ fn ui_system(
                 .expect("Expected a created image");
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE)
-                .show(ctx, |ui| {
+                .show_inside(&mut viewport_ui, |ui| {
                     ui.image(egui::load::SizedTexture::new(
                         app_state.egui_texture_image_id,
                         [
@@ -284,7 +293,15 @@ fn render_to_image_ui_system<C: Component>(
     mut app_state: ResMut<AppState>,
     mut context: Single<&mut EguiContext, With<C>>,
 ) {
-    egui::CentralPanel::default().show(context.get_mut(), |ui| {
+    let ctx = context.get_mut();
+    let mut viewport_ui = Ui::new(
+        ctx.clone(),
+        "viewport".into(),
+        UiBuilder::new()
+            .layer_id(LayerId::background())
+            .max_rect(ctx.viewport_rect()),
+    );
+    egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {
             app_state.color_test.ui(ui);
         });
@@ -298,11 +315,11 @@ fn render_to_image_ui_system<C: Component>(
 use bevy_camera::RenderTarget;
 use bevy_ecs::schedule::ScheduleLabel;
 use egui::{
-    Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
-    Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding, epaint, lerp, pos2, vec2,
-    widgets::color_picker::show_color,
+    Align2, Color32, FontId, Image, LayerId, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense,
+    Shape, Stroke, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, emath::GuiRounding, epaint,
+    lerp, pos2, vec2, widgets::color_picker::show_color,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::DerefMut};
 use wgpu_types::{Extent3d, TextureUsages};
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -921,7 +938,9 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
     rect.max.x = rect.center().x;
 
     rect = rect.shrink(16.0);
-    for width in [0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0] {
+    for width in [
+        0.05_f32, 0.1_f32, 0.25_f32, 0.5_f32, 1.0_f32, 2.0_f32, 4.0_f32,
+    ] {
         painter.text(
             rect.left_top(),
             Align2::CENTER_CENTER,

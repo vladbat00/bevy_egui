@@ -155,7 +155,7 @@ use crate::text_agent::{
 };
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
-use bevy_asset::{AssetEvent, AssetId, Assets, Handle, load_internal_asset};
+use bevy_asset::{AssetEvent, AssetId, AssetMut, Assets, Handle, load_internal_asset};
 #[cfg(feature = "picking")]
 use bevy_camera::NormalizedRenderTarget;
 use bevy_derive::{Deref, DerefMut};
@@ -450,7 +450,7 @@ pub struct EnableMultipassForPrimaryContext;
 /// A component for storing Egui context settings.
 #[derive(Clone, Debug, Component, Reflect)]
 pub struct EguiContextSettings {
-    /// If set to `true`, a user is expected to call [`egui::Context::run`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
+    /// If set to `true`, a user is expected to call [`egui::Context::run_ui`] or [`egui::Context::begin_pass`] and [`egui::Context::end_pass`] manually.
     pub run_manually: bool,
     /// Global scale factor for Egui widgets (`1.0` by default).
     ///
@@ -526,6 +526,8 @@ pub struct EguiInputSystemSettings {
     pub run_write_non_window_pointer_moved_messages_system: bool,
     /// Controls running of the [`write_mouse_wheel_messages_system`] system.
     pub run_write_mouse_wheel_messages_system: bool,
+    /// Controls running of the [`write_pinch_gesture_messages_system`] system.
+    pub run_write_pinch_gesture_messages_system: bool,
     /// Controls running of the [`write_non_window_touch_messages_system`] system.
     pub run_write_non_window_touch_messages_system: bool,
     /// Controls running of the [`write_keyboard_input_messages_system`] system.
@@ -551,6 +553,7 @@ impl Default for EguiInputSystemSettings {
             run_write_window_touch_messages_system: true,
             run_write_non_window_pointer_moved_messages_system: true,
             run_write_mouse_wheel_messages_system: true,
+            run_write_pinch_gesture_messages_system: true,
             run_write_non_window_touch_messages_system: true,
             run_write_keyboard_input_messages_system: true,
             run_write_ime_messages_system: true,
@@ -635,7 +638,7 @@ pub struct EguiRenderOutput {
     /// Pairs of rectangles and paint commands.
     ///
     /// The field gets populated during the [`EguiPostUpdateSet::ProcessOutput`] system (belonging to bevy's [`PostUpdate`])
-    /// and processed during [`render::EguiPassNode`]'s `update`.
+    /// and processed during [`render::systems::prepare_egui_render_target_data_system`].
     pub paint_jobs: Vec<egui::ClippedPrimitive>,
     /// The change in egui textures since last frame.
     pub textures_delta: egui::TexturesDelta,
@@ -1024,7 +1027,7 @@ impl Plugin for EguiPlugin {
         }
 
         #[cfg(target_arch = "wasm32")]
-        app.init_non_send_resource::<SubscribedEvents>();
+        app.init_non_send::<SubscribedEvents>();
 
         #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
         app.init_resource::<EguiClipboard>();
@@ -1132,6 +1135,9 @@ impl Plugin for EguiPlugin {
                     })),
                     write_mouse_wheel_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_mouse_wheel_messages_system
+                    })),
+                    write_pinch_gesture_messages_system.run_if(input_system_is_enabled(|s| {
+                        s.run_write_pinch_gesture_messages_system
                     })),
                     write_keyboard_input_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_keyboard_input_messages_system
@@ -1296,55 +1302,34 @@ impl Plugin for EguiPlugin {
                 return;
             };
 
-            let egui_graph_2d = render::get_egui_graph(render_app);
-            let egui_graph_3d = render::get_egui_graph(render_app);
-            let mut graph = render_app
-                .world_mut()
-                .resource_mut::<bevy_render::render_graph::RenderGraph>();
+            let egui_pass_2d = render::egui_pass
+                .after(bevy_core_pipeline::Core2dSystems::MainPass)
+                .before(bevy_core_pipeline::upscaling::upscaling);
+            let egui_pass_3d = render::egui_pass
+                .after(bevy_core_pipeline::Core3dSystems::MainPass)
+                .before(bevy_core_pipeline::upscaling::upscaling);
 
-            if let Some(graph_2d) =
-                graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
-            {
-                graph_2d.add_sub_graph(render::graph::SubGraphEgui, egui_graph_2d);
-                graph_2d.add_node(
-                    render::graph::NodeEgui::EguiPass,
-                    render::RunEguiSubgraphOnEguiViewNode,
-                );
-                graph_2d.add_node_edge(
-                    bevy_core_pipeline::core_2d::graph::Node2d::EndMainPass,
-                    render::graph::NodeEgui::EguiPass,
-                );
-                graph_2d.add_node_edge(
-                    bevy_core_pipeline::core_2d::graph::Node2d::EndMainPassPostProcessing,
-                    render::graph::NodeEgui::EguiPass,
-                );
-                graph_2d.add_node_edge(
-                    render::graph::NodeEgui::EguiPass,
-                    bevy_core_pipeline::core_2d::graph::Node2d::Upscaling,
-                );
-            }
+            #[cfg(feature = "bevy_ui")]
+            let (egui_pass_2d, egui_pass_3d) = {
+                use bevy_ui_render::ui_pass;
+                match self.ui_render_order {
+                    UiRenderOrder::EguiAboveBevyUi => {
+                        (egui_pass_2d.after(ui_pass), egui_pass_3d.after(ui_pass))
+                    }
+                    UiRenderOrder::BevyUiAboveEgui => {
+                        (egui_pass_2d.before(ui_pass), egui_pass_3d.before(ui_pass))
+                    }
+                }
+            };
 
-            if let Some(graph_3d) =
-                graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
-            {
-                graph_3d.add_sub_graph(render::graph::SubGraphEgui, egui_graph_3d);
-                graph_3d.add_node(
-                    render::graph::NodeEgui::EguiPass,
-                    render::RunEguiSubgraphOnEguiViewNode,
-                );
-                graph_3d.add_node_edge(
-                    bevy_core_pipeline::core_3d::graph::Node3d::EndMainPass,
-                    render::graph::NodeEgui::EguiPass,
-                );
-                graph_3d.add_node_edge(
-                    bevy_core_pipeline::core_3d::graph::Node3d::EndMainPassPostProcessing,
-                    render::graph::NodeEgui::EguiPass,
-                );
-                graph_3d.add_node_edge(
-                    render::graph::NodeEgui::EguiPass,
-                    bevy_core_pipeline::core_3d::graph::Node3d::Upscaling,
-                );
-            }
+            render_app.add_systems(
+                bevy_core_pipeline::Core2d,
+                (render::prepare_egui_pass, egui_pass_2d).chain(),
+            );
+            render_app.add_systems(
+                bevy_core_pipeline::Core3d,
+                (render::prepare_egui_pass, egui_pass_3d).chain(),
+            );
         }
 
         #[cfg(feature = "accesskit")]
@@ -1354,12 +1339,9 @@ impl Plugin for EguiPlugin {
         );
     }
 
-    fn finish(&self, _app: &mut App) {
-        #[cfg(all(feature = "bevy_ui", feature = "render"))]
-        let bevy_ui_is_enabled = _app.is_plugin_added::<bevy_ui_render::UiRenderPlugin>();
-
-        #[cfg(feature = "render")]
-        if let Some(render_app) = _app.get_sub_app_mut(RenderApp) {
+    #[cfg(feature = "render")]
+    fn finish(&self, app: &mut App) {
+        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
                 .insert_resource(render::EguiRenderSettings {
                     bindless_mode_array_size: self.bindless_mode_array_size,
@@ -1391,60 +1373,6 @@ impl Plugin for EguiPlugin {
                     Render,
                     render::systems::queue_pipelines_system.in_set(RenderSystems::Queue),
                 );
-
-            // Configure a fixed rendering order between Bevy UI and egui.
-            // Otherwise, this order is effectively decided at random on every game startup.
-            #[cfg(feature = "bevy_ui")]
-            if bevy_ui_is_enabled {
-                use bevy_render::render_graph::RenderLabel;
-                let mut graph = render_app
-                    .world_mut()
-                    .resource_mut::<bevy_render::render_graph::RenderGraph>();
-                let (below, above) = match self.ui_render_order {
-                    UiRenderOrder::EguiAboveBevyUi => (
-                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
-                        render::graph::NodeEgui::EguiPass.intern(),
-                    ),
-                    UiRenderOrder::BevyUiAboveEgui => (
-                        render::graph::NodeEgui::EguiPass.intern(),
-                        bevy_ui_render::graph::NodeUi::UiPass.intern(),
-                    ),
-                };
-                if let Some(graph_2d) =
-                    graph.get_sub_graph_mut(bevy_core_pipeline::core_2d::graph::Core2d)
-                {
-                    // Only apply if the bevy_ui plugin is actually enabled.
-                    // In theory we could use RenderGraph::try_add_node_edge instead and ignore the result,
-                    // but that still seems to end up writing the corrupt edge into the graph,
-                    // causing the game to panic down the line.
-                    match graph_2d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
-                        Ok(_) => {
-                            graph_2d.add_node_edge(below, above);
-                        }
-                        Err(err) => log::warn!(
-                            error = &err as &dyn std::error::Error,
-                            "bevy_ui::UiPlugin is enabled but could not be found in 2D render graph, rendering order will be inconsistent",
-                        ),
-                    }
-                }
-                if let Some(graph_3d) =
-                    graph.get_sub_graph_mut(bevy_core_pipeline::core_3d::graph::Core3d)
-                {
-                    match graph_3d.get_node_state(bevy_ui_render::graph::NodeUi::UiPass) {
-                        Ok(_) => {
-                            graph_3d.add_node_edge(below, above);
-                        }
-                        Err(err) => log::warn!(
-                            error = &err as &dyn std::error::Error,
-                            "bevy_ui::UiPlugin is enabled but could not be found in 3D render graph, rendering order will be inconsistent",
-                        ),
-                    }
-                }
-            } else {
-                log::debug!(
-                    "bevy_ui feature is enabled, but bevy_ui::UiPlugin is disabled, not applying configured rendering order"
-                )
-            }
         }
 
         // Init smithay-clipboard: it needs a wayland display handle
@@ -1539,11 +1467,10 @@ pub fn setup_accesskit_system(
             if let Some(window_entity) = window_to_egui_context_map
                 .context_to_window
                 .get(&new_context_entity)
+                && adapters.contains_key(window_entity)
             {
-                if adapters.contains_key(window_entity) {
-                    context.ctx.enable_accesskit();
-                    **manage_accessibility_updates = false;
-                }
+                context.ctx.enable_accesskit();
+                **manage_accessibility_updates = false;
             }
         }
     });
@@ -1751,7 +1678,7 @@ pub fn capture_pointer_input_system(
                     continue;
                 }
 
-                if settings.capture_pointer_input && ctx.get_mut().wants_pointer_input() {
+                if settings.capture_pointer_input && ctx.get_mut().egui_wants_pointer_input() {
                     let entry = (entity, HitData::new(entity, 0.0, None, None));
                     output.write(PointerHits::new(
                         *pointer,
@@ -1815,7 +1742,7 @@ pub fn update_egui_textures_system(
     }
 
     fn update_image_rect(
-        dest: &mut Image,
+        mut dest: AssetMut<Image>,
         [x, y]: [usize; 2],
         src: &egui::ColorImage,
     ) -> Result<(), TextureAccessError> {
@@ -2053,7 +1980,7 @@ pub fn run_egui_context_pass_loop_system(world: &mut World) {
             );
         }
 
-        let output = ctx.run(input.take(), |_| {
+        let output = ctx.run_ui(input.take(), |_| {
             let _ = world.try_run_schedule(*multipass_schedule);
         });
 

@@ -11,6 +11,7 @@ use bevy_ecs::{
 };
 use bevy_input::{
     ButtonInput, ButtonState,
+    gestures::PinchGesture,
     keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
@@ -19,7 +20,7 @@ use bevy_log::{self as log};
 use bevy_time::{Real, Time};
 use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window};
 use bevy_winit::WinitUserEvent;
-use egui::Modifiers;
+use egui::{Modifiers, TouchPhase};
 
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] messages.
 #[derive(Component, Default)]
@@ -552,8 +553,43 @@ pub fn write_mouse_wheel_messages_system(
                 unit,
                 delta,
                 modifiers,
+                phase: TouchPhase::Move,
             },
         });
+    }
+}
+
+/// Reads [`PinchGesture`] messages and wraps them into [`EguiInputEvent`] with [`egui::Event::Zoom`].
+///
+/// Bevy's `PinchGesture` doesn't carry a window entity, so this broadcasts to all window contexts
+/// (or the hovered non-window context if one exists).
+pub fn write_pinch_gesture_messages_system(
+    mut pinch_reader: MessageReader<PinchGesture>,
+    hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
+    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
+    map: Res<WindowToEguiContextMap>,
+) {
+    for message in pinch_reader.read() {
+        // Match egui-winit: positive delta = magnification, negative = shrink
+        let zoom_factor = message.0.exp();
+
+        if let Some(HoveredNonWindowEguiContext(context)) =
+            hovered_non_window_egui_context.as_deref()
+        {
+            egui_input_message_writer.write(EguiInputEvent {
+                context: *context,
+                event: egui::Event::Zoom(zoom_factor),
+            });
+        } else {
+            for contexts in map.window_to_contexts.values() {
+                for &context in contexts {
+                    egui_input_message_writer.write(EguiInputEvent {
+                        context,
+                        event: egui::Event::Zoom(zoom_factor),
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -1114,7 +1150,7 @@ pub fn write_egui_input_system(
 ) {
     for EguiInputEvent { context, event } in egui_input_reader.read() {
         #[cfg(feature = "log_input_messages")]
-        log::warn!("{context:?}: {message:?}");
+        log::warn!("{context:?}: {event:?}");
 
         let (_, mut egui_input) = match egui_contexts.get_mut(*context) {
             Ok(egui_input) => egui_input,
@@ -1329,14 +1365,15 @@ pub fn write_egui_wants_input_system(
     for mut ctx in egui_context_query.iter_mut() {
         let egui_ctx = ctx.get_mut();
         egui_wants_input.is_pointer_over_area =
-            egui_wants_input.is_pointer_over_area || egui_ctx.is_pointer_over_area();
+            egui_wants_input.is_pointer_over_area || egui_ctx.is_pointer_over_egui();
         egui_wants_input.wants_pointer_input =
-            egui_wants_input.wants_pointer_input || egui_ctx.wants_pointer_input();
+            egui_wants_input.wants_pointer_input || egui_ctx.egui_wants_pointer_input();
         egui_wants_input.is_using_pointer =
-            egui_wants_input.is_using_pointer || egui_ctx.is_using_pointer();
+            egui_wants_input.is_using_pointer || egui_ctx.egui_is_using_pointer();
         egui_wants_input.wants_keyboard_input =
-            egui_wants_input.wants_keyboard_input || egui_ctx.wants_keyboard_input();
-        egui_wants_input.is_popup_open = egui_wants_input.is_popup_open || egui_ctx.is_popup_open();
+            egui_wants_input.wants_keyboard_input || egui_ctx.egui_wants_keyboard_input();
+        egui_wants_input.is_popup_open =
+            egui_wants_input.is_popup_open || egui_ctx.any_popup_open();
     }
 }
 

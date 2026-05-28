@@ -4,29 +4,9 @@ use std::{
     num::{NonZero, NonZeroU32},
 };
 
-/// Defines Egui node graph.
-pub mod graph {
-    use bevy_render::render_graph::{RenderLabel, RenderSubGraph};
-
-    /// Egui subgraph (is run by [`super::RunEguiSubgraphOnEguiViewNode`]).
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
-    pub struct SubGraphEgui;
-
-    /// Egui node defining the Egui rendering pass.
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-    pub enum NodeEgui {
-        /// Egui rendering pass.
-        EguiPass,
-    }
-}
-
-use crate::{
-    EguiContextSettings, EguiRenderOutput, RenderComputedScaleFactor,
-    render::graph::{NodeEgui, SubGraphEgui},
-};
-use bevy_app::SubApp;
+use crate::{EguiContextSettings, EguiRenderOutput, RenderComputedScaleFactor};
 use bevy_asset::{Handle, RenderAssetUsages, uuid_handle};
-use bevy_camera::Camera;
+use bevy_camera::{Camera, Hdr};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
@@ -35,15 +15,12 @@ use bevy_ecs::{
     system::{Commands, Local, ResMut},
     world::{FromWorld, World},
 };
-use bevy_image::{
-    BevyDefault, Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor,
-};
+use bevy_image::{Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
 use bevy_math::{Mat4, UVec4};
 use bevy_mesh::VertexBufferLayout;
 use bevy_platform::collections::HashSet;
 use bevy_render::{
     MainWorld,
-    render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext},
     render_phase::TrackedRenderPass,
     render_resource::{
         BindGroupLayoutEntries, FragmentState, RenderPipelineDescriptor, SpecializedRenderPipeline,
@@ -52,19 +29,22 @@ use bevy_render::{
     },
     renderer::{RenderContext, RenderDevice},
     sync_world::{RenderEntity, TemporaryRenderEntity},
-    view::{ExtractedView, Hdr, RetainedViewEntity, ViewTarget},
+    view::{ExtractedView, RetainedViewEntity},
 };
 use bevy_shader::{Shader, ShaderDefVal};
 use egui::{TextureFilter, TextureOptions};
 
 use bevy_log::{error, info, warn};
-use bevy_render::{render_resource::BindGroupLayoutDescriptor, renderer::RenderAdapterInfo};
-use systems::{EguiTextureId, EguiTransform};
-use wgpu_types::{
-    Backend, BlendState, ColorTargetState, ColorWrites, Extent3d, Features, Limits,
-    MultisampleState, PrimitiveState, PushConstantRange, SamplerBindingType, ShaderStages,
-    TextureDimension, TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
+use bevy_render::{
+    render_resource::{
+        BindGroupLayoutDescriptor, BlendState, ColorTargetState, ColorWrites, Extent3d,
+        MultisampleState, PrimitiveState, SamplerBindingType, ShaderStages, TextureDimension,
+        TextureFormat, TextureSampleType, VertexFormat, VertexStepMode,
+    },
+    renderer::RenderAdapterInfo,
 };
+use systems::{EguiTextureId, EguiTransform};
+use wgpu_types::{Backend, Features, Limits};
 
 mod render_pass;
 /// Plugin systems for the render app.
@@ -90,38 +70,6 @@ pub struct EguiCameraView(pub Entity);
 /// This is the inverse of [`EguiCameraView`].
 #[derive(Component, Debug)]
 pub struct EguiViewTarget(pub Entity);
-
-/// Adds and returns an Egui subgraph.
-pub fn get_egui_graph(render_app: &mut SubApp) -> RenderGraph {
-    let pass_node = EguiPassNode::new(render_app.world_mut());
-    let mut graph = RenderGraph::default();
-    graph.add_node(NodeEgui::EguiPass, pass_node);
-    graph
-}
-
-/// A [`Node`] that executes the Egui rendering subgraph on the Egui view.
-pub struct RunEguiSubgraphOnEguiViewNode;
-
-impl Node for RunEguiSubgraphOnEguiViewNode {
-    fn run<'w>(
-        &self,
-        graph: &mut RenderGraphContext,
-        _: &mut RenderContext<'w>,
-        world: &'w World,
-    ) -> Result<(), NodeRunError> {
-        // Fetch the UI view.
-        let Some(mut render_views) = world.try_query::<&EguiCameraView>() else {
-            return Ok(());
-        };
-        let Ok(default_camera_view) = render_views.get(world, graph.view_entity()) else {
-            return Ok(());
-        };
-
-        // Run the subgraph on the Egui view.
-        graph.run_sub_graph(SubGraphEgui, vec![], Some(default_camera_view.0), None)?;
-        Ok(())
-    }
-}
 
 /// Extracts all Egui contexts associated with a camera into the render world.
 pub fn extract_egui_camera_view_system(
@@ -184,7 +132,11 @@ pub fn extract_egui_camera_view_system(
                             UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
                         ),
                         clip_from_world: None,
-                        hdr,
+                        target_format: if hdr {
+                            TextureFormat::Rgba16Float
+                        } else {
+                            TextureFormat::Rgba8UnormSrgb
+                        },
                         viewport: UVec4::from((
                             physical_viewport_rect.min,
                             physical_viewport_rect.size(),
@@ -303,8 +255,8 @@ impl EguiPipeline {
             } else if !device_features.contains(Features::TEXTURE_BINDING_ARRAY) {
                 warn!("Feature TEXTURE_BINDING_ARRAY is not supported on this device.");
                 None
-            } else if !device_features.contains(Features::PUSH_CONSTANTS) {
-                warn!("Feature PUSH_CONSTANTS is not supported on this device.");
+            } else if !device_features.contains(Features::IMMEDIATES) {
+                warn!("Feature IMMEDIATES is not supported on this device.");
                 None
             } else {
                 match NonZeroU32::new(min(
@@ -346,8 +298,9 @@ impl EguiPipeline {
 /// Key for specialized pipeline.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct EguiPipelineKey {
-    /// Equals `true` for cameras that have the [`Hdr`] component.
-    pub hdr: bool,
+    /// It uses `TextureFormat::Rgba16Float` for cameras with HDR enabled,
+    /// otherwise it defaults to `TextureFormat::Rgba8UnormSrgb`.
+    pub target_format: TextureFormat,
 }
 
 impl SpecializedRenderPipeline for EguiPipeline {
@@ -355,14 +308,11 @@ impl SpecializedRenderPipeline for EguiPipeline {
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let mut shader_defs = Vec::new();
-        let mut push_constant_ranges = Vec::new();
+        let mut immediate_size = 0;
 
         if let Some(bindless) = self.bindless {
             shader_defs.push(ShaderDefVal::UInt("BINDLESS".into(), u32::from(bindless)));
-            push_constant_ranges.push(PushConstantRange {
-                stages: ShaderStages::FRAGMENT,
-                range: 0..4,
-            });
+            immediate_size = 4;
         }
 
         RenderPipelineDescriptor {
@@ -389,11 +339,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
                 shader_defs,
                 entry_point: Some("fs_main".into()),
                 targets: vec![Some(ColorTargetState {
-                    format: if key.hdr {
-                        ViewTarget::TEXTURE_FORMAT_HDR
-                    } else {
-                        TextureFormat::bevy_default()
-                    },
+                    format: key.target_format,
                     blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
@@ -401,7 +347,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            push_constant_ranges,
+            immediate_size,
             zero_initialize_workgroup_memory: false,
         }
     }
@@ -485,7 +431,7 @@ pub(crate) fn texture_options_as_sampler_descriptor(
     }
 }
 
-/// Callback to execute custom 'wgpu' rendering inside [`EguiPassNode`] render graph node.
+/// Callback to execute custom 'wgpu' rendering inside [`egui_pass`].
 ///
 /// Rendering can be implemented using for example:
 /// * native wgpu rendering libraries,
@@ -510,9 +456,9 @@ impl EguiBevyPaintCallback {
     }
 }
 
-/// Callback that executes custom rendering logic
+/// Callback that executes custom rendering logic.
 pub trait EguiBevyPaintCallbackImpl: Send + Sync {
-    /// Paint callback will be rendered in near future, all data must be finalized for render step
+    /// Paint callback will be rendered in near future, all data must be finalized for render step.
     fn update(
         &self,
         info: egui::PaintCallbackInfo,
@@ -521,15 +467,14 @@ pub trait EguiBevyPaintCallbackImpl: Send + Sync {
         world: &mut World,
     );
 
-    /// Paint callback call before render step
-    ///
+    /// Paint callback call before render step.
     ///
     /// Can be used to implement custom render passes
-    /// or to submit command buffers for execution before egui render pass
-    fn prepare_render<'w>(
+    /// or to submit command buffers for execution before egui render pass.
+    fn prepare_render<'w, 's>(
         &self,
         info: egui::PaintCallbackInfo,
-        render_context: &mut RenderContext<'w>,
+        render_context: &mut RenderContext<'w, 's>,
         render_entity: RenderEntity,
         pipeline_key: EguiPipelineKey,
         world: &'w World,
