@@ -4,9 +4,8 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{
-    EguiContext, EguiContextSettings, EguiContexts, EguiGlobalSettings, EguiInputSet,
-    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, EguiTextureHandle,
-    PrimaryEguiContext,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiInputSet, EguiMultipassSchedule, EguiPlugin,
+    EguiPrimaryContextPass, EguiTextureHandle, EguiZoomFactor, PrimaryEguiContext,
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
@@ -189,11 +188,11 @@ fn update_egui_hovered_context(
     mut egui_contexts: Query<(
         Entity,
         &mut EguiContextPointerPosition,
-        &EguiContextSettings,
+        &EguiZoomFactor,
         AnyOf<(&MeshImageEguiContext, &EguiTextureImageEguiContext)>,
     )>,
 ) {
-    for (entity, mut context_pointer_position, settings, tag) in egui_contexts.iter_mut() {
+    for (entity, mut context_pointer_position, egui_zoom_factor, tag) in egui_contexts.iter_mut() {
         if !matches!(
             (&app_state.displayed_ui, tag),
             (DisplayedUi::MeshImage, (Some(MeshImageEguiContext), None))
@@ -207,9 +206,9 @@ fn update_egui_hovered_context(
 
         // We expect to reach this code only once since we can have only 1 active context matching the conditions.
         for message in cursor_moved_reader.read() {
-            let scale_factor = settings.scale_factor;
-            let pointer_position = vec2_into_egui_pos2(message.position / scale_factor)
-                - Vec2::new(0.0, app_state.top_panel_height as f32);
+            let pointer_position =
+                vec2_into_egui_pos2(message.position / egui_zoom_factor.zoom_factor)
+                    - Vec2::new(0.0, app_state.top_panel_height as f32);
             if pointer_position.y < 0.0 {
                 commands.remove_resource::<HoveredNonWindowEguiContext>();
                 continue;
