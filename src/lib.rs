@@ -206,17 +206,6 @@ use std::cell::{RefCell, RefMut};
 use std::sync::{Arc, Mutex};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-#[cfg(all(
-    any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ),
-    feature = "manage_clipboard"
-))]
-use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 
 /// Adds all Egui resources and render graph nodes.
 pub struct EguiPlugin {
@@ -1390,12 +1379,15 @@ impl Plugin for EguiPlugin {
             .world_mut()
             .get_resource::<bevy_winit::DisplayHandleWrapper>()
         {
+            use winit::raw_window_handle::HasDisplayHandle;
             let raw_display_handle = display_handle_wrapper
                 .0
                 .display_handle()
                 .ok()
                 .map(|h| h.as_raw());
-            if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
+            if let Some(winit::raw_window_handle::RawDisplayHandle::Wayland(display)) =
+                raw_display_handle
+            {
                 log::debug!("Initializing smithay clipboard");
                 let mut egui_clipboard = app.world_mut().resource_mut::<EguiClipboard>();
                 // Safety: display is also stored as a resource and thus has the same lifetime
