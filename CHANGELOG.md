@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0-rc.1] - 29-May-2026
+
+### Changed
+
+- Update to Bevy 0.19 and egui 0.34 ([#469](https://github.com/vladbat00/bevy_egui/pull/469) by @taboky).
+- The plugin no longer uses `set_pixels_per_point` to update scaling,
+  instead `native_pixels_per_point` is used. This also fixes the
+  support of egui's `Ctrl` + `-` / `+` shortcuts to modify zoom
+  and lets users additionally control zoom via `set_zoom_factor` ([#480](https://github.com/vladbat00/bevy_egui/pull/480)).
+
+### Added
+
+- Wayland support for clipboard ([#479](https://github.com/vladbat00/bevy_egui/pull/479) by @bkueng).
+- Trackpad pinch-to-zoom gesture support ([#467](https://github.com/vladbat00/bevy_egui/pull/467) by @stargazing-dino).
+
 ## [0.39.1] - 6-Feb-2026
 
 ### Fixed
