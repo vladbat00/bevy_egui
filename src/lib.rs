@@ -1307,7 +1307,7 @@ impl Plugin for EguiPlugin {
                 .after(bevy_core_pipeline::Core2dSystems::MainPass)
                 .before(bevy_core_pipeline::upscaling::upscaling);
             let egui_pass_3d = render::egui_pass
-                .after(bevy_core_pipeline::Core3dSystems::MainPass)
+                .after(bevy_core_pipeline::Core3dSystems::EarlyPostProcess)
                 .before(bevy_core_pipeline::upscaling::upscaling);
 
             #[cfg(feature = "bevy_ui")]
