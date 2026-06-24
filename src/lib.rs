@@ -535,7 +535,7 @@ impl Default for EguiInputSystemSettings {
 pub struct EguiPrimaryContextPass;
 
 /// A marker component for a primary Egui context.
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Default)]
 #[require(EguiContext)]
 #[component(on_insert = insert_schedule_if_multipass)]
 pub struct PrimaryEguiContext;
