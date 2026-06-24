@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.1] - 24-Jun-2026
+
+### Added
+
+- Derive `Default` for `PrimaryEguiContext` to enable BSN usage
+  ([#486](https://github.com/vladbat00/bevy_egui/pull/486) by @DavidCrossman).
+
+### Fixed
+
+- Schedule 3D egui pass after TAA ([#484](https://github.com/vladbat00/bevy_egui/pull/484) by @kurtkuehnert). 
+
 ## [0.40.0] - 20-Jun-2026
 
 ### Changed
