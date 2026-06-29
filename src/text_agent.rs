@@ -216,7 +216,6 @@ pub fn install_text_agent_system(
         });
 
         let input_clone = input.clone();
-        let sender_clone = sender.clone();
         let closure = Closure::wrap(Box::new(move |_event: web_sys::CompositionEvent| {
             #[cfg(feature = "log_input_messages")]
             log::warn!("Composition start: data={:?}", _event.data());
