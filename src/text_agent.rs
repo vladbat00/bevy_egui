@@ -221,7 +221,6 @@ pub fn install_text_agent_system(
             #[cfg(feature = "log_input_messages")]
             log::warn!("Composition start: data={:?}", _event.data());
             input_clone.set_value("");
-            let _ = sender_clone.send(egui::Event::Ime(egui::ImeEvent::Enabled));
         }) as Box<dyn FnMut(_)>);
         input
             .add_event_listener_with_callback("compositionstart", closure.as_ref().unchecked_ref())
@@ -242,7 +241,10 @@ pub fn install_text_agent_system(
             #[cfg(feature = "log_input_messages")]
             log::warn!("Composition update: data={:?}", event.data());
             let Some(text) = event.data() else { return };
-            let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
+            let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+                text,
+                active_range_chars: None,
+            });
             let _ = sender_clone.send(event);
         }) as Box<dyn FnMut(_)>);
         input
