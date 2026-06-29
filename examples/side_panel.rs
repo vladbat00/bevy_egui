@@ -39,7 +39,7 @@ fn ui_example_system(
 
     let mut left = egui::Panel::left("left_panel")
         .resizable(true)
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.label("Left resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
@@ -49,7 +49,7 @@ fn ui_example_system(
 
     let mut right = egui::Panel::right("right_panel")
         .resizable(true)
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.label("Right resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
@@ -59,7 +59,7 @@ fn ui_example_system(
 
     let mut top = egui::Panel::top("top_panel")
         .resizable(true)
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.label("Top resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
@@ -68,7 +68,7 @@ fn ui_example_system(
         .height(); // width is ignored, as the panel has a width of 100% of the screen
     let mut bottom = egui::Panel::bottom("bottom_panel")
         .resizable(true)
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.label("Bottom resizeable panel");
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })

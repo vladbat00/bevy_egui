@@ -45,7 +45,7 @@ mod foo {
                 .layer_id(LayerId::background())
                 .max_rect(ctx.viewport_rect()),
         );
-        egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
+        egui::CentralPanel::default().show(&mut viewport_ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
             if let Some(file_response) = file_dialog

@@ -37,11 +37,9 @@ pub struct EguiContextPointerTouchId {
     pub pointer_touch_id: Option<u64>,
 }
 
-/// Indicates whether [IME](https://en.wikipedia.org/wiki/Input_method) is enabled or disabled to avoid sending message duplicates.
+/// Stores per-context [IME](https://en.wikipedia.org/wiki/Input_method) state used by input and window integration.
 #[derive(Component, Default)]
 pub struct EguiContextImeState {
-    /// Indicates whether IME is enabled.
-    pub has_sent_ime_enabled: bool,
     /// Indicates whether IME is currently allowed, i.e. if the virtual keyboard is shown.
     pub is_ime_allowed: bool,
     /// Corresponds to where an active egui text edit is located on the screen.
@@ -731,7 +729,7 @@ pub fn write_ime_messages_system(
         | Ime::Disabled { window }
         | Ime::Enabled { window } => *window,
     }) {
-        let Some((_entity, context_settings, mut ime_state, _egui_output)) =
+        let Some((_entity, context_settings, _ime_state, _egui_output)) =
             egui_contexts.get_some_mut(context)
         else {
             continue;
@@ -745,50 +743,22 @@ pub fn write_ime_messages_system(
             continue;
         }
 
-        let ime_message_enable =
-            |ime_state: &mut EguiContextImeState,
-             egui_input_message_writer: &mut MessageWriter<EguiInputEvent>| {
-                if !ime_state.has_sent_ime_enabled {
-                    egui_input_message_writer.write(EguiInputEvent {
-                        context,
-                        event: egui::Event::Ime(egui::ImeEvent::Enabled),
-                    });
-                    ime_state.has_sent_ime_enabled = true;
-                }
-            };
-
-        let ime_message_disable =
-            |ime_state: &mut EguiContextImeState,
-             egui_input_message_writer: &mut MessageWriter<EguiInputEvent>| {
-                if !ime_state.has_sent_ime_enabled {
-                    egui_input_message_writer.write(EguiInputEvent {
-                        context,
-                        event: egui::Event::Ime(egui::ImeEvent::Disabled),
-                    });
-                    ime_state.has_sent_ime_enabled = false;
-                }
-            };
-
-        // Aligned with the egui-winit implementation: https://github.com/emilk/egui/blob/0f2b427ff4c0a8c68f6622ec7d0afb7ba7e71bba/crates/egui-winit/src/lib.rs#L348
+        // Aligned with the egui-winit implementation: https://github.com/emilk/egui/blob/68b74530b7848cef6bff4efc5fc9906bfbd1e8ca/crates/egui-winit/src/lib.rs#L697
         match message {
             Ime::Enabled { window: _ } => {
-                if cfg!(target_os = "linux") {
-                    // This event means different things in X11 and Wayland, but we can just
-                    // ignore it and enable IME on the preedit event.
-                    // See <https://github.com/rust-windowing/winit/issues/2498>
-                } else {
-                    ime_message_enable(&mut ime_state, &mut egui_input_message_writer);
-                }
+                // NO-OP
             }
             Ime::Preedit {
                 value,
                 window: _,
-                cursor: Some(_),
+                cursor,
             } => {
-                ime_message_enable(&mut ime_state, &mut egui_input_message_writer);
                 egui_input_message_writer.write(EguiInputEvent {
                     context,
-                    event: egui::Event::Ime(egui::ImeEvent::Preedit(value.clone())),
+                    event: egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text: value.clone(),
+                        active_range_chars: cursor.map(|(start, end)| start..end),
+                    }),
                 });
             }
             Ime::Commit { value, window: _ } => {
@@ -796,15 +766,9 @@ pub fn write_ime_messages_system(
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Commit(value.clone())),
                 });
-                ime_message_disable(&mut ime_state, &mut egui_input_message_writer);
             }
-            Ime::Disabled { window: _ }
-            | Ime::Preedit {
-                cursor: None,
-                window: _,
-                value: _,
-            } => {
-                ime_message_disable(&mut ime_state, &mut egui_input_message_writer);
+            Ime::Disabled { window: _ } => {
+                // NO-OP
             }
         }
     }
@@ -1355,7 +1319,7 @@ impl EguiWantsInput {
     }
 
     /// Returns `true` if any of the following is true:
-    /// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_context_menu_open`].
+    /// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_popup_open`].
     pub fn wants_any_pointer_input(&self) -> bool {
         self.is_pointer_over_area
             || self.wants_pointer_input
@@ -1364,7 +1328,7 @@ impl EguiWantsInput {
     }
 
     /// Returns `true` if any of the following is true:
-    /// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_context_menu_open`].
+    /// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_popup_open`].
     pub fn wants_any_keyboard_input(&self) -> bool {
         self.wants_keyboard_input || self.is_popup_open
     }
@@ -1407,13 +1371,13 @@ pub fn write_egui_wants_input_system(
 }
 
 /// Returns `true` if any of the following is true:
-/// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_context_menu_open`].
+/// [`EguiWantsInput::is_pointer_over_area`], [`EguiWantsInput::wants_pointer_input`], [`EguiWantsInput::is_using_pointer`], [`EguiWantsInput::is_popup_open`].
 pub fn egui_wants_any_pointer_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
     egui_wants_input_resource.wants_any_pointer_input()
 }
 
 /// Returns `true` if any of the following is true:
-/// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_context_menu_open`].
+/// [`EguiWantsInput::wants_keyboard_input`], [`EguiWantsInput::is_popup_open`].
 pub fn egui_wants_any_keyboard_input(egui_wants_input_resource: Res<EguiWantsInput>) -> bool {
     egui_wants_input_resource.wants_any_keyboard_input()
 }

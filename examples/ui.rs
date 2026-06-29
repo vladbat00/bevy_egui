@@ -182,7 +182,7 @@ fn ui_example_system(
 
     egui::Panel::left("side_panel")
         .default_size(200.0)
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.heading("Side Panel");
 
             ui.horizontal(|ui| {
@@ -224,7 +224,7 @@ fn ui_example_system(
             });
         });
 
-    egui::Panel::top("top_panel").show_inside(&mut viewport_ui, |ui| {
+    egui::Panel::top("top_panel").show(&mut viewport_ui, |ui| {
         // The top panel is often a good place for a menu bar:
         egui::MenuBar::new().ui(ui, |ui| {
             egui::containers::menu::MenuButton::new("File").ui(ui, |ui| {
@@ -235,7 +235,7 @@ fn ui_example_system(
         });
     });
 
-    egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
+    egui::CentralPanel::default().show(&mut viewport_ui, |ui| {
         ui.heading("Egui Template");
         ui.hyperlink("https://github.com/emilk/egui_template");
         ui.add(egui::github_link_file_line!(

@@ -235,7 +235,7 @@ fn ui_system(
     );
 
     app_state.top_panel_height = egui::Panel::top("top_panel")
-        .show_inside(&mut viewport_ui, |ui| {
+        .show(&mut viewport_ui, |ui| {
             ui.horizontal(|ui| {
                 ui.selectable_value(
                     &mut app_state.displayed_ui,
@@ -260,7 +260,7 @@ fn ui_system(
 
     match app_state.displayed_ui {
         DisplayedUi::Regular => {
-            egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
+            egui::CentralPanel::default().show(&mut viewport_ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     app_state.color_test.ui(ui);
                 });
@@ -273,7 +273,7 @@ fn ui_system(
                 .expect("Expected a created image");
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE)
-                .show_inside(&mut viewport_ui, |ui| {
+                .show(&mut viewport_ui, |ui| {
                     ui.image(egui::load::SizedTexture::new(
                         app_state.egui_texture_image_id,
                         [
@@ -300,7 +300,7 @@ fn render_to_image_ui_system<C: Component>(
             .layer_id(LayerId::background())
             .max_rect(ctx.viewport_rect()),
     );
-    egui::CentralPanel::default().show_inside(&mut viewport_ui, |ui| {
+    egui::CentralPanel::default().show(&mut viewport_ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| {
             app_state.color_test.ui(ui);
         });
