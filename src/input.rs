@@ -1,8 +1,8 @@
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
-    helpers::{vec2_into_egui_pos2, QueryHelper}, EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
-    EguiZoomFactor,
+    EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput, EguiZoomFactor,
+    helpers::{QueryHelper, vec2_into_egui_pos2},
 };
 use bevy_camera::Camera;
 use bevy_ecs::{
@@ -11,11 +11,11 @@ use bevy_ecs::{
     system::{NonSendMarker, SystemParam},
 };
 use bevy_input::{
-    gestures::PinchGesture, keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
+    ButtonInput, ButtonState,
+    gestures::PinchGesture,
+    keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
-    ButtonInput,
-    ButtonState,
 };
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
