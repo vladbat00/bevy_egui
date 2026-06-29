@@ -116,7 +116,7 @@ bevy_color = { version = "0.19", optional = true }
 bevy_shader = { version = "0.19", optional = true }
 bevy_transform = { version = "0.19", optional = true }
 encase = { version = "0.12", optional = true }
-itertools = { version = "0.15", optional = true }
+itertools = { version = "0.14", optional = true }
 wgpu-types = { version = "29.0.3", optional = true }
 
 # `bevy_ui` feature

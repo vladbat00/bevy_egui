@@ -1,8 +1,8 @@
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
-    EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput, EguiZoomFactor,
-    helpers::{QueryHelper, vec2_into_egui_pos2},
+    helpers::{vec2_into_egui_pos2, QueryHelper}, EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput,
+    EguiZoomFactor,
 };
 use bevy_camera::Camera;
 use bevy_ecs::{
@@ -11,11 +11,11 @@ use bevy_ecs::{
     system::{NonSendMarker, SystemParam},
 };
 use bevy_input::{
-    ButtonInput, ButtonState,
-    gestures::PinchGesture,
-    keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
+    gestures::PinchGesture, keyboard::{Key, KeyCode, KeyboardFocusLost, KeyboardInput},
     mouse::{MouseButton, MouseButtonInput, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
+    ButtonInput,
+    ButtonState,
 };
 use bevy_log::{self as log};
 use bevy_time::{Real, Time};
@@ -40,8 +40,6 @@ pub struct EguiContextPointerTouchId {
 /// Stores per-context [IME](https://en.wikipedia.org/wiki/Input_method) state used by input and window integration.
 #[derive(Component, Default)]
 pub struct EguiContextImeState {
-    /// Indicates whether an IME composition is currently active for this context.
-    pub has_sent_ime_enabled: bool,
     /// Indicates whether IME is currently allowed, i.e. if the virtual keyboard is shown.
     pub is_ime_allowed: bool,
     /// Corresponds to where an active egui text edit is located on the screen.
@@ -731,7 +729,7 @@ pub fn write_ime_messages_system(
         | Ime::Disabled { window }
         | Ime::Enabled { window } => *window,
     }) {
-        let Some((_entity, context_settings, mut ime_state, _egui_output)) =
+        let Some((_entity, context_settings, _ime_state, _egui_output)) =
             egui_contexts.get_some_mut(context)
         else {
             continue;
@@ -745,21 +743,16 @@ pub fn write_ime_messages_system(
             continue;
         }
 
-        // Aligned with the egui-winit implementation: https://github.com/emilk/egui/blob/0f2b427ff4c0a8c68f6622ec7d0afb7ba7e71bba/crates/egui-winit/src/lib.rs#L348
+        // Aligned with the egui-winit implementation: https://github.com/emilk/egui/blob/68b74530b7848cef6bff4efc5fc9906bfbd1e8ca/crates/egui-winit/src/lib.rs#L697
         match message {
             Ime::Enabled { window: _ } => {
-                if cfg!(target_os = "linux") {
-                    // This event means different things in X11 and Wayland, but we can just
-                    // ignore it and enable IME on the preedit event.
-                    // See <https://github.com/rust-windowing/winit/issues/2498>
-                }
+                // NO-OP
             }
             Ime::Preedit {
                 value,
                 window: _,
                 cursor,
             } => {
-                ime_state.has_sent_ime_enabled = !value.is_empty();
                 egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Preedit {
@@ -769,14 +762,13 @@ pub fn write_ime_messages_system(
                 });
             }
             Ime::Commit { value, window: _ } => {
-                ime_state.has_sent_ime_enabled = false;
                 egui_input_message_writer.write(EguiInputEvent {
                     context,
                     event: egui::Event::Ime(egui::ImeEvent::Commit(value.clone())),
                 });
             }
             Ime::Disabled { window: _ } => {
-                ime_state.has_sent_ime_enabled = false;
+                // NO-OP
             }
         }
     }
