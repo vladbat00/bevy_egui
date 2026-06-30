@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [0.40.1] - Unreleased
+## [0.41.0] - 30-Jun-2026
 
 ### Changed
-- Update to egui 0.35
 
+- Update to egui 0.35 ([#488](https://github.com/vladbat00/bevy_egui/pull/488) by @hacknus).
 
 ## [0.40.1] - 24-Jun-2026
 
