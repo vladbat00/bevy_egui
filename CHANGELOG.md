@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.1] - 18-Jul-2026
+
+### Fixed
+
+- Schedule egui 3d render pass after `PostProcess` to prevent tonemapping race ([#491](https://github.com/vladbat00/bevy_egui/pull/491) by @g4borg).
 
 ## [0.41.0] - 30-Jun-2026
 
