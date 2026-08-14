@@ -1236,11 +1236,9 @@ pub fn write_egui_input_system(
             .entry(ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = camera.target_scaling_factor();
-        egui_input
-            .events
-            .push(egui::Event::ModifiersChanged(
-                modifier_keys_state.to_egui_modifiers(),
-            ));
+        egui_input.events.push(egui::Event::ModifiersChanged(
+            modifier_keys_state.to_egui_modifiers(),
+        ));
         egui_input.time = Some(time.elapsed_secs_f64());
     }
 }
