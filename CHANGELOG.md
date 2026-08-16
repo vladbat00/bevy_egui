@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 16-Aug-2026
+
+### Fixed
+
+- Fix panics when using the `Disabled` component.
+- Preserve cursor and mouse button event order ([#496](https://github.com/vladbat00/bevy_egui/pull/496) by @kevthedawg).
+
+### Changed
+
+- Update to egui 0.36 ([#493](https://github.com/vladbat00/bevy_egui/pull/493) by @barsoosayque).
+- Remove the deprecated egui single-pass mode support. 
+
 ## [0.41.1] - 18-Jul-2026
 
 ### Fixed
