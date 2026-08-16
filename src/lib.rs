@@ -202,7 +202,6 @@ use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
 
 /// Adds all Egui resources and render graph nodes.
-#[allow(clippy::derivable_impls)]
 pub struct EguiPlugin {
     /// Configures whether [`egui`] will be rendered above or below [`bevy_ui_render`](Bevy UI) GUIs.
     ///
@@ -223,6 +222,7 @@ pub struct EguiPlugin {
     pub bindless_mode_array_size: Option<std::num::NonZero<u32>>,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for EguiPlugin {
     fn default() -> Self {
         Self {
