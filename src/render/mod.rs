@@ -10,6 +10,7 @@ use bevy_camera::{Camera, Hdr};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
+    entity_disabling::Disabled,
     query::Has,
     resource::Resource,
     system::{Commands, Local, ResMut},
@@ -85,16 +86,24 @@ pub fn extract_egui_camera_view_system(
         &EguiOutput,
         &mut EguiRenderOutput,
         Has<Hdr>,
+        Has<Disabled>,
     )>();
 
-    for (main_entity, render_entity, camera, egui_output, mut egui_render_output, hdr) in
-        &mut q.iter_mut(&mut world)
+    for (
+        main_entity,
+        render_entity,
+        camera,
+        egui_output,
+        mut egui_render_output,
+        hdr,
+        is_disabled,
+    ) in &mut q.iter_mut(&mut world)
     {
         // Move Egui shapes and textures out of the main world into the render one.
         let egui_render_output = std::mem::take(egui_render_output.as_mut());
 
         // Ignore inactive cameras.
-        if !camera.is_active {
+        if !camera.is_active || is_disabled {
             commands
                 .get_entity(render_entity)
                 .expect("Camera entity wasn't synced.")

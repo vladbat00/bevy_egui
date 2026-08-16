@@ -1565,8 +1565,6 @@ pub fn capture_pointer_input_system(
     window_to_egui_context_map: Res<WindowToEguiContextMap>,
     picking_order: Res<EguiPickingOrder>,
 ) {
-    use helpers::QueryHelper;
-
     for (pointer, location) in pointers
         .iter()
         .filter_map(|(i, p)| p.location.as_ref().map(|l| (i, l)))
@@ -1578,8 +1576,8 @@ pub fn capture_pointer_input_system(
                 .cloned()
                 .unwrap_or_default()
             {
-                let Some((entity, mut ctx, settings, camera)) =
-                    egui_context.get_some_mut(window_context_entity)
+                let Ok((entity, mut ctx, settings, camera)) =
+                    egui_context.get_mut(window_context_entity)
                 else {
                     continue;
                 };
