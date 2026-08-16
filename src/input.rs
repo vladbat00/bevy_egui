@@ -1054,12 +1054,8 @@ pub fn write_non_window_touch_messages_system(
             continue;
         };
 
-        let Ok((
-            context_settings,
-            context_pointer_position,
-            mut context_pointer_touch_id,
-            output,
-        )) = egui_contexts.get_mut(focused_non_window_egui_context)
+        let Ok((context_settings, context_pointer_position, mut context_pointer_touch_id, output)) =
+            egui_contexts.get_mut(focused_non_window_egui_context)
         else {
             continue;
         };
