@@ -25,7 +25,7 @@ mod foo {
 
     #[derive(Default)]
     pub struct MyState {
-        dropped_files: Vec<egui::DroppedFile>,
+        dropped_files: Vec<egui::DroppedFileHandle>,
         picked_path: Option<String>,
     }
 
@@ -75,23 +75,9 @@ mod foo {
                     ui.label("Dropped files:");
 
                     for file in &state.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if !file.name.is_empty() {
-                            file.name.clone()
-                        } else {
-                            "???".to_owned()
-                        };
-
-                        let mut additional_info = vec![];
-                        if !file.mime.is_empty() {
-                            additional_info.push(format!("type: {}", file.mime));
-                        }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
-                        }
-                        if !additional_info.is_empty() {
-                            info += &format!(" ({})", additional_info.join(", "));
+                        let mut info = file.path().display().to_string();
+                        if let Ok(bytes) = file.bytes() {
+                            info += &format!(" ({} bytes)", bytes.len());
                         }
 
                         ui.label(info);
@@ -110,7 +96,7 @@ mod foo {
         });
 
         ctx.input(|i| {
-            if i.raw.modifiers.ctrl {
+            if i.modifiers.ctrl {
                 info!("ctrl pressed");
             }
         });

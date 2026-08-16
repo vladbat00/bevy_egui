@@ -1696,49 +1696,52 @@ pub fn capture_pointer_input_system(
 /// Updates textures painted by Egui.
 #[cfg(feature = "render")]
 pub fn update_egui_textures_system(
-    mut egui_render_output: Query<(Entity, &EguiRenderOutput)>,
+    mut egui_render_output: Query<(Entity, &mut EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
     use bevy_image::TextureAccessError;
 
-    for (entity, egui_render_output) in egui_render_output.iter_mut() {
-        for (texture_id, image_delta) in &egui_render_output.textures_delta.set {
-            let color_image = render::as_color_image(&image_delta.image);
-
+    for (entity, mut egui_render_output) in egui_render_output.iter_mut() {
+        for (texture_id, image_deltas) in egui_render_output.textures_delta.set.drain() {
             let texture_id = match texture_id {
-                egui::TextureId::Managed(texture_id) => *texture_id,
+                egui::TextureId::Managed(texture_id) => texture_id,
                 egui::TextureId::User(_) => continue,
             };
 
-            let sampler = ImageSampler::Descriptor(render::texture_options_as_sampler_descriptor(
-                &image_delta.options,
-            ));
-            if let Some(pos) = image_delta.pos {
-                // Partial update.
-                if let Some(managed_texture) = egui_managed_textures.get_mut(&(entity, texture_id))
-                    && let Some(image) = image_assets.get_mut(managed_texture.handle.id())
-                {
-                    if update_image_rect(image, pos, &color_image).is_err() {
-                        log::error!(
-                            "Failed to write into texture (id: {:?}) for partial update",
-                            texture_id
-                        );
+            for image_delta in image_deltas {
+                let color_image = render::as_color_image(&image_delta.image);
+
+                let sampler = ImageSampler::Descriptor(
+                    render::texture_options_as_sampler_descriptor(&image_delta.options),
+                );
+                if let Some(pos) = image_delta.pos {
+                    // Partial update.
+                    if let Some(managed_texture) =
+                        egui_managed_textures.get_mut(&(entity, texture_id))
+                        && let Some(image) = image_assets.get_mut(managed_texture.handle.id())
+                    {
+                        if update_image_rect(image, pos, &color_image).is_err() {
+                            log::error!(
+                                "Failed to write into texture (id: {:?}) for partial update",
+                                texture_id
+                            );
+                        }
+                    } else {
+                        log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
                     }
                 } else {
-                    log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
+                    // Full update.
+                    let image = render::color_image_as_bevy_image(&color_image, sampler);
+                    let handle = image_assets.add(image);
+                    egui_managed_textures.insert(
+                        (entity, texture_id),
+                        EguiManagedTexture {
+                            handle,
+                            color_image,
+                        },
+                    );
                 }
-            } else {
-                // Full update.
-                let image = render::color_image_as_bevy_image(&color_image, sampler);
-                let handle = image_assets.add(image);
-                egui_managed_textures.insert(
-                    (entity, texture_id),
-                    EguiManagedTexture {
-                        handle,
-                        color_image,
-                    },
-                );
             }
         }
     }
@@ -1771,13 +1774,13 @@ pub fn update_egui_textures_system(
 #[cfg(feature = "render")]
 pub fn free_egui_textures_system(
     mut egui_user_textures: ResMut<EguiUserTextures>,
-    egui_render_output: Query<(Entity, &EguiRenderOutput)>,
+    mut egui_render_output: Query<(Entity, &mut EguiRenderOutput)>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
     mut image_event_reader: MessageReader<AssetEvent<Image>>,
 ) {
-    for (entity, egui_render_output) in egui_render_output.iter() {
-        for &texture_id in &egui_render_output.textures_delta.free {
+    for (entity, mut egui_render_output) in egui_render_output.iter_mut() {
+        for texture_id in egui_render_output.textures_delta.free.drain() {
             if let egui::TextureId::Managed(texture_id) = texture_id {
                 let managed_texture = egui_managed_textures.remove(&(entity, texture_id));
                 if let Some(managed_texture) = managed_texture {

@@ -23,6 +23,32 @@ use bevy_window::{CursorMoved, FileDragAndDrop, Ime, Window, WindowEvent};
 use bevy_winit::WinitUserEvent;
 use egui::{Modifiers, TouchPhase, ViewportId};
 
+/// A [`egui::DroppedFile`], dropped via [`bevy_window::FileDragAndDrop`].
+#[derive(Debug)]
+struct BevyDroppedFile {
+    path: std::path::PathBuf,
+}
+
+impl egui::DroppedFile for BevyDroppedFile {
+    fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn bytes(&self) -> Result<Vec<u8>, String> {
+        std::fs::read(&self.path).map_err(|err| err.to_string())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn bytes_async(
+        &self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>, String>> + '_>> {
+        Box::pin(async {
+            Err("reading dropped file contents is not supported on this platform".to_owned())
+        })
+    }
+}
+
 /// Cached pointer position, used to populate [`egui::Event::PointerButton`] messages.
 #[derive(Component, Default)]
 pub struct EguiContextPointerPosition {
@@ -1455,10 +1481,11 @@ pub fn write_egui_input_system(
                 path_buf,
             } => {
                 egui_input.hovered_files.clear();
-                egui_input.dropped_files.push(egui::DroppedFile {
-                    path: Some(path_buf.clone()),
-                    ..Default::default()
-                });
+                egui_input
+                    .dropped_files
+                    .push(std::sync::Arc::new(BevyDroppedFile {
+                        path: path_buf.clone(),
+                    }));
             }
             FileDragAndDrop::HoveredFile {
                 window: _,
@@ -1491,7 +1518,9 @@ pub fn write_egui_input_system(
             .entry(ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = camera.target_scaling_factor();
-        egui_input.modifiers = modifier_keys_state.to_egui_modifiers();
+        egui_input.events.push(egui::Event::ModifiersChanged(
+            modifier_keys_state.to_egui_modifiers(),
+        ));
         egui_input.time = Some(time.elapsed_secs_f64());
     }
 }
