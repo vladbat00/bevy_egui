@@ -1,8 +1,3 @@
-use bevy_ecs::{
-    entity::Entity,
-    query::{QueryData, QueryEntityError, QueryFilter, QueryItem, ROQueryItem},
-    system::Query,
-};
 use bevy_input::keyboard::{Key, KeyCode};
 
 /// Translates [`egui::CursorIcon`] into [`bevy_window::SystemCursorIcon`].
@@ -239,39 +234,5 @@ pub fn egui_rect_into_rect(rect: egui::Rect) -> bevy_math::Rect {
     bevy_math::Rect {
         min: egui_pos2_into_vec2(rect.min),
         max: egui_pos2_into_vec2(rect.max),
-    }
-}
-
-pub(crate) trait QueryHelper<'w> {
-    type QueryData: bevy_ecs::query::QueryData;
-
-    fn get_some(&self, entity: Entity) -> Option<ROQueryItem<'_, 'w, Self::QueryData>>;
-
-    fn get_some_mut(&mut self, entity: Entity) -> Option<QueryItem<'_, 'w, Self::QueryData>>;
-}
-
-impl<'w, D: QueryData, F: QueryFilter> QueryHelper<'w> for Query<'_, 'w, D, F> {
-    type QueryData = D;
-
-    fn get_some(&self, entity: Entity) -> Option<ROQueryItem<'_, 'w, Self::QueryData>> {
-        match self.get(entity) {
-            Ok(item) => Some(item),
-            Err(QueryEntityError::NotSpawned(_)) => None,
-            err => {
-                err.unwrap();
-                unreachable!()
-            }
-        }
-    }
-
-    fn get_some_mut(&mut self, entity: Entity) -> Option<QueryItem<'_, 'w, Self::QueryData>> {
-        match self.get_mut(entity) {
-            Ok(item) => Some(item),
-            Err(QueryEntityError::NotSpawned(_)) => None,
-            err => {
-                err.unwrap();
-                unreachable!()
-            }
-        }
     }
 }

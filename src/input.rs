@@ -2,7 +2,7 @@
 use crate::text_agent::{is_mobile_safari, update_text_agent};
 use crate::{
     EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput, EguiZoomFactor,
-    helpers::{QueryHelper, vec2_into_egui_pos2},
+    helpers::vec2_into_egui_pos2,
 };
 use bevy_camera::Camera;
 use bevy_ecs::{
@@ -461,8 +461,8 @@ pub fn write_pointer_moved_and_button_messages_system(
                 };
 
                 for &context in contexts {
-                    let Some((egui_zoom_factor, context_settings, mut pointer_position)) =
-                        egui_contexts.get_some_mut(context)
+                    let Ok((egui_zoom_factor, context_settings, mut pointer_position)) =
+                        egui_contexts.get_mut(context)
                     else {
                         continue;
                     };
@@ -518,8 +518,8 @@ pub fn write_pointer_moved_and_button_messages_system(
                     };
 
                 for context in contexts {
-                    let Some((_, context_settings, pointer_position)) =
-                        egui_contexts.get_some_mut(context)
+                    let Ok((_, context_settings, pointer_position)) =
+                        egui_contexts.get_mut(context)
                     else {
                         continue;
                     };
@@ -575,8 +575,8 @@ pub fn write_non_window_pointer_moved_messages_system(
         return;
     };
 
-    let Some((context_settings, context_pointer_position)) =
-        egui_contexts.get_some(*hovered_non_window_egui_context)
+    let Ok((context_settings, context_pointer_position)) =
+        egui_contexts.get(*hovered_non_window_egui_context)
     else {
         return;
     };
@@ -611,7 +611,7 @@ pub fn write_mouse_wheel_messages_system(
             MouseScrollUnit::Pixel => egui::MouseWheelUnit::Point,
         };
 
-        let Some(context_settings) = egui_contexts.get_some(context) else {
+        let Ok(context_settings) = egui_contexts.get(context) else {
             continue;
         };
 
@@ -685,7 +685,7 @@ pub fn write_keyboard_input_messages_system(
     for (message, context) in
         keyboard_input_reader.read_with_non_window_focused(|message| message.window)
     {
-        let Some(context_settings) = egui_contexts.get_some(context) else {
+        let Ok(context_settings) = egui_contexts.get(context) else {
             continue;
         };
 
@@ -790,8 +790,8 @@ pub fn write_ime_messages_system(
         | Ime::Disabled { window }
         | Ime::Enabled { window } => *window,
     }) {
-        let Some((_entity, context_settings, _ime_state, _egui_output)) =
-            egui_contexts.get_some_mut(context)
+        let Ok((_entity, context_settings, _ime_state, _egui_output)) =
+            egui_contexts.get_mut(context)
         else {
             continue;
         };
@@ -917,7 +917,7 @@ pub fn write_file_dnd_messages_system(
         | FileDragAndDrop::HoveredFile { window, .. }
         | FileDragAndDrop::HoveredFileCanceled { window } => *window,
     }) {
-        let Some(context_settings) = egui_contexts.get_some(context) else {
+        let Ok(context_settings) = egui_contexts.get(context) else {
             continue;
         };
 
@@ -982,13 +982,13 @@ pub fn write_window_touch_messages_system(
         .cloned();
 
     for (message, context) in touch_input_reader.read(|message| message.window) {
-        let Some((
+        let Ok((
             &EguiZoomFactor { zoom_factor },
             context_settings,
             mut context_pointer_position,
             mut context_pointer_touch_id,
             output,
-        )) = egui_contexts.get_some_mut(context)
+        )) = egui_contexts.get_mut(context)
         else {
             continue;
         };
@@ -1054,12 +1054,8 @@ pub fn write_non_window_touch_messages_system(
             continue;
         };
 
-        let Some((
-            context_settings,
-            context_pointer_position,
-            mut context_pointer_touch_id,
-            output,
-        )) = egui_contexts.get_some_mut(focused_non_window_egui_context)
+        let Ok((context_settings, context_pointer_position, mut context_pointer_touch_id, output)) =
+            egui_contexts.get_mut(focused_non_window_egui_context)
         else {
             continue;
         };
@@ -1508,7 +1504,7 @@ pub fn write_egui_input_system(
                 window_to_egui_context_map
                     .context_to_window
                     .get(&entity)
-                    .and_then(|window_entity| windows.get_some(*window_entity))
+                    .and_then(|window_entity| windows.get(*window_entity).ok())
                     .is_some_and(|window| window.focused)
             },
             |context| context.0 == entity,
