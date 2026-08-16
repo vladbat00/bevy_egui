@@ -479,10 +479,10 @@ impl Default for EguiContextSettings {
 pub struct EguiInputSystemSettings {
     /// Controls running of the [`write_modifiers_keys_state_system`] system.
     pub run_write_modifiers_keys_state_system: bool,
-    /// Controls running of the [`write_window_pointer_moved_messages_system`] system.
-    pub run_write_window_pointer_moved_messages_system: bool,
-    /// Controls running of the [`write_pointer_button_messages_system`] system.
-    pub run_write_pointer_button_messages_system: bool,
+    /// Controls cursor movement handling in the [`write_pointer_moved_and_button_messages_system`] system.
+    pub run_write_window_pointer_moved_messages: bool,
+    /// Controls mouse button handling in the [`write_pointer_moved_and_button_messages_system`] system.
+    pub run_write_pointer_button_messages: bool,
     /// Controls running of the [`write_window_touch_messages_system`] system.
     pub run_write_window_touch_messages_system: bool,
     /// Controls running of the [`write_non_window_pointer_moved_messages_system`] system.
@@ -511,8 +511,8 @@ impl Default for EguiInputSystemSettings {
     fn default() -> Self {
         Self {
             run_write_modifiers_keys_state_system: true,
-            run_write_window_pointer_moved_messages_system: true,
-            run_write_pointer_button_messages_system: true,
+            run_write_window_pointer_moved_messages: true,
+            run_write_pointer_button_messages: true,
             run_write_window_touch_messages_system: true,
             run_write_non_window_pointer_moved_messages_system: true,
             run_write_mouse_wheel_messages_system: true,
@@ -975,11 +975,11 @@ pub enum EguiPreUpdateSet {
 /// Subsets of the [`EguiPreUpdateSet::ProcessInput`] set.
 #[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
 pub enum EguiInputSet {
-    /// Reads key modifiers state and pointer positions.
+    /// Reads key modifier state and Egui zoom factors.
     ///
     /// This is where [`HoveredNonWindowEguiContext`] should get inserted or removed.
     InitReading,
-    /// Processes window mouse button click and touch messages, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
+    /// Processes ordered window cursor movement, mouse button and touch messages, updates [`FocusedNonWindowEguiContext`] based on [`HoveredNonWindowEguiContext`].
     FocusContext,
     /// Processes rest of the messages for both window and non-window contexts.
     ReadBevyMessages,
@@ -1111,17 +1111,15 @@ impl Plugin for EguiPlugin {
                         s.run_write_modifiers_keys_state_system
                     })),
                     read_egui_zoom_factor_system,
-                    write_window_pointer_moved_messages_system
-                        .run_if(input_system_is_enabled(|s| {
-                            s.run_write_window_pointer_moved_messages_system
-                        }))
-                        .after(read_egui_zoom_factor_system),
                 )
                     .in_set(EguiInputSet::InitReading),
                 (
-                    write_pointer_button_messages_system.run_if(input_system_is_enabled(|s| {
-                        s.run_write_pointer_button_messages_system
-                    })),
+                    write_pointer_moved_and_button_messages_system.run_if(input_system_is_enabled(
+                        |s| {
+                            s.run_write_window_pointer_moved_messages
+                                || s.run_write_pointer_button_messages
+                        },
+                    )),
                     write_window_touch_messages_system.run_if(input_system_is_enabled(|s| {
                         s.run_write_window_touch_messages_system
                     })),
