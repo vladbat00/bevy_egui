@@ -5,7 +5,7 @@ use bevy::{
 };
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_egui::{
-    EguiContext, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
+    EguiContext, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiSchedule,
     EguiTextureHandle, EguiUserTextures, PrimaryEguiContext,
 };
 
@@ -53,7 +53,7 @@ fn create_new_window_system(
         Camera3d::default(),
         Camera::default(),
         RenderTarget::Window(WindowRef::Entity(second_window_id)),
-        EguiMultipassSchedule::new(SecondWindowContextPass),
+        EguiSchedule::new(SecondWindowContextPass),
         Transform::from_xyz(6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }

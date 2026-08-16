@@ -1,7 +1,7 @@
 use bevy::{camera::Viewport, ecs::schedule::ScheduleLabel, prelude::*, window::WindowResized};
 use bevy_egui::{
-    EguiContext, EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin,
-    EguiPrimaryContextPass, PrimaryEguiContext, egui,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
+    EguiSchedule, PrimaryEguiContext, egui,
 };
 use wgpu_types::BlendState;
 
@@ -69,7 +69,7 @@ fn setup_system(
 
     // Cameras.
     commands.spawn((
-        EguiMultipassSchedule(PlayerCamera::<0>.intern()),
+        EguiSchedule(PlayerCamera::<0>.intern()),
         PlayerCamera::<0>,
         Camera3d::default(),
         Camera {
@@ -84,7 +84,7 @@ fn setup_system(
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
-        EguiMultipassSchedule(PlayerCamera::<1>.intern()),
+        EguiSchedule(PlayerCamera::<1>.intern()),
         PlayerCamera::<1>,
         Camera3d::default(),
         Camera {
@@ -99,7 +99,7 @@ fn setup_system(
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
-        EguiMultipassSchedule(PlayerCamera::<2>.intern()),
+        EguiSchedule(PlayerCamera::<2>.intern()),
         PlayerCamera::<2>,
         Camera3d::default(),
         Camera {
@@ -114,7 +114,7 @@ fn setup_system(
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
-        EguiMultipassSchedule(PlayerCamera::<3>.intern()),
+        EguiSchedule(PlayerCamera::<3>.intern()),
         PlayerCamera::<3>,
         Camera3d::default(),
         Camera {

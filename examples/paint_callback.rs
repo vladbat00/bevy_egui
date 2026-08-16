@@ -15,7 +15,7 @@ use bevy::{
 };
 use bevy_camera::RenderTarget;
 use bevy_egui::{
-    EguiContexts, EguiGlobalSettings, EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass,
+    EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass, EguiSchedule,
     PrimaryEguiContext,
     render::{EguiBevyPaintCallback, EguiBevyPaintCallbackImpl, EguiPipelineKey},
 };
@@ -241,7 +241,7 @@ fn setup_worldspace_system(
             ..default()
         })
         .insert(RenderTarget::Image(output_texture.into()))
-        .insert(EguiMultipassSchedule::new(WorldspaceContextPass));
+        .insert(EguiSchedule::new(WorldspaceContextPass));
 }
 
 fn ui_render_to_image_example_system(

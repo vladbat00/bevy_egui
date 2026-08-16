@@ -1,9 +1,8 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
 use bevy_camera::{RenderTarget, visibility::RenderLayers};
 use bevy_egui::{
-    BevyEguiEntityCommandsExt, EguiContext, EguiContexts, EguiGlobalSettings,
-    EguiMultipassSchedule, EguiPlugin, EguiPrimaryContextPass, PrimaryEguiContext,
-    picking::PickableEguiContext,
+    BevyEguiEntityCommandsExt, EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin,
+    EguiPrimaryContextPass, EguiSchedule, PrimaryEguiContext, picking::PickableEguiContext,
 };
 use wgpu_types::{Extent3d, TextureUsages};
 
@@ -115,7 +114,7 @@ fn setup_system(
             RenderLayers::none(),
             Camera::default(),
             RenderTarget::Image(image.clone().into()),
-            EguiMultipassSchedule::new(WorldspaceContextPass),
+            EguiSchedule::new(WorldspaceContextPass),
         ))
         .id();
 

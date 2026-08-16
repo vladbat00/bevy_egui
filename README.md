@@ -74,10 +74,6 @@ fn ui_example_system(mut contexts: EguiContexts) -> Result {
 }
 ```
 
-Note that this example uses Egui in the [multi-pass mode]((https://docs.rs/egui/0.31.1/egui/#multi-pass-immediate-mode)).
-If you don't want to be limited to the `EguiContextPass` schedule, you can use the single-pass mode,
-but it may get deprecated in the future.
-
 For more advanced examples, see the [examples](#Examples) section below.
 
 ## Examples

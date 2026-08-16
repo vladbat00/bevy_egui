@@ -4,8 +4,8 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{
-    EguiContext, EguiContexts, EguiGlobalSettings, EguiInputSet, EguiMultipassSchedule, EguiPlugin,
-    EguiPrimaryContextPass, EguiTextureHandle, EguiZoomFactor, PrimaryEguiContext,
+    EguiContext, EguiContexts, EguiGlobalSettings, EguiInputSet, EguiPlugin,
+    EguiPrimaryContextPass, EguiSchedule, EguiTextureHandle, EguiZoomFactor, PrimaryEguiContext,
     helpers::vec2_into_egui_pos2,
     input::{EguiContextPointerPosition, HoveredNonWindowEguiContext},
 };
@@ -114,7 +114,7 @@ fn setup_system(
         },
         RenderTarget::Image(mesh_image_handle.clone().into()),
         MeshImageEguiContext,
-        EguiMultipassSchedule::new(RenderToMeshImageContextPass),
+        EguiSchedule::new(RenderToMeshImageContextPass),
     ));
 
     commands.spawn((
@@ -125,7 +125,7 @@ fn setup_system(
         },
         RenderTarget::Image(egui_texture_image_handle.clone().into()),
         EguiTextureImageEguiContext,
-        EguiMultipassSchedule::new(RenderToEguiTextureImageContextPass),
+        EguiSchedule::new(RenderToEguiTextureImageContextPass),
     ));
     app_state.egui_texture_image_handle = egui_texture_image_handle.clone();
     app_state.egui_texture_image_id =
