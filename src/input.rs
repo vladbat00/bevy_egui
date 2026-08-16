@@ -392,45 +392,6 @@ pub fn read_egui_zoom_factor_system(
     }
 }
 
-/// Reads [`CursorMoved`] messages and wraps them into [`EguiInputEvent`]s (only for window contexts).
-#[deprecated(
-    note = "replace both legacy pointer systems with `write_pointer_moved_and_button_messages_system` to preserve the operating system's pointer event order"
-)]
-pub fn write_window_pointer_moved_messages_system(
-    mut cursor_moved_reader: EguiContextMessageReader<CursorMoved>,
-    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
-    mut egui_contexts: Query<
-        (
-            &EguiZoomFactor,
-            &EguiContextSettings,
-            &mut EguiContextPointerPosition,
-        ),
-        With<EguiContext>,
-    >,
-) {
-    for (message, context) in cursor_moved_reader.read(|message| message.window) {
-        let Some((egui_zoom_factor, context_settings, mut context_pointer_position)) =
-            egui_contexts.get_some_mut(context)
-        else {
-            continue;
-        };
-
-        if !context_settings
-            .input_system_settings
-            .run_write_window_pointer_moved_messages_system
-        {
-            continue;
-        }
-
-        let pointer_position = vec2_into_egui_pos2(message.position / egui_zoom_factor.zoom_factor);
-        context_pointer_position.position = pointer_position;
-        egui_input_message_writer.write(EguiInputEvent {
-            context,
-            event: egui::Event::PointerMoved(pointer_position),
-        });
-    }
-}
-
 /// Reads [`WindowEvent`] messages and wraps cursor movement and mouse button input into [`EguiInputEvent`]s in the order that the operating system delivered them.
 ///
 /// Mouse button messages do not contain a pointer position, so preserving their ordering with cursor movement messages is necessary to associate them with the correct position. Button messages can be redirected to [`HoveredNonWindowEguiContext`].
@@ -461,7 +422,7 @@ pub fn write_pointer_moved_and_button_messages_system(
             WindowEvent::CursorMoved(message) => {
                 if !egui_global_settings
                     .input_system_settings
-                    .run_write_window_pointer_moved_messages_system
+                    .run_write_window_pointer_moved_messages
                 {
                     continue;
                 }
@@ -482,7 +443,7 @@ pub fn write_pointer_moved_and_button_messages_system(
 
                     if !context_settings
                         .input_system_settings
-                        .run_write_window_pointer_moved_messages_system
+                        .run_write_window_pointer_moved_messages
                     {
                         continue;
                     }
@@ -499,7 +460,7 @@ pub fn write_pointer_moved_and_button_messages_system(
             WindowEvent::MouseButtonInput(message) => {
                 if !egui_global_settings
                     .input_system_settings
-                    .run_write_pointer_button_messages_system
+                    .run_write_pointer_button_messages
                 {
                     continue;
                 }
@@ -539,7 +500,7 @@ pub fn write_pointer_moved_and_button_messages_system(
 
                     if !context_settings
                         .input_system_settings
-                        .run_write_pointer_button_messages_system
+                        .run_write_pointer_button_messages
                     {
                         continue;
                     }
@@ -566,77 +527,6 @@ pub fn write_pointer_moved_and_button_messages_system(
                 }
             }
             _ => {}
-        }
-    }
-}
-
-/// Reads [`MouseButtonInput`] messages and wraps them into [`EguiInputEvent`], can redirect messages to [`HoveredNonWindowEguiContext`],
-/// inserts, updates or removes the [`FocusedNonWindowEguiContext`] resource based on a hovered context.
-#[deprecated(
-    note = "replace both legacy pointer systems with `write_pointer_moved_and_button_messages_system` to preserve the operating system's pointer event order"
-)]
-pub fn write_pointer_button_messages_system(
-    egui_global_settings: Res<EguiGlobalSettings>,
-    mut commands: Commands,
-    modifier_keys_state: Res<ModifierKeysState>,
-    mut mouse_button_input_reader: EguiContextMessageReader<MouseButtonInput>,
-    mut egui_input_message_writer: MessageWriter<EguiInputEvent>,
-    egui_contexts: Query<(&EguiContextSettings, &EguiContextPointerPosition), With<EguiContext>>,
-) {
-    let modifiers = modifier_keys_state.to_egui_modifiers();
-    let hovered_non_window_egui_context = mouse_button_input_reader
-        .hovered_non_window_egui_context
-        .as_deref()
-        .cloned();
-    for (message, context) in
-        mouse_button_input_reader.read_with_non_window_hovered(|message| message.window)
-    {
-        let Some((context_settings, context_pointer_position)) = egui_contexts.get_some(context)
-        else {
-            continue;
-        };
-
-        if !context_settings
-            .input_system_settings
-            .run_write_pointer_button_messages_system
-        {
-            continue;
-        }
-
-        let button = match message.button {
-            MouseButton::Left => Some(egui::PointerButton::Primary),
-            MouseButton::Right => Some(egui::PointerButton::Secondary),
-            MouseButton::Middle => Some(egui::PointerButton::Middle),
-            MouseButton::Back => Some(egui::PointerButton::Extra1),
-            MouseButton::Forward => Some(egui::PointerButton::Extra2),
-            _ => None,
-        };
-        let Some(button) = button else {
-            continue;
-        };
-        let pressed = match message.state {
-            ButtonState::Pressed => true,
-            ButtonState::Released => false,
-        };
-        egui_input_message_writer.write(EguiInputEvent {
-            context,
-            event: egui::Event::PointerButton {
-                pos: context_pointer_position.position,
-                button,
-                pressed,
-                modifiers,
-            },
-        });
-
-        // If we are hovering over some UI in world space, we want to mark it as focused on mouse click.
-        if egui_global_settings.enable_focused_non_window_context_updates && pressed {
-            if let Some(hovered_non_window_egui_context) = &hovered_non_window_egui_context {
-                commands.insert_resource(FocusedNonWindowEguiContext(
-                    hovered_non_window_egui_context.0,
-                ));
-            } else {
-                commands.remove_resource::<FocusedNonWindowEguiContext>();
-            }
         }
     }
 }
@@ -1390,7 +1280,7 @@ mod tests {
         app.world_mut()
             .resource_mut::<EguiGlobalSettings>()
             .input_system_settings
-            .run_write_window_pointer_moved_messages_system = false;
+            .run_write_window_pointer_moved_messages = false;
         let window = app.world_mut().spawn_empty().id();
         let context = app
             .world_mut()
@@ -1431,7 +1321,7 @@ mod tests {
         app.world_mut()
             .resource_mut::<EguiGlobalSettings>()
             .input_system_settings
-            .run_write_pointer_button_messages_system = false;
+            .run_write_pointer_button_messages = false;
         let window = app.world_mut().spawn_empty().id();
         let context = app.world_mut().spawn(EguiContext::default()).id();
         app.world_mut()
