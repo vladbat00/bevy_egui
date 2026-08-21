@@ -132,6 +132,10 @@ The same minimal example demonstrating running Egui passes manually.
 
 - [`jakobhellermann/bevy-inspector-egui`](https://github.com/jakobhellermann/bevy-inspector-egui)
 
+## AI policy
+
+The project follows [the Bevy AI policy](https://bevy.org/learn/contribute/policies/ai/).
+
 ## Bevy support table
 
 **Note:** if you're looking for a `bevy_egui` version that supports `main` branch of Bevy, check out [open PRs](https://github.com/vladbat00/bevy_egui/pulls), there's a great chance we've already started working on the future Bevy release support.
