@@ -23,6 +23,7 @@ default_fonts = ["egui/default_fonts"]
 render = [
     "bevy_asset",
     "bevy_core_pipeline",
+    "bevy_extract",
     "bevy_image",
     "bevy_mesh",
     "bevy_render",
@@ -85,12 +86,12 @@ required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.36", default-features = false }
-bevy = { version = "0.20.0-rc.1", default-features = false } # Added this because the ExtractResource derive macro is trying to find the bevy dependency for some reason
 bevy_a11y = { version = "0.20.0-rc.1", optional = true }
 bevy_app = { version = "0.20.0-rc.1" }
 bevy_camera = { version = "0.20.0-rc.1" }
 bevy_derive = { version = "0.20.0-rc.1" }
 bevy_ecs = { version = "0.20.0-rc.1" }
+bevy_extract = { version = "0.20.0-rc.1", optional = true }
 bevy_input = { version = "0.20.0-rc.1" }
 bevy_log = { version = "0.20.0-rc.1" }
 bevy_math = { version = "0.20.0-rc.1" }

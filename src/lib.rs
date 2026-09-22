@@ -162,6 +162,8 @@ use bevy_ecs::{
     system::SystemParam,
 };
 #[cfg(feature = "render")]
+use bevy_extract::extract_resource::ExtractResource;
+#[cfg(feature = "render")]
 use bevy_image::{Image, ImageSampler};
 use bevy_input::InputSystems;
 #[allow(unused_imports)]
@@ -177,8 +179,7 @@ use bevy_platform::collections::HashSet;
 use bevy_reflect::Reflect;
 #[cfg(feature = "render")]
 use bevy_render::{
-    ExtractSchedule, Render, RenderApp, RenderSystems,
-    extract_resource::{ExtractResource, ExtractResourcePlugin},
+    ExtractSchedule, Render, RenderApp, RenderSystems, extract_resource::ExtractResourcePlugin,
     render_resource::SpecializedRenderPipelines,
 };
 use output::process_output_system;
