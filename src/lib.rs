@@ -1343,7 +1343,7 @@ pub struct EguiManagedTexture {
 /// Adds bevy_egui components to a first found camera assuming it's a primary one.
 ///
 /// To disable this behavior, set [`EguiGlobalSettings::auto_create_primary_context`] to `false` before you create your first camera.
-/// When spawning a camera to which you want to attach the primary Egui context, insert the [`EguiPrimaryContextPass`] component into the respective camera entity.
+/// When spawning a camera to which you want to attach the primary Egui context, insert the [`PrimaryEguiContext`] marker component into the respective camera entity.
 pub fn setup_primary_egui_context_system(
     mut commands: Commands,
     new_cameras: Query<(Entity, Option<&EguiContext>), Added<bevy_camera::Camera>>,
