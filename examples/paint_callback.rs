@@ -8,7 +8,7 @@ use bevy::{
         render_resource::{
             BlendState, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
             MultisampleState, PipelineCache, PolygonMode, PrimitiveState, RenderPipelineDescriptor,
-            SpecializedRenderPipeline, SpecializedRenderPipelines,
+            SpecializedRenderPipeline, SpecializedRenderPipelines, VertexState,
         },
         sync_world::RenderEntity,
     },
@@ -138,11 +138,12 @@ impl SpecializedRenderPipeline for CustomPipeline {
             label: Some("custom pipeline".into()),
             layout: vec![],
             immediate_size: 0,
-            vertex: bevy::render::render_resource::VertexState {
+            vertex: VertexState {
                 shader: self.shader.clone(),
                 shader_defs: vec![],
                 entry_point: Some("vertex".into()),
                 buffers: vec![],
+                constants: vec![],
             },
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleStrip,
@@ -164,6 +165,7 @@ impl SpecializedRenderPipeline for CustomPipeline {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                constants: vec![],
             }),
             zero_initialize_workgroup_memory: false,
         }

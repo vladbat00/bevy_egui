@@ -1,6 +1,6 @@
 [package]
 name = "bevy_egui"
-version = "0.42.0"
+version = "0.43.0-rc.1"
 rust-version = "1.95.0"
 authors = ["vladbat00 <vladyslav.batyrenko@gmail.com>"]
 description = "A plugin for Egui integration into Bevy"
@@ -23,6 +23,7 @@ default_fonts = ["egui/default_fonts"]
 render = [
     "bevy_asset",
     "bevy_core_pipeline",
+    "bevy_extract",
     "bevy_image",
     "bevy_mesh",
     "bevy_render",
@@ -78,27 +79,29 @@ name = "ui"
 required-features = ["render"]
 [[example]]
 name = "render_egui_to_image"
-required-features = ["picking", "render", "bevy/bevy_gizmos", "bevy/bevy_gizmos_render"]
+required-features = ["picking", "render"]
 [[example]]
 name = "file_browse"
 required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.36", default-features = false }
-bevy_a11y = { version = "0.19", optional = true }
-bevy_app = { version = "0.19" }
-bevy_camera = { version = "0.19" }
-bevy_derive = { version = "0.19" }
-bevy_ecs = { version = "0.19" }
-bevy_input = { version = "0.19" }
-bevy_log = { version = "0.19" }
-bevy_math = { version = "0.19" }
-bevy_platform = { version = "0.19" }
-bevy_reflect = { version = "0.19" }
-bevy_time = { version = "0.19" }
-bevy_window = { version = "0.19" }
-bevy_winit = { version = "0.19" }
-bevy_utils = { version = "0.19", features = ["debug"] }
+bevy_a11y = { version = "0.20.0-rc.1", optional = true }
+bevy_app = { version = "0.20.0-rc.1" }
+bevy_camera = { version = "0.20.0-rc.1" }
+bevy_derive = { version = "0.20.0-rc.1" }
+bevy_ecs = { version = "0.20.0-rc.1" }
+bevy_extract = { version = "0.20.0-rc.1", optional = true }
+bevy_input = { version = "0.20.0-rc.1" }
+bevy_log = { version = "0.20.0-rc.1" }
+bevy_math = { version = "0.20.0-rc.1" }
+bevy_platform = { version = "0.20.0-rc.1" }
+bevy_reflect = { version = "0.20.0-rc.1" }
+bevy_time = { version = "0.20.0-rc.1" }
+bevy_shape = { version = "0.20.0-rc.1" }
+bevy_window = { version = "0.20.0-rc.1" }
+bevy_winit = { version = "0.20.0-rc.1" }
+bevy_utils = { version = "0.20.0-rc.1", features = ["debug"] }
 winit = { version = "0.30", default-features = false }
 
 # `open_url` feature
@@ -107,23 +110,23 @@ webbrowser = { version = "1.0.1", optional = true }
 # `render` feature
 bytemuck = { version = "1", optional = true }
 
-bevy_asset = { version = "0.19", optional = true }
-bevy_core_pipeline = { version = "0.19", optional = true }
-bevy_image = { version = "0.19", features = ["zstd_rust"], optional = true }
-bevy_mesh = { version = "0.19", optional = true }
-bevy_render = { version = "0.19", optional = true }
-bevy_color = { version = "0.19", optional = true }
-bevy_shader = { version = "0.19", optional = true }
-bevy_transform = { version = "0.19", optional = true }
+bevy_asset = { version = "0.20.0-rc.1", optional = true }
+bevy_core_pipeline = { version = "0.20.0-rc.1", optional = true }
+bevy_image = { version = "0.20.0-rc.1", features = ["zstd_rust"], optional = true }
+bevy_mesh = { version = "0.20.0-rc.1", optional = true }
+bevy_render = { version = "0.20.0-rc.1", optional = true }
+bevy_color = { version = "0.20.0-rc.1", optional = true }
+bevy_shader = { version = "0.20.0-rc.1", optional = true }
+bevy_transform = { version = "0.20.0-rc.1", optional = true }
 encase = { version = "0.12", optional = true }
 itertools = { version = "0.15", optional = true }
-wgpu-types = { version = "29.0.3", optional = true }
+wgpu-types = { version = "30.0.1", optional = true }
 
 # `bevy_ui` feature
-bevy_ui_render = { version = "0.19", optional = true }
+bevy_ui_render = { version = "0.20.0-rc.1", optional = true }
 
 # `picking` feature
-bevy_picking = { version = "0.19", optional = true, features = ["mesh_picking"] }
+bevy_picking = { version = "0.20.0-rc.1", optional = true, features = ["mesh_picking"] }
 
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
@@ -134,11 +137,12 @@ smithay-clipboard = { version = "0.7.2", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
-bevy = { version = "0.19", default-features = false, features = [
+bevy = { version = "0.20.0-rc.1", default-features = false, features = [
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",
     "bevy_gizmos",
+    "bevy_gizmos_render",
     "bevy_pbr",
     "mesh_picking",
     "bevy_sprite",
@@ -157,12 +161,12 @@ bevy = { version = "0.19", default-features = false, features = [
     "tonemapping_luts",
     "webgl2",
     "x11",
-    "zstd_rust"
+    "zstd_rust",
 ] }
 egui = { version = "0.36", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-bevy = { version = "0.19", default-features = false, features = ["accesskit_unix"] }
+bevy = { version = "0.20.0-rc.1", default-features = false, features = ["accesskit_unix"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))'.dev-dependencies]
 rfd = "0.17"

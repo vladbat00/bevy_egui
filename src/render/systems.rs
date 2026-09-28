@@ -14,6 +14,7 @@ use bevy_log as log;
 use bevy_math::{URect, UVec2, Vec2};
 use bevy_platform::collections::HashMap;
 use bevy_render::{
+    RenderApp,
     camera::ExtractedCamera,
     extract_resource::ExtractResource,
     render_asset::RenderAssets,
@@ -38,7 +39,7 @@ pub struct ExtractedEguiSettings(pub EguiContextSettings);
 /// The extracted version of [`EguiManagedTextures`].
 #[derive(Debug, Resource)]
 pub struct ExtractedEguiManagedTextures(pub HashMap<(Entity, u64), Handle<Image>>);
-impl ExtractResource for ExtractedEguiManagedTextures {
+impl ExtractResource<RenderApp> for ExtractedEguiManagedTextures {
     type Source = EguiManagedTextures;
 
     fn extract_resource(source: &Self::Source) -> Self {
