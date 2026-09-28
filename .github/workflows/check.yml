@@ -153,7 +153,7 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --all --features "bevy_winit/x11"
+      - run: cargo doc --all --no-deps --features "bevy_winit/x11"
         env:
           RUSTDOCFLAGS: -D warnings
 
