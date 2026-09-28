@@ -79,7 +79,7 @@ name = "ui"
 required-features = ["render"]
 [[example]]
 name = "render_egui_to_image"
-required-features = ["picking", "render", "bevy/bevy_gizmos", "bevy/bevy_gizmos_render"]
+required-features = ["picking", "render"]
 [[example]]
 name = "file_browse"
 required-features = ["render"]
@@ -142,6 +142,7 @@ bevy = { version = "0.20.0-rc.1", default-features = false, features = [
     "bevy_asset",
     "bevy_core_pipeline",
     "bevy_gizmos",
+    "bevy_gizmos_render",
     "bevy_pbr",
     "mesh_picking",
     "bevy_sprite",
