@@ -46,7 +46,7 @@ jobs:
       - if: matrix.features != '<ALL>'
         run: cargo clippy --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
       - if: matrix.features == '<ALL>'
-        run: cargo clippy --all-features --all-targets --features=${{ matrix.features }} -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
   clippy_wasm32:
     name: Clippy check (wasm32)
@@ -114,7 +114,7 @@ jobs:
           AR=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar \
           CC=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang \
           CXX=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang++ \
-          cargo clippy --target=aarch64-linux-android --all-features --all-targets --features=${{ matrix.features }} -- -D warnings
+          cargo clippy --target=aarch64-linux-android --all-features --all-targets -- -D warnings
 
   clippy_ios:
     name: Clippy check (ios)
@@ -142,7 +142,7 @@ jobs:
       - if: matrix.features != '<ALL>'
         run: cargo clippy --target=aarch64-apple-ios --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
       - if: matrix.features == '<ALL>'
-        run: cargo clippy --target=aarch64-apple-ios --all-features --all-targets --features=${{ matrix.features }} -- -D warnings
+        run: cargo clippy --target=aarch64-apple-ios --all-features --all-targets -- -D warnings
 
   doc:
     name: Check documentation
