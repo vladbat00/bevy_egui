@@ -76,7 +76,7 @@ jobs:
         env:
           RUSTFLAGS: --cfg getrandom_backend="wasm_js"
       - if: matrix.features == '<ALL>'
-        run: cargo clippy --all-features --target=wasm32-unknown-unknown --all-targets --features=${{ matrix.features }} -- -D warnings
+        run: cargo clippy --all-features --target=wasm32-unknown-unknown --all-targets -- -D warnings
         env:
           RUSTFLAGS: --cfg getrandom_backend="wasm_js"
 
