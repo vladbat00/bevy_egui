@@ -58,7 +58,7 @@ jobs:
             "manage_clipboard",
             "open_url",
             "render",
-            "manage_clipboard,open_url,render,picking,bevy/bevy_gizmos",
+            "manage_clipboard,open_url,render,picking,bevy/bevy_gizmos,bevy/bevy_gizmos_render",
           ]
     steps:
       - uses: actions/checkout@v3
