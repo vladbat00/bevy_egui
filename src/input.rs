@@ -1426,6 +1426,58 @@ mod tests {
             non_window_context
         );
     }
+
+    #[test]
+    fn modifiers_are_only_sent_when_changed() {
+        let mut app = App::new();
+        app.add_message::<EguiInputEvent>()
+            .add_message::<EguiFileDragAndDropMessage>()
+            .init_resource::<ModifierKeysState>()
+            .init_resource::<WindowToEguiContextMap>()
+            .init_resource::<Time<Real>>()
+            .add_systems(Update, write_egui_input_system);
+        let context = app
+            .world_mut()
+            .spawn((
+                EguiContext::default(),
+                EguiInput::default(),
+                Camera::default(),
+            ))
+            .id();
+
+        // Writes the input and runs an egui pass on it, like `begin_pass_system` and
+        // `end_pass_system` do. Returns the modifier events that were sent.
+        let run_pass = |app: &mut App| {
+            app.update();
+            let input =
+                std::mem::take(&mut app.world_mut().get_mut::<EguiInput>(context).unwrap().0);
+            let modifier_events: Vec<_> = input
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    egui::Event::ModifiersChanged(modifiers) => Some(*modifiers),
+                    _ => None,
+                })
+                .collect();
+            let mut egui_context = app.world_mut().get_mut::<EguiContext>(context).unwrap();
+            egui_context
+                .get_mut()
+                .run_ui(input, |_| {})
+                .textures_delta
+                .clear();
+            modifier_events
+        };
+
+        assert_eq!(run_pass(&mut app), vec![]);
+
+        app.world_mut().resource_mut::<ModifierKeysState>().shift = true;
+        assert_eq!(run_pass(&mut app), vec![egui::Modifiers::SHIFT]);
+        assert_eq!(run_pass(&mut app), vec![]);
+
+        app.world_mut().resource_mut::<ModifierKeysState>().reset();
+        assert_eq!(run_pass(&mut app), vec![egui::Modifiers::NONE]);
+        assert_eq!(run_pass(&mut app), vec![]);
+    }
 }
 
 /// Reads both [`EguiFileDragAndDropMessage`] and [`EguiInputEvent`] messages and feeds them to Egui.
@@ -1436,7 +1488,7 @@ pub fn write_egui_input_system(
     modifier_keys_state: Res<ModifierKeysState>,
     mut egui_input_reader: MessageReader<EguiInputEvent>,
     mut egui_file_dnd_message_reader: MessageReader<EguiFileDragAndDropMessage>,
-    mut egui_contexts: Query<(Entity, &mut EguiInput, &Camera)>,
+    mut egui_contexts: Query<(Entity, &mut EguiInput, &mut EguiContext, &Camera)>,
     windows: Query<&Window>,
     time: Res<Time<Real>>,
 ) {
@@ -1444,7 +1496,7 @@ pub fn write_egui_input_system(
         #[cfg(feature = "log_input_messages")]
         log::warn!("{context:?}: {event:?}");
 
-        let (_entity, mut egui_input, _camera) = match egui_contexts.get_mut(*context) {
+        let (_entity, mut egui_input, ..) = match egui_contexts.get_mut(*context) {
             Ok(egui_input) => egui_input,
             Err(err) => {
                 log::error!(
@@ -1461,7 +1513,7 @@ pub fn write_egui_input_system(
         #[cfg(feature = "log_file_dnd_messages")]
         log::warn!("{context:?}: {message:?}");
 
-        let (_entity, mut egui_input, _camera) = match egui_contexts.get_mut(*context) {
+        let (_entity, mut egui_input, ..) = match egui_contexts.get_mut(*context) {
             Ok(egui_input) => egui_input,
             Err(err) => {
                 log::error!(
@@ -1498,7 +1550,7 @@ pub fn write_egui_input_system(
         }
     }
 
-    for (entity, mut egui_input, camera) in egui_contexts.iter_mut() {
+    for (entity, mut egui_input, mut egui_context, camera) in egui_contexts.iter_mut() {
         egui_input.focused = focused_non_window_egui_context.as_deref().map_or_else(
             || {
                 window_to_egui_context_map
@@ -1514,9 +1566,14 @@ pub fn write_egui_input_system(
             .entry(ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = camera.target_scaling_factor();
-        egui_input.events.push(egui::Event::ModifiersChanged(
-            modifier_keys_state.to_egui_modifiers(),
-        ));
+        // Egui keeps the modifiers between passes, and any input event makes it request
+        // an immediate repaint, so only send them when they change.
+        let modifiers = modifier_keys_state.to_egui_modifiers();
+        if egui_context.get_mut().input(|i| i.modifiers) != modifiers {
+            egui_input
+                .events
+                .push(egui::Event::ModifiersChanged(modifiers));
+        }
         egui_input.time = Some(time.elapsed_secs_f64());
     }
 }
