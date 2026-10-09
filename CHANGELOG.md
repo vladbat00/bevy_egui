@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 9-Oct-2026
+
+### Fixed
+
+- Send `ModifiersChanged` only when the modifiers change to fix the reactive low power mode ([#505](https://github.com/vladbat00/bevy_egui/pull/505) by @barafael).
+
+### Changed
+
+- Update to Bevy 0.20 ([#500](https://github.com/vladbat00/bevy_egui/pull/500) by @taboky-dev).
+
 ## [0.42.0] - 16-Aug-2026
 
 ### Fixed
