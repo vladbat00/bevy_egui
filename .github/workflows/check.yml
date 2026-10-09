@@ -177,5 +177,22 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
       - name: Install dependencies
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libglib2.0-dev libgtk-3-dev
-      - run: cargo test --all
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libglib2.0-dev libgtk-3-dev libwayland-dev
+      - uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: |
+            ~/apt-cache/
+          key: ${{ runner.os }}-apt-kisak_turtle-
+          restore-keys: ${{ runner.os }}-apt-kisak_turtle-
+      - name: Install additional Linux dependencies for Vulkan
+        run: |
+          sudo apt-get install --no-install-recommends libxkbcommon-x11-0 xvfb
+
+          if [ -d ~/apt-cache ] && [ -n "$(ls -A ~/apt-cache 2>/dev/null)" ]; then
+            sudo cp --verbose --force --recursive ~/apt-cache/* /
+          else
+            sudo add-apt-repository ppa:kisak/turtle -y
+            sudo apt-get install --no-install-recommends libgl1-mesa-dri mesa-vulkan-drivers
+          fi
+      - run: xvfb-run cargo test --all
