@@ -171,7 +171,7 @@ fn draw_gizmos_system(
 }
 
 fn handle_over_system(
-    over: On<Pointer<Over>>,
+    over: On<PointerOver>,
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
@@ -182,7 +182,7 @@ fn handle_over_system(
 }
 
 fn handle_out_system(
-    out: On<Pointer<Out>>,
+    out: On<PointerOut>,
     mut mesh_material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
     material_handles: Res<MaterialHandles>,
 ) {
@@ -194,7 +194,7 @@ fn handle_out_system(
 
 #[allow(clippy::type_complexity)]
 fn handle_drag_system(
-    drag: On<Pointer<Drag>>,
+    drag: On<PointerDrag>,
     window: Single<&Window, With<PrimaryWindow>>,
     mut egui_mesh_transform: Single<&mut Transform, With<PickableEguiContext>>,
     // Need to specify `Without<PickableEguiContext>` for `camera_query` and `egui_mesh_transform` to be disjoint.
