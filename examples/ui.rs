@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_egui::{
     EguiContext, EguiContexts, EguiPlugin, EguiPrimaryContextPass, EguiStartupSet,
-    EguiTextureHandle,
+    EguiTextureHandle, input::EguiInputEvent,
 };
 
 #[derive(Resource)]
@@ -179,6 +179,7 @@ fn ui_example_system(
     let mut copy = false;
     let mut remove = false;
     let mut invert = false;
+    let mut screenshot = false;
 
     egui::Panel::left("side_panel")
         .default_size(200.0)
@@ -206,6 +207,7 @@ fn ui_example_system(
                 copy = ui.button("Copy").clicked();
                 invert = ui.button("Invert").clicked();
                 remove = ui.button("Remove").clicked();
+                screenshot = ui.button("Screenshot").clicked();
             });
 
             ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
@@ -267,6 +269,9 @@ fn ui_example_system(
             ui.label("You would normally chose either panels OR windows.");
         });
 
+    if screenshot {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+    }
     if invert {
         ui_state.inverted = !ui_state.inverted;
     }

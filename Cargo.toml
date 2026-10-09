@@ -137,7 +137,7 @@ smithay-clipboard = { version = "0.7.2", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9.5"
-bevy = { version = "0.20.0-rc.1", default-features = false, features = [
+bevy = { version = "0.20.0-rc.1", default-features = true, features = [
     "bevy_log",
     "bevy_asset",
     "bevy_core_pipeline",

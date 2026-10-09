@@ -75,7 +75,7 @@ pub struct EguiContextImeState {
 #[derive(Message)]
 /// Wraps Egui messages emitted by [`crate::EguiInputSet`] systems.
 pub struct EguiInputEvent {
-    /// Context to pass an message to.
+    /// Context to pass a message to.
     pub context: Entity,
     /// Wrapped event.
     pub event: egui::Event,

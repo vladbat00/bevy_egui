@@ -199,6 +199,7 @@ use std::cell::{RefCell, RefMut};
     feature = "manage_clipboard"
 ))]
 use std::sync::{Arc, Mutex};
+use egui::{OrderedViewportIdMap, ViewportOutput};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -539,6 +540,8 @@ impl EguiRenderOutput {
 pub struct EguiOutput {
     /// Corresponds to [`egui::FullOutput::platform_output`].
     pub platform_output: egui::PlatformOutput,
+    /// Corresponds to [`egui::FullOutput::viewport_output`].
+    pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
     /// Corresponds to [`egui::FullOutput::pixels_per_point`].
     pub pixels_per_point: f32,
 }
@@ -547,6 +550,7 @@ impl Default for EguiOutput {
     fn default() -> Self {
         Self {
             platform_output: egui::PlatformOutput::default(),
+            viewport_output: OrderedViewportIdMap::default(),
             pixels_per_point: 1.0,
         }
     }
