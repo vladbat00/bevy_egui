@@ -37,6 +37,10 @@ fn test_reactive_mode(
         app_exit_writer.write(AppExit::Success);
     }
 
+    if time.elapsed_secs() > 10.0 {
+        panic!("test timeout");
+    }
+
     *frame_counter += 1;
 }
 
