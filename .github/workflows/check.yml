@@ -31,7 +31,7 @@ jobs:
             "manage_clipboard",
             "open_url",
             "render",
-            "manage_clipboard,open_url,render",
+            "<ALL>",
           ]
     steps:
       - uses: actions/checkout@v3
@@ -43,7 +43,10 @@ jobs:
       - name: Install dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libglib2.0-dev libgtk-3-dev
-      - run: cargo clippy --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features != '<ALL>'
+        run: cargo clippy --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features == '<ALL>'
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
   clippy_wasm32:
     name: Clippy check (wasm32)
@@ -58,7 +61,7 @@ jobs:
             "manage_clipboard",
             "open_url",
             "render",
-            "manage_clipboard,open_url,render,picking,bevy/bevy_gizmos",
+            "<ALL>",
           ]
     steps:
       - uses: actions/checkout@v3
@@ -68,7 +71,12 @@ jobs:
           components: clippy
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --no-default-features --target=wasm32-unknown-unknown --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features != '<ALL>'
+        run: cargo clippy --no-default-features --target=wasm32-unknown-unknown --all-targets --features=${{ matrix.features }} -- -D warnings
+        env:
+          RUSTFLAGS: --cfg getrandom_backend="wasm_js"
+      - if: matrix.features == '<ALL>'
+        run: cargo clippy --all-features --target=wasm32-unknown-unknown --all-targets -- -D warnings
         env:
           RUSTFLAGS: --cfg getrandom_backend="wasm_js"
 
@@ -85,7 +93,7 @@ jobs:
             "manage_clipboard",
             "open_url",
             "render",
-            "manage_clipboard,open_url,render,picking,bevy/bevy_gizmos",
+            "<ALL>",
           ]
     steps:
       - uses: actions/checkout@v3
@@ -95,11 +103,18 @@ jobs:
           components: clippy
           targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@v2
-      - run: |
+      - if: matrix.features != '<ALL>'
+        run: |
           AR=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar \
           CC=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang \
           CXX=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang++ \
           cargo clippy --target=aarch64-linux-android --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features == '<ALL>'
+        run: |
+          AR=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar \
+          CC=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang \
+          CXX=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang++ \
+          cargo clippy --target=aarch64-linux-android --all-features --all-targets -- -D warnings
 
   clippy_ios:
     name: Clippy check (ios)
@@ -114,7 +129,7 @@ jobs:
             "manage_clipboard",
             "open_url",
             "render",
-            "manage_clipboard,open_url,render,picking,bevy/bevy_gizmos",
+            "<ALL>",
           ]
     steps:
       - uses: actions/checkout@v3
@@ -124,7 +139,10 @@ jobs:
           components: clippy
           targets: aarch64-apple-ios
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --target=aarch64-apple-ios --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features != '<ALL>'
+        run: cargo clippy --target=aarch64-apple-ios --no-default-features --all-targets --features=${{ matrix.features }} -- -D warnings
+      - if: matrix.features == '<ALL>'
+        run: cargo clippy --target=aarch64-apple-ios --all-features --all-targets -- -D warnings
 
   doc:
     name: Check documentation
@@ -135,7 +153,7 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --all --features "bevy_winit/x11"
+      - run: cargo doc --all --no-deps --features "bevy_winit/x11"
         env:
           RUSTDOCFLAGS: -D warnings
 

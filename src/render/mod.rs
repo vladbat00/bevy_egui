@@ -17,7 +17,7 @@ use bevy_ecs::{
     world::{FromWorld, World},
 };
 use bevy_image::{Image, ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
-use bevy_math::{Mat4, UVec4};
+use bevy_math::{UVec4, proj::orthographic};
 use bevy_mesh::VertexBufferLayout;
 use bevy_platform::collections::HashSet;
 use bevy_render::{
@@ -117,7 +117,7 @@ pub fn extract_egui_camera_view_system(
 
         if let Some(physical_viewport_rect) = camera.physical_viewport_rect() {
             // Use a projection matrix with the origin in the top left instead of the bottom left that comes with OrthographicProjection.
-            let projection_matrix = Mat4::orthographic_rh(
+            let projection_matrix = orthographic(
                 0.0,
                 physical_viewport_rect.width() as f32,
                 physical_viewport_rect.height() as f32,
@@ -158,7 +158,7 @@ pub fn extract_egui_camera_view_system(
                     EguiViewTarget(render_entity),
                     egui_render_output,
                     EguiPixelsPerPoint { pixels_per_point },
-                    TemporaryRenderEntity,
+                    TemporaryRenderEntity::default(),
                 ))
                 .id();
 
@@ -340,6 +340,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
                         VertexFormat::Unorm8x4,  // color (sRGB)
                     ],
                 )],
+                constants: vec![],
             },
             fragment: Some(FragmentState {
                 shader: EGUI_SHADER_HANDLE,
@@ -350,6 +351,7 @@ impl SpecializedRenderPipeline for EguiPipeline {
                     blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                constants: vec![],
             }),
             primitive: PrimitiveState::default(),
             depth_stencil: None,

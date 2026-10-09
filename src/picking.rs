@@ -11,13 +11,13 @@ use bevy_ecs::{
     observer::On,
     prelude::{Commands, Query, With},
 };
-use bevy_math::Ray3d;
 use bevy_picking::{
     Pickable,
-    events::{Move, Out, Over, Pointer},
+    events::{PointerMove, PointerOut, PointerOver},
     mesh_picking::ray_cast::RayMeshHit,
     prelude::{MeshRayCast, MeshRayCastSettings, RayCastVisibility},
 };
+use bevy_shape::Ray3d;
 use bevy_transform::components::GlobalTransform;
 use bevy_window::PrimaryWindow;
 
@@ -29,14 +29,14 @@ pub struct PickableEguiContext(pub Entity);
 
 /// Ray-casts a mesh rendering a pickable Egui context and updates its [`EguiContextPointerPosition`] component.
 pub fn handle_move_system(
-    event: On<Pointer<Move>>,
+    event: On<PointerMove>,
     mut mesh_ray_cast: MeshRayCast,
     mut egui_pointers: Query<&mut EguiContextPointerPosition>,
     egui_contexts: Query<(&Camera, &GlobalTransform, &RenderTarget), With<EguiContext>>,
     pickable_egui_context_query: Query<&PickableEguiContext>,
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
 ) -> Result {
-    let NormalizedRenderTarget::Window(_) = event.pointer_location.target else {
+    let NormalizedRenderTarget::Window(_) = event.pointer.target else {
         return Ok(());
     };
 
@@ -57,7 +57,7 @@ pub fn handle_move_system(
         global_transform,
         render_target,
         &bevy_picking::pointer::PointerLocation {
-            location: Some(event.pointer_location.clone()),
+            location: Some(event.pointer.location()),
         },
     ) else {
         return Ok(());
@@ -83,7 +83,7 @@ pub fn handle_move_system(
 
 /// Inserts the [`HoveredNonWindowEguiContext`] resource containing the hovered Egui context.
 pub fn handle_over_system(
-    event: On<Pointer<Over>>,
+    event: On<PointerOver>,
     pickable_egui_context_query: Query<&PickableEguiContext>,
     mut commands: Commands,
 ) {
@@ -94,7 +94,7 @@ pub fn handle_over_system(
 
 /// Removes the [`HoveredNonWindowEguiContext`] resource if it contains the Egui context that the pointer has left.
 pub fn handle_out_system(
-    event: On<Pointer<Out>>,
+    event: On<PointerOut>,
     pickable_egui_context_query: Query<&PickableEguiContext>,
     mut commands: Commands,
     hovered_non_window_egui_context: Option<Res<HoveredNonWindowEguiContext>>,
