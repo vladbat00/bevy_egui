@@ -195,4 +195,4 @@ jobs:
             sudo add-apt-repository ppa:kisak/turtle -y
             sudo apt-get install --no-install-recommends libgl1-mesa-dri mesa-vulkan-drivers
           fi
-      - run: cargo test --all
+      - run: cargo test --all --features "bevy_winit/x11"
