@@ -1,3 +1,4 @@
+@if(BINDLESS)
 enable wgpu_binding_array;
 
 struct Transform {
