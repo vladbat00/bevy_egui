@@ -1641,8 +1641,15 @@ pub fn update_egui_textures_system(
                     } else {
                         log::warn!("Partial update of a missing texture (id: {:?})", texture_id);
                     }
+                } else if let Some(managed_texture) =
+                    egui_managed_textures.get_mut(&(entity, texture_id))
+                    && let Some(mut image) = image_assets.get_mut(managed_texture.handle.id())
+                {
+                    // Full update of a known texture.
+                    *image = render::color_image_as_bevy_image(&color_image, sampler);
+                    managed_texture.color_image = color_image;
                 } else {
-                    // Full update.
+                    // Full update of a new texture.
                     let image = render::color_image_as_bevy_image(&color_image, sampler);
                     let handle = image_assets.add(image);
                     egui_managed_textures.insert(
