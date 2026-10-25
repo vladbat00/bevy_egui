@@ -3,7 +3,7 @@ use crate::{
     EguiUserTextures,
     render::{
         DrawCommand, DrawPrimitive, EguiBevyPaintCallback, EguiCameraView, EguiDraw, EguiPipeline,
-        EguiPipelineKey, EguiViewTarget, PaintCallbackDraw,
+        EguiPipelineKey, EguiPipelineSpecializationKey, EguiViewTarget, PaintCallbackDraw,
     },
 };
 use bevy_asset::prelude::*;
@@ -261,7 +261,16 @@ pub fn queue_bind_groups_system(
 
 /// Cached Pipeline IDs for the specialized instances of `EguiPipeline`.
 #[derive(Resource)]
-pub struct EguiPipelines(pub HashMap<MainEntity, CachedRenderPipelineId>);
+pub struct EguiPipelines(pub HashMap<MainEntity, EguiPipelineIds>);
+
+/// Pipeline IDs of a view.
+#[derive(Clone, Copy)]
+pub struct EguiPipelineIds {
+    /// Pipeline used to draw egui-managed textures.
+    pub managed_textures: CachedRenderPipelineId,
+    /// Pipeline used to draw user textures, premultiplying their colors by their alpha.
+    pub user_textures: CachedRenderPipelineId,
+}
 
 /// Queue [`EguiPipeline`] instances.
 pub fn queue_pipelines_system(
@@ -272,23 +281,33 @@ pub fn queue_pipelines_system(
     egui_views: Query<&EguiViewTarget, With<ExtractedView>>,
     camera_views: Query<(&MainEntity, &ExtractedCamera)>,
 ) {
-    let pipelines: HashMap<MainEntity, CachedRenderPipelineId> = egui_views
+    let pipelines: HashMap<MainEntity, EguiPipelineIds> = egui_views
         .iter()
         .filter_map(|egui_camera_view| {
             let (main_entity, extracted_camera) = camera_views.get(egui_camera_view.0).ok()?;
 
-            let pipeline_id = specialized_pipelines.specialize(
-                &pipeline_cache,
-                &egui_pipeline,
-                EguiPipelineKey {
-                    target_format: if extracted_camera.hdr {
-                        TextureFormat::Rgba16Float
-                    } else {
-                        TextureFormat::Rgba8UnormSrgb
-                    },
+            let key = EguiPipelineKey {
+                target_format: if extracted_camera.hdr {
+                    TextureFormat::Rgba16Float
+                } else {
+                    TextureFormat::Rgba8UnormSrgb
                 },
-            );
-            Some((*main_entity, pipeline_id))
+            };
+            let mut specialize = |premultiply_texture_alpha| {
+                specialized_pipelines.specialize(
+                    &pipeline_cache,
+                    &egui_pipeline,
+                    EguiPipelineSpecializationKey {
+                        key,
+                        premultiply_texture_alpha,
+                    },
+                )
+            };
+            let pipeline_ids = EguiPipelineIds {
+                managed_textures: specialize(false),
+                user_textures: specialize(true),
+            };
+            Some((*main_entity, pipeline_ids))
         })
         .collect();
 

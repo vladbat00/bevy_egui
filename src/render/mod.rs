@@ -310,12 +310,30 @@ pub struct EguiPipelineKey {
     pub target_format: TextureFormat,
 }
 
+/// Key for the specialized instances of [`EguiPipeline`].
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct EguiPipelineSpecializationKey {
+    /// Key based on the render target.
+    pub key: EguiPipelineKey,
+    /// If `true`, the texture alpha will be premultiplied. It's needed because bevy textures
+    /// are not already premultiplied contrary to egui's textures.
+    pub premultiply_texture_alpha: bool,
+}
+
 impl SpecializedRenderPipeline for EguiPipeline {
-    type Key = EguiPipelineKey;
+    type Key = EguiPipelineSpecializationKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        let EguiPipelineSpecializationKey {
+            key,
+            premultiply_texture_alpha,
+        } = key;
         let mut shader_defs = Vec::new();
         let mut immediate_size = 0;
+
+        if premultiply_texture_alpha {
+            shader_defs.push(ShaderDefVal::Bool("PREMULTIPLY_TEXTURE_ALPHA".into(), true));
+        }
 
         if let Some(bindless) = self.bindless {
             shader_defs.push(ShaderDefVal::UInt("BINDLESS".into(), u32::from(bindless)));
@@ -395,9 +413,8 @@ pub(crate) fn color_image_as_bevy_image(
     let pixels = egui_image
         .pixels
         .iter()
-        // We unmultiply Egui textures to premultiply them later in the fragment shader.
-        // As user textures loaded as Bevy assets are not premultiplied (and there seems to be no
-        // convenient way to convert them to premultiplied ones), we do this with Egui ones.
+        // Egui textures are kept premultiplied. User textures loaded as Bevy assets are not
+        // premultiplied, so they are drawn with a pipeline premultiplying them in the shader.
         .flat_map(|color| color.to_array())
         .collect();
 

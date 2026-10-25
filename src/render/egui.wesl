@@ -75,7 +75,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Quoting the Egui's glsl shader:
     // "We multiply the colors in gamma space, because that's the only way to get text to look right."
     let texture_color_linear = textureSample(image_texture, image_sampler, in.uv);
-    let texture_color_gamma = gamma_from_linear_rgba(texture_color_linear);
+    var texture_color_gamma = gamma_from_linear_rgba(texture_color_linear);
+    // Egui textures are already premultiplied, but bevy textures aren't.
+    @if(PREMULTIPLY_TEXTURE_ALPHA) {
+    texture_color_gamma = vec4<f32>(texture_color_gamma.rgb * texture_color_gamma.a, texture_color_gamma.a);
+    }
     let color_gamma = texture_color_gamma * in.color;
 
     return vec4<f32>(linear_from_gamma_rgb(color_gamma.rgb), color_gamma.a);

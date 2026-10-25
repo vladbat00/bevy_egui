@@ -88,6 +88,11 @@ required-features = ["render"]
 name = "winit_tests"
 path = "winit_tests/test_reactive_low_power.rs"
 harness = false
+[[test]]
+name = "user_texture_alpha"
+path = "tests/user_texture_alpha.rs"
+harness = false
+required-features = ["render"]
 
 [dependencies]
 egui = { version = "0.36", default-features = false }

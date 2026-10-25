@@ -1,6 +1,8 @@
 use crate::render::{
     DrawPrimitive, EguiCameraView, EguiViewTarget,
-    systems::{EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTransforms},
+    systems::{
+        EguiPipelines, EguiRenderData, EguiTextureBindGroups, EguiTextureId, EguiTransforms,
+    },
 };
 use bevy_camera::Viewport;
 use bevy_ecs::{
@@ -100,10 +102,13 @@ pub fn egui_pass(
     let mut last_scissor_rect = None;
     let mut last_bindless_offset = None;
 
-    let pipeline_id = egui_pipelines
+    let pipeline_ids = egui_pipelines
         .get(&extracted_view.retained_view_entity.main_entity)
         .expect("Expected a queued pipeline");
-    let Some(pipeline) = pipeline_cache.get_render_pipeline(*pipeline_id) else {
+    let (Some(managed_textures_pipeline), Some(user_textures_pipeline)) = (
+        pipeline_cache.get_render_pipeline(pipeline_ids.managed_textures),
+        pipeline_cache.get_render_pipeline(pipeline_ids.user_textures),
+    ) else {
         return;
     };
 
@@ -127,7 +132,7 @@ pub fn egui_pass(
     let mut vertex_offset: u32 = 0;
     for draw_command in &data.draw_commands {
         if requires_reset {
-            render_pass.set_render_pipeline(pipeline);
+            render_pass.set_render_pipeline(managed_textures_pipeline);
             render_pass.set_bind_group(0, transform_buffer_bind_group, &[transform_buffer_offset]);
             render_pass.set_camera_viewport(&Viewport {
                 physical_position: UVec2::ZERO,
@@ -184,6 +189,11 @@ pub fn egui_pass(
                     continue;
                 };
 
+                // `TrackedRenderPass` only switches pipelines when it's actually needed.
+                render_pass.set_render_pipeline(match command.egui_texture {
+                    EguiTextureId::Managed(..) => managed_textures_pipeline,
+                    EguiTextureId::User(_) => user_textures_pipeline,
+                });
                 render_pass.set_bind_group(1, texture_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint32);
