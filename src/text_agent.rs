@@ -196,8 +196,7 @@ pub fn install_text_agent_system(
 
             if !text.is_empty() && !event.is_composing() {
                 input_clone.set_value("");
-                input_clone.blur().ok();
-                input_clone.focus().ok();
+                // Keep the DOM input focused so mobile keyboards stay open and egui retains the TextEdit caret.
                 if let Err(err) = sender_clone.send(egui::Event::Text(text.clone())) {
                     log::error!("Failed to send input event: {:?}", err);
                 }
@@ -394,6 +393,17 @@ pub fn install_text_agent_system(
     }
 
     body.append_child(&input).expect("failed to append to body");
+}
+
+/// Returns whether the text agent currently owns DOM focus.
+pub(crate) fn is_text_agent_focused() -> bool {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return false;
+    };
+
+    document
+        .active_element()
+        .is_some_and(|element| element.id() == AGENT_ID)
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
