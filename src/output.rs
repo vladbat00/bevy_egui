@@ -64,6 +64,9 @@ pub fn process_output_system(
                         egui_clipboard.set_text(_text);
                     }
                 }
+                egui::OutputCommand::TextSelectionSettled(_) => {
+                    // This integration does not expose a PRIMARY selection clipboard.
+                }
                 egui::OutputCommand::CopyImage(_image) => {
                     #[cfg(all(feature = "manage_clipboard", not(target_os = "android")))]
                     egui_clipboard.set_image(_image);

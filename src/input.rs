@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use crate::text_agent::{is_mobile_safari, update_text_agent};
+use crate::text_agent::{is_mobile_safari, is_text_agent_focused, update_text_agent};
 use crate::{
     EguiContext, EguiContextSettings, EguiGlobalSettings, EguiInput, EguiOutput, EguiZoomFactor,
     helpers::vec2_into_egui_pos2,
@@ -629,6 +629,7 @@ pub fn write_mouse_wheel_messages_system(
                 delta,
                 modifiers,
                 phase: TouchPhase::Move,
+                source: egui::MouseWheelSource::Unknown,
             },
         });
     }
@@ -1490,6 +1491,7 @@ pub fn write_egui_input_system(
     mut egui_file_dnd_message_reader: MessageReader<EguiFileDragAndDropMessage>,
     mut egui_contexts: Query<(Entity, &mut EguiInput, &mut EguiContext, &Camera)>,
     windows: Query<&Window>,
+    primary_windows: Query<Entity, With<bevy_window::PrimaryWindow>>,
     time: Res<Time<Real>>,
 ) {
     for EguiInputEvent { context, event } in egui_input_reader.read() {
@@ -1550,14 +1552,25 @@ pub fn write_egui_input_system(
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    let text_agent_focused = is_text_agent_focused();
+    #[cfg(not(target_arch = "wasm32"))]
+    let text_agent_focused = false;
+    let primary_window_entity = primary_windows.single().ok();
+
     for (entity, mut egui_input, mut egui_context, camera) in egui_contexts.iter_mut() {
         egui_input.focused = focused_non_window_egui_context.as_deref().map_or_else(
             || {
-                window_to_egui_context_map
-                    .context_to_window
-                    .get(&entity)
-                    .and_then(|window_entity| windows.get(*window_entity).ok())
-                    .is_some_and(|window| window.focused)
+                let Some(window_entity) = window_to_egui_context_map.context_to_window.get(&entity)
+                else {
+                    return false;
+                };
+                let window_focused = windows
+                    .get(*window_entity)
+                    .is_ok_and(|window| window.focused);
+                // The text agent receives keyboard input through a separate DOM element, but egui still needs viewport focus to render the TextEdit caret.
+                window_focused
+                    || (text_agent_focused && primary_window_entity == Some(*window_entity))
             },
             |context| context.0 == entity,
         );

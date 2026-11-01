@@ -77,6 +77,19 @@ pub fn process_safari_virtual_keyboard_system(
         }
     };
 }
+/// Keeps the desktop browser text agent focused while egui is editing text.
+pub fn process_desktop_text_agent_focus_system(egui_contexts: Query<(&EguiInput, &EguiOutput)>) {
+    let editing_text = egui_contexts.iter().any(|(egui_input, egui_output)| {
+        egui_input.focused
+            && (egui_output.platform_output.ime.is_some()
+                || egui_output.platform_output.mutable_text_under_cursor)
+    });
+
+    // Avoid refocusing on every frame, which can interrupt an active IME composition.
+    if editing_text != is_text_agent_focused() {
+        update_text_agent(editing_text);
+    }
+}
 
 /// Listens to the [`TextAgentChannel`] channel and wraps messages into [`EguiInputEvent`] events.
 pub fn write_text_agent_channel_events_system(
@@ -182,6 +195,74 @@ pub fn install_text_agent_system(
 
     let sender = text_agent_channel.sender.clone();
 
+    let input_clone = input.clone();
+    let closure = Closure::wrap(Box::new(move |_event: web_sys::CompositionEvent| {
+        #[cfg(feature = "log_input_messages")]
+        log::warn!("Composition start: data={:?}", _event.data());
+        input_clone.set_value("");
+    }) as Box<dyn FnMut(_)>);
+    input
+        .add_event_listener_with_callback("compositionstart", closure.as_ref().unchecked_ref())
+        .expect("failed to create compositionstart listener");
+    subscribed_events
+        .composition_event_closures
+        .push(EventClosure {
+            target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                &document,
+            )
+            .clone(),
+            event_name: "virtual_keyboard_compositionstart".to_owned(),
+            closure,
+        });
+
+    let sender_clone = sender.clone();
+    let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
+        #[cfg(feature = "log_input_messages")]
+        log::warn!("Composition update: data={:?}", event.data());
+        let Some(text) = event.data() else { return };
+        let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+            text,
+            active_range_chars: None,
+        });
+        let _ = sender_clone.send(event);
+    }) as Box<dyn FnMut(_)>);
+    input
+        .add_event_listener_with_callback("compositionupdate", closure.as_ref().unchecked_ref())
+        .expect("failed to create compositionupdate listener");
+    subscribed_events
+        .composition_event_closures
+        .push(EventClosure {
+            target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                &document,
+            )
+            .clone(),
+            event_name: "virtual_keyboard_compositionupdate".to_owned(),
+            closure,
+        });
+
+    let input_clone = input.clone();
+    let sender_clone = sender.clone();
+    let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
+        #[cfg(feature = "log_input_messages")]
+        log::warn!("Composition end: data={:?}", event.data());
+        let Some(text) = event.data() else { return };
+        input_clone.set_value("");
+        let event = egui::Event::Ime(egui::ImeEvent::Commit(text));
+        let _ = sender_clone.send(event);
+    }) as Box<dyn FnMut(_)>);
+    input
+        .add_event_listener_with_callback("compositionend", closure.as_ref().unchecked_ref())
+        .expect("failed to create compositionend listener");
+    subscribed_events
+        .composition_event_closures
+        .push(EventClosure {
+            target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                &document,
+            )
+            .clone(),
+            event_name: "virtual_keyboard_compositionend".to_owned(),
+            closure,
+        });
     if let Some(true) = is_mobile() {
         let input_clone = input.clone();
         let sender_clone = sender.clone();
@@ -196,8 +277,7 @@ pub fn install_text_agent_system(
 
             if !text.is_empty() && !event.is_composing() {
                 input_clone.set_value("");
-                input_clone.blur().ok();
-                input_clone.focus().ok();
+                // Keep the DOM input focused so mobile keyboards stay open and egui retains the TextEdit caret.
                 if let Err(err) = sender_clone.send(egui::Event::Text(text.clone())) {
                     log::error!("Failed to send input event: {:?}", err);
                 }
@@ -214,75 +294,6 @@ pub fn install_text_agent_system(
             event_name: "virtual_keyboard_input".to_owned(),
             closure,
         });
-
-        let input_clone = input.clone();
-        let closure = Closure::wrap(Box::new(move |_event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_messages")]
-            log::warn!("Composition start: data={:?}", _event.data());
-            input_clone.set_value("");
-        }) as Box<dyn FnMut(_)>);
-        input
-            .add_event_listener_with_callback("compositionstart", closure.as_ref().unchecked_ref())
-            .expect("failed to create compositionstart listener");
-        subscribed_events
-            .composition_event_closures
-            .push(EventClosure {
-                target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
-                    &document,
-                )
-                .clone(),
-                event_name: "virtual_keyboard_compositionstart".to_owned(),
-                closure,
-            });
-
-        let sender_clone = sender.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_messages")]
-            log::warn!("Composition update: data={:?}", event.data());
-            let Some(text) = event.data() else { return };
-            let event = egui::Event::Ime(egui::ImeEvent::Preedit {
-                text,
-                active_range_chars: None,
-            });
-            let _ = sender_clone.send(event);
-        }) as Box<dyn FnMut(_)>);
-        input
-            .add_event_listener_with_callback("compositionupdate", closure.as_ref().unchecked_ref())
-            .expect("failed to create compositionupdate listener");
-        subscribed_events
-            .composition_event_closures
-            .push(EventClosure {
-                target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
-                    &document,
-                )
-                .clone(),
-                event_name: "virtual_keyboard_compositionupdate".to_owned(),
-                closure,
-            });
-
-        let input_clone = input.clone();
-        let sender_clone = sender.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            #[cfg(feature = "log_input_messages")]
-            log::warn!("Composition end: data={:?}", event.data());
-            let Some(text) = event.data() else { return };
-            input_clone.set_value("");
-            let event = egui::Event::Ime(egui::ImeEvent::Commit(text));
-            let _ = sender_clone.send(event);
-        }) as Box<dyn FnMut(_)>);
-        input
-            .add_event_listener_with_callback("compositionend", closure.as_ref().unchecked_ref())
-            .expect("failed to create compositionend listener");
-        subscribed_events
-            .composition_event_closures
-            .push(EventClosure {
-                target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
-                    &document,
-                )
-                .clone(),
-                event_name: "virtual_keyboard_compositionend".to_owned(),
-                closure,
-            });
 
         // Mobile safari doesn't let you set input focus outside of an event handler.
         if is_mobile_safari() {
@@ -393,7 +404,116 @@ pub fn install_text_agent_system(
             });
     }
 
+    if is_mobile() == Some(false) {
+        let input_clone = input.clone();
+        let sender_clone = sender.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
+            if event.is_composing() {
+                return;
+            }
+            let text = input_clone.value();
+            if !text.is_empty() {
+                input_clone.set_value("");
+                let _ = sender_clone.send(egui::Event::Text(text));
+            }
+        }) as Box<dyn FnMut(_)>);
+        input
+            .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())
+            .expect("failed to create desktop input listener");
+        subscribed_events.input_event_closures.push(EventClosure {
+            target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                &document,
+            )
+            .clone(),
+            event_name: "desktop_text_agent_input".to_owned(),
+            closure,
+        });
+
+        let sender_clone = sender.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+            if !event.is_composing() && event.key_code() != 229 {
+                send_text_agent_key_event(&sender_clone, &event, true);
+            }
+        }) as Box<dyn FnMut(_)>);
+        input
+            .add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())
+            .expect("failed to create desktop keydown listener");
+        subscribed_events
+            .keyboard_event_closures
+            .push(EventClosure {
+                target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                    &document,
+                )
+                .clone(),
+                event_name: "desktop_text_agent_keydown".to_owned(),
+                closure,
+            });
+
+        let sender_clone = sender.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+            if !event.is_composing() && event.key_code() != 229 {
+                send_text_agent_key_event(&sender_clone, &event, false);
+            }
+        }) as Box<dyn FnMut(_)>);
+        input
+            .add_event_listener_with_callback("keyup", closure.as_ref().unchecked_ref())
+            .expect("failed to create desktop keyup listener");
+        subscribed_events
+            .keyboard_event_closures
+            .push(EventClosure {
+                target: <web_sys::Document as std::convert::AsRef<web_sys::EventTarget>>::as_ref(
+                    &document,
+                )
+                .clone(),
+                event_name: "desktop_text_agent_keyup".to_owned(),
+                closure,
+            });
+    }
     body.append_child(&input).expect("failed to append to body");
+}
+
+fn send_text_agent_key_event(
+    sender: &Sender<egui::Event>,
+    event: &web_sys::KeyboardEvent,
+    pressed: bool,
+) {
+    let Some(key) = egui::Key::from_name(event.key().as_str()) else {
+        return;
+    };
+    let modifiers = egui::Modifiers {
+        alt: event.alt_key(),
+        ctrl: event.ctrl_key(),
+        shift: event.shift_key(),
+        mac_cmd: event.meta_key(),
+        command: event.ctrl_key() || event.meta_key(),
+    };
+    let _ = sender.send(egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed,
+        modifiers,
+        repeat: event.repeat(),
+    });
+}
+
+/// Returns whether the visible text agent currently owns DOM focus.
+pub(crate) fn is_text_agent_focused() -> bool {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return false;
+    };
+    let Some(input) = document
+        .get_element_by_id(AGENT_ID)
+        .and_then(|element| element.dyn_into::<web_sys::HtmlInputElement>().ok())
+    else {
+        return false;
+    };
+
+    // The hidden autofocus input must not be treated as an active text editor.
+    !input.hidden()
+        && document
+            .active_element()
+            .is_some_and(|element| element.id() == AGENT_ID)
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
@@ -458,7 +578,7 @@ pub(crate) fn is_mobile_safari() -> bool {
     .unwrap_or(false)
 }
 
-fn is_mobile() -> Option<bool> {
+pub(crate) fn is_mobile() -> Option<bool> {
     const MOBILE_DEVICE: [&str; 6] = ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
 
     let user_agent = web_sys::window()?.navigator().user_agent().ok()?;

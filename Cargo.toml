@@ -20,6 +20,7 @@ immutable_ctx = []
 manage_clipboard = ["arboard", "thread_local", "bytemuck", "egui/bytemuck", "smithay-clipboard"]
 open_url = ["webbrowser"]
 default_fonts = ["egui/default_fonts"]
+system_fonts = ["dep:egui_system_font_provider"]
 render = [
     "bevy_asset",
     "bevy_core_pipeline",
@@ -90,7 +91,7 @@ path = "winit_tests/test_reactive_low_power.rs"
 harness = false
 
 [dependencies]
-egui = { version = "0.36", default-features = false }
+egui = { version = "0.37", default-features = false }
 bevy_a11y = { version = "0.20.0", optional = true }
 bevy_app = { version = "0.20.0" }
 bevy_camera = { version = "0.20.0" }
@@ -133,6 +134,10 @@ bevy_ui_render = { version = "0.20.0", optional = true }
 # `picking` feature
 bevy_picking = { version = "0.20.0", optional = true, features = ["mesh_picking"] }
 
+# `system_fonts` feature
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui_system_font_provider = { version = "0.37.0", optional = true }
+
 # `manage_clipboard` feature
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 arboard = { version = "3.2.0", optional = true }
@@ -168,7 +173,7 @@ bevy = { version = "0.20.0", default-features = false, features = [
     "x11",
     "zstd_rust",
 ] }
-egui = { version = "0.36", default-features = false, features = ["bytemuck"] }
+egui = { version = "0.37", default-features = false, features = ["bytemuck"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 bevy = { version = "0.20.0", default-features = false, features = ["accesskit_unix"] }
@@ -181,10 +186,15 @@ web-sys = { version = "0.3.74", features = [
     "Clipboard",
     "ClipboardEvent",
     "ClipboardItem",
+    "CanvasRenderingContext2d",
+    "HtmlCanvasElement",
+    "ImageData",
+    "TextMetrics",
     "CompositionEvent",
     "DataTransfer",
     "Document",
     "EventTarget",
+    "Element",
     "HtmlInputElement",
     "InputEvent",
     "KeyboardEvent",

@@ -126,6 +126,9 @@ pub mod render;
 /// Mobile web keyboard input support.
 #[cfg(target_arch = "wasm32")]
 pub mod text_agent;
+/// Browser Canvas fallback for glyphs unavailable in installed fonts.
+#[cfg(target_arch = "wasm32")]
+mod web_canvas_glyphs;
 /// Clipboard management for web.
 #[cfg(all(feature = "manage_clipboard", target_arch = "wasm32",))]
 pub mod web_clipboard;
@@ -146,8 +149,8 @@ use crate::input::*;
 #[cfg(target_arch = "wasm32")]
 use crate::text_agent::{
     SafariVirtualKeyboardTouchState, TextAgentChannel, VirtualTouchInfo, install_text_agent_system,
-    is_mobile_safari, process_safari_virtual_keyboard_system,
-    write_text_agent_channel_events_system,
+    is_mobile, is_mobile_safari, process_desktop_text_agent_focus_system,
+    process_safari_virtual_keyboard_system, write_text_agent_channel_events_system,
 };
 use bevy_app::prelude::*;
 #[cfg(feature = "render")]
@@ -553,7 +556,7 @@ impl Default for EguiOutput {
 }
 
 /// A component for storing `bevy_egui` context.
-#[derive(Clone, Component, Default)]
+#[derive(Clone, Component)]
 #[require(
     EguiContextSettings,
     EguiInput,
@@ -567,6 +570,30 @@ impl Default for EguiOutput {
 )]
 pub struct EguiContext {
     ctx: egui::Context,
+}
+impl Default for EguiContext {
+    fn default() -> Self {
+        let ctx = egui::Context::default();
+
+        #[cfg(target_arch = "wasm32")]
+        ctx.add_glyph_rasterizer(crate::web_canvas_glyphs::glyph_rasterizer());
+        #[cfg(all(feature = "system_fonts", not(target_arch = "wasm32")))]
+        {
+            // Font enumeration is expensive, so all contexts share one provider per process.
+            static SYSTEM_FONT_PROVIDER: std::sync::OnceLock<
+                std::sync::Arc<dyn egui::FontProvider>,
+            > = std::sync::OnceLock::new();
+
+            let font_provider = SYSTEM_FONT_PROVIDER.get_or_init(|| {
+                let provider: std::sync::Arc<dyn egui::FontProvider> =
+                    std::sync::Arc::new(egui_system_font_provider::SystemFontProvider::new());
+                provider
+            });
+            ctx.add_font_provider(std::sync::Arc::clone(font_provider));
+        }
+
+        Self { ctx }
+    }
 }
 
 impl EguiContext {
@@ -1124,6 +1151,13 @@ impl Plugin for EguiPlugin {
                     app.add_systems(
                         PostUpdate,
                         process_safari_virtual_keyboard_system
+                            .in_set(EguiPostUpdateSet::PostProcessOutput),
+                    );
+                }
+                if is_mobile() == Some(false) {
+                    app.add_systems(
+                        PostUpdate,
+                        process_desktop_text_agent_focus_system
                             .in_set(EguiPostUpdateSet::PostProcessOutput),
                     );
                 }
